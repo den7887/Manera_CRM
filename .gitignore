@@ -1,0 +1,11 @@
+node_modules/
+build/
+dist/
+.pytest_cache/
+.run-logs/
+__pycache__/
+*.pyc
+.DS_Store
+npm-debug.log*
+yarn-error.log*
+.env
