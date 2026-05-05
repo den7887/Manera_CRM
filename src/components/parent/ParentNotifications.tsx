@@ -49,7 +49,7 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
       </div>
 
       <Tabs value={filter} onValueChange={(value) => setFilter(value as 'all' | 'unread')}>
-        <TabsList className="grid grid-cols-2 max-w-sm bg-white border border-[#133C2A]/10 rounded-xl">
+        <TabsList className="grid w-full grid-cols-2 bg-white border border-[#133C2A]/10 rounded-xl sm:max-w-sm">
           <TabsTrigger value="all" className="rounded-lg">Все ({parentNotifications.length})</TabsTrigger>
           <TabsTrigger value="unread" className="rounded-lg">Новые ({unreadCount})</TabsTrigger>
         </TabsList>
@@ -57,7 +57,7 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
 
       {filtered.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-10 text-center text-[#133C2A]/60">
+          <CardContent className="p-8 text-center text-[#133C2A]/60 md:p-10">
             <Bell className="w-10 h-10 mx-auto mb-2 opacity-40" />
             <p>{filter === 'unread' ? 'Новых уведомлений нет.' : 'Уведомлений пока нет.'}</p>
           </CardContent>
@@ -79,7 +79,7 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
                     <Icon className={`w-4 h-4 ${item.read ? 'text-[#133C2A]/70' : 'text-[#B8941F]'}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                       <p className="text-[#133C2A] truncate">{item.title}</p>
                       <span className="text-[11px] text-[#133C2A]/55 shrink-0">
                         {item.createdAt.toLocaleDateString('ru-RU')} {item.createdAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}

@@ -99,7 +99,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
               </div>
               <Button
                 size="sm"
-                className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+                className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
                 onClick={() => onNavigate('payments')}
               >
                 Продлить
@@ -128,9 +128,9 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
               <p className="text-sm text-[#133C2A]/60 py-4">В расписании пока нет будущих занятий.</p>
             ) : (
               upcomingEvents.map((event) => (
-                <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[#133C2A]">{event.groupName}</p>
+                  <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[#133C2A] min-w-0">{event.groupName}</p>
                     <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
                       {new Date(event.date).toLocaleDateString('ru-RU')}
                     </Badge>

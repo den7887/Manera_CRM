@@ -73,6 +73,7 @@ class AdminCreateClientPayload(BaseModel):
     subscription_name: str = Field(min_length=2, max_length=120)
     subscription_amount: float = Field(gt=0)
     payment_method: PaymentMethod
+    group_id: str | None = Field(default=None, max_length=120)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -116,15 +117,49 @@ class CreatePaymentPayload(BaseModel):
     child_id: str | None = Field(default=None, max_length=120)
 
 
+class LandingLeadPayload(BaseModel):
+    parent_full_name: str = Field(min_length=2, max_length=120)
+    phone: str = Field(min_length=5, max_length=30)
+    child_full_name: str = Field(min_length=2, max_length=120)
+    child_birth_date: str | None = Field(default=None, max_length=20)
+    medical_restrictions: str | None = Field(default=None, max_length=1200)
+    previous_activities: str | None = Field(default=None, max_length=1200)
+    discovery_source: str | None = Field(default=None, max_length=240)
+    preferred_schedule: str | None = Field(default=None, max_length=240)
+    comment: str | None = Field(default=None, max_length=1200)
+    consent: bool = True
+
+
 class OwnerGroupPayload(BaseModel):
-    name: str = Field(min_length=2, max_length=120)
-    age_range: str = Field(min_length=2, max_length=80)
+    name: str | None = Field(default=None, max_length=120)
+    age_range: str | None = Field(default=None, max_length=80)
+    ageRange: str | None = Field(default=None, max_length=80)
     teacher_id: str | None = Field(default=None, max_length=120)
     teacher_name: str | None = Field(default=None, max_length=120)
-    schedule: str = Field(default="", max_length=120)
+    schedule: str | list[str] | None = Field(default="", max_length=120)
     time: str = Field(default="", max_length=80)
     color: str = Field(default="#133C2A", max_length=20)
-    max_capacity: int = Field(default=12, ge=1, le=200)
+    max_capacity: int | None = Field(default=None, ge=1, le=200)
+    maxCapacity: int | None = Field(default=None, ge=1, le=200)
+
+
+class OwnerAssignChildGroupPayload(BaseModel):
+    group_id: str | None = Field(default=None, max_length=120)
+
+
+class AdminChildProfilePayload(BaseModel):
+    internal_comment: str | None = Field(default=None, max_length=2000)
+    health_notes: str | None = Field(default=None, max_length=2000)
+    behavioral_notes: str | None = Field(default=None, max_length=2000)
+    goals: str | None = Field(default=None, max_length=2000)
+    strengths: str | None = Field(default=None, max_length=2000)
+    parent_expectations: str | None = Field(default=None, max_length=2000)
+    emergency_contact_name: str | None = Field(default=None, max_length=160)
+    emergency_contact_phone: str | None = Field(default=None, max_length=40)
+    communication_preferences: str | None = Field(default=None, max_length=800)
+    source_channel: str | None = Field(default=None, max_length=160)
+    prior_experience: str | None = Field(default=None, max_length=2000)
+    tags: list[str] | None = None
 
 
 class OwnerEmployeePayload(BaseModel):
@@ -349,6 +384,41 @@ def _find_owner_pricing_plan(store: dict[str, Any], subscription_name: str) -> d
         if normalized in {title, code}:
             return plan
     return None
+
+
+def _normalize_group_schedule_value(value: Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(item).strip() for item in value if str(item).strip())
+    if isinstance(value, str):
+        return value.strip()
+    return ""
+
+
+def _resolve_owner_group_payload(payload: OwnerGroupPayload) -> dict[str, Any]:
+    name = str(payload.name or "").strip()
+    age_range = str(payload.age_range or payload.ageRange or "").strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Название группы должно быть не короче 2 символов")
+    if len(age_range) < 2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Возрастной диапазон должен быть не короче 2 символов")
+
+    max_capacity = payload.max_capacity if payload.max_capacity is not None else payload.maxCapacity
+    if max_capacity is None:
+        max_capacity = 12
+    max_capacity = int(max_capacity)
+    if max_capacity < 1 or max_capacity > 200:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Вместимость должна быть в диапазоне 1-200")
+
+    return {
+        "name": name,
+        "ageRange": age_range,
+        "teacherId": payload.teacher_id,
+        "teacherName": str(payload.teacher_name or "").strip(),
+        "schedule": _normalize_group_schedule_value(payload.schedule),
+        "time": str(payload.time or "").strip(),
+        "color": str(payload.color or "#133C2A").strip() or "#133C2A",
+        "maxCapacity": max_capacity,
+    }
 
 
 def _next_invoice_number(store: dict[str, Any]) -> str:
@@ -671,6 +741,7 @@ def _default_store() -> dict[str, Any]:
         "news": [],
         "documents": [],
         "notifications": [],
+        "landingLeads": [],
         "children": [],
         "clients": [],
         "paymentRecords": [],
@@ -710,6 +781,18 @@ def _normalize_birth_date(value: str) -> str:
     )
 
 
+def _calculate_age_from_birth_date(value: Any) -> int | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        birth_date = datetime.strptime(value[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    today = datetime.now().date()
+    age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    return max(age, 0)
+
+
 def _ensure_store_shape(store: dict[str, Any]) -> bool:
     changed = False
     list_keys = [
@@ -717,6 +800,7 @@ def _ensure_store_shape(store: dict[str, Any]) -> bool:
         "news",
         "documents",
         "notifications",
+        "landingLeads",
         "children",
         "clients",
         "paymentRecords",
@@ -806,6 +890,35 @@ def _ensure_store_shape(store: dict[str, Any]) -> bool:
             user["updated_at"] = _utc_now_iso()
             changed = True
 
+    for child in store.get("children", []):
+        if "id" not in child:
+            child["id"] = _new_id("child")
+            changed = True
+        if "fullName" not in child:
+            child["fullName"] = "Ученик"
+            changed = True
+        if "groupId" not in child:
+            child["groupId"] = None
+            changed = True
+        if "updatedAt" not in child:
+            child["updatedAt"] = _utc_now_iso()
+            changed = True
+        if "createdAt" not in child:
+            child["createdAt"] = child["updatedAt"]
+            changed = True
+
+    for client in store.get("clients", []):
+        if "childId" in client:
+            continue
+        parent_id = str(client.get("parentUserId") or "")
+        first_child = next((item for item in store.get("children", []) if str(item.get("parentUserId") or "") == parent_id), None)
+        if first_child:
+            client["childId"] = first_child.get("id")
+            changed = True
+        elif "childId" not in client:
+            client["childId"] = ""
+            changed = True
+
     if payment_service.ensure_store_shape(store):
         changed = True
     if _sync_subscription_plans_from_owner_pricing(store):
@@ -815,6 +928,9 @@ def _ensure_store_shape(store: dict[str, Any]) -> bool:
     for payment in store.get("paymentRecords", []):
         if _ensure_legacy_payment_shape(store, payment):
             changed = True
+
+    if _recalculate_group_student_counts(store):
+        changed = True
 
     return changed
 
@@ -911,6 +1027,53 @@ def _find_client_by_id(store: dict[str, Any], client_id: str) -> dict[str, Any] 
         if str(client.get("id")) == client_id:
             return client
     return None
+
+
+def _find_child_by_id(store: dict[str, Any], child_id: str) -> dict[str, Any] | None:
+    for child in store.get("children", []):
+        if str(child.get("id")) == child_id:
+            return child
+    return None
+
+
+def _find_latest_landing_lead_by_phone(store: dict[str, Any], phone: str) -> dict[str, Any] | None:
+    normalized_phone = _normalize_phone(phone)
+    leads = [item for item in store.get("landingLeads", []) if _normalize_phone(str(item.get("phone") or "")) == normalized_phone]
+    leads.sort(
+        key=lambda item: _parse_datetime_safe(item.get("createdAt")) or datetime.fromtimestamp(0, tz=timezone.utc),
+        reverse=True,
+    )
+    return leads[0] if leads else None
+
+
+def _find_group_by_id(store: dict[str, Any], group_id: str) -> dict[str, Any] | None:
+    for group in store.get("ownerGroups", []):
+        if str(group.get("id")) == group_id:
+            return group
+    return None
+
+
+def _recalculate_group_student_counts(store: dict[str, Any]) -> bool:
+    groups = store.get("ownerGroups", [])
+    if not isinstance(groups, list):
+        return False
+    counts: dict[str, int] = {}
+    for child in store.get("children", []):
+        group_id = str(child.get("groupId") or "").strip()
+        if not group_id:
+            continue
+        counts[group_id] = counts.get(group_id, 0) + 1
+
+    changed = False
+    for group in groups:
+        group_id = str(group.get("id") or "")
+        next_count = counts.get(group_id, 0)
+        current_count = int(group.get("studentCount") or 0)
+        if current_count != next_count:
+            group["studentCount"] = next_count
+            group["updatedAt"] = _utc_now_iso()
+            changed = True
+    return changed
 
 
 def _find_latest_payment_for_client(store: dict[str, Any], client_id: str) -> dict[str, Any] | None:
@@ -1483,6 +1646,7 @@ def _recalculate_parent_access_from_clients(store: dict[str, Any], parent_user_i
 def _serialize_admin_client(store: dict[str, Any], client: dict[str, Any]) -> dict[str, Any]:
     parent = _find_user_by_id(store, str(client.get("parentUserId")))
     child = next((item for item in store["children"] if str(item.get("id")) == str(client.get("childId"))), None)
+    group = _find_group_by_id(store, str((child or {}).get("groupId") or ""))
     payment = _find_latest_payment_for_client(store, str(client.get("id")))
 
     return {
@@ -1491,7 +1655,136 @@ def _serialize_admin_client(store: dict[str, Any], client: dict[str, Any]) -> di
         "parentPhone": parent.get("phone") if parent else client.get("parentPhone"),
         "childFullName": child.get("fullName") if child else None,
         "childBirthDate": child.get("birthDate") if child else None,
+        "childGroupId": (child or {}).get("groupId"),
+        "childGroupName": (group or {}).get("name"),
+        "groupId": (child or {}).get("groupId"),
+        "groupName": (group or {}).get("name"),
+        "childAge": _calculate_age_from_birth_date((child or {}).get("birthDate")),
         "payment": payment,
+    }
+
+
+def _serialize_admin_child_row(store: dict[str, Any], child: dict[str, Any]) -> dict[str, Any]:
+    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == str(child.get("id"))), None)
+    parent = _find_user_by_id(store, str(child.get("parentUserId") or ""))
+    group = _find_group_by_id(store, str(child.get("groupId") or ""))
+    payment = _find_latest_payment_for_client(store, str((client or {}).get("id") or ""))
+    parent_id = str(child.get("parentUserId") or "")
+    child_id = str(child.get("id") or "")
+
+    active_subscription = next(
+        (
+            item
+            for item in store.get("subscriptions", [])
+            if str(item.get("parent_id")) == parent_id
+            and str(item.get("child_id") or "") == child_id
+            and str(item.get("status")) == "active"
+        ),
+        None,
+    )
+
+    lessons_tracked = True
+    total_classes = 0
+    attended_classes = 0
+    remaining_classes = 0
+
+    if active_subscription is not None:
+        total_lessons = active_subscription.get("total_lessons")
+        used_lessons = int(active_subscription.get("used_lessons", 0) or 0)
+        if isinstance(total_lessons, int):
+            total_classes = max(total_lessons, 0)
+            attended_classes = max(used_lessons, 0)
+            remaining_classes = max(total_classes - attended_classes, 0)
+        else:
+            lessons_tracked = False
+
+    if client is not None:
+        plan = _find_owner_pricing_plan(store, str(client.get("subscriptionName") or ""))
+        if plan is not None and bool(plan.get("classesTracked")) is False:
+            lessons_tracked = False
+            total_classes = 0
+            attended_classes = 0
+            remaining_classes = 0
+        elif total_classes <= 0:
+            classes_count = plan.get("classesCount") if plan else None
+            if isinstance(classes_count, int) and classes_count > 0:
+                total_classes = max(classes_count, 0)
+                attended_classes = max(min(attended_classes, total_classes), 0)
+                remaining_classes = max(total_classes - attended_classes, 0)
+            else:
+                subscription_name = str(client.get("subscriptionName") or "")
+                match = re.search(r"(\d{1,3})\s*занят", subscription_name.lower())
+                if match:
+                    total_classes = max(int(match.group(1)), 0)
+                    attended_classes = max(min(attended_classes, total_classes), 0)
+                    remaining_classes = max(total_classes - attended_classes, 0)
+        if total_classes > 0 and remaining_classes <= 0 and str(client.get("paymentStatus")) == "paid":
+            remaining_classes = total_classes
+
+    progress_percent = 0
+    if lessons_tracked and total_classes > 0:
+        progress_percent = max(0, min(100, round((attended_classes / total_classes) * 100)))
+
+    profile_raw = (client or {}).get("profile") if isinstance((client or {}).get("profile"), dict) else {}
+    landing_lead = _find_latest_landing_lead_by_phone(store, str((parent or {}).get("phone") or (client or {}).get("parentPhone") or ""))
+    profile = {
+        "internalComment": str(profile_raw.get("internalComment") or ""),
+        "healthNotes": str(profile_raw.get("healthNotes") or ""),
+        "behavioralNotes": str(profile_raw.get("behavioralNotes") or ""),
+        "goals": str(profile_raw.get("goals") or ""),
+        "strengths": str(profile_raw.get("strengths") or ""),
+        "parentExpectations": str(profile_raw.get("parentExpectations") or ""),
+        "emergencyContactName": str(profile_raw.get("emergencyContactName") or ""),
+        "emergencyContactPhone": str(profile_raw.get("emergencyContactPhone") or ""),
+        "communicationPreferences": str(profile_raw.get("communicationPreferences") or ""),
+        "sourceChannel": str(profile_raw.get("sourceChannel") or ""),
+        "priorExperience": str(profile_raw.get("priorExperience") or ""),
+        "tags": [str(item).strip() for item in (profile_raw.get("tags") or []) if str(item).strip()],
+        "updatedAt": profile_raw.get("updatedAt"),
+    }
+
+    return {
+        "id": str(child.get("id") or ""),
+        "fullName": str(child.get("fullName") or "Ученик"),
+        "birthDate": child.get("birthDate"),
+        "age": _calculate_age_from_birth_date(child.get("birthDate")),
+        "groupId": str((group or {}).get("id") or "") or None,
+        "groupName": (group or {}).get("name"),
+        "parentUserId": str((parent or {}).get("id") or child.get("parentUserId") or ""),
+        "parentName": (parent or {}).get("name"),
+        "parentPhone": (parent or {}).get("phone"),
+        "parentAccessLevel": (parent or {}).get("access_level"),
+        "parentAccountStatus": (parent or {}).get("account_status"),
+        "clientId": (client or {}).get("id"),
+        "subscriptionName": (client or {}).get("subscriptionName"),
+        "subscriptionCode": (client or {}).get("subscriptionCode"),
+        "subscriptionAmount": (client or {}).get("subscriptionAmount"),
+        "paymentMethod": (client or {}).get("paymentMethod"),
+        "paymentStatus": (client or {}).get("paymentStatus"),
+        "createdAt": child.get("createdAt"),
+        "updatedAt": child.get("updatedAt"),
+        "notes": (client or {}).get("notes"),
+        "latestPayment": payment,
+        "lessonsTracked": lessons_tracked,
+        "totalClasses": total_classes,
+        "attendedClasses": attended_classes,
+        "remainingClasses": remaining_classes,
+        "progressPercent": progress_percent,
+        "profile": profile,
+        "landingLead": {
+            "id": landing_lead.get("id"),
+            "parentFullName": landing_lead.get("parentFullName"),
+            "phone": landing_lead.get("phone"),
+            "childFullName": landing_lead.get("childFullName"),
+            "childBirthDate": landing_lead.get("childBirthDate"),
+            "medicalRestrictions": landing_lead.get("medicalRestrictions"),
+            "previousActivities": landing_lead.get("previousActivities"),
+            "discoverySource": landing_lead.get("discoverySource"),
+            "preferredSchedule": landing_lead.get("preferredSchedule"),
+            "comment": landing_lead.get("comment"),
+            "consent": bool(landing_lead.get("consent", True)),
+            "createdAt": landing_lead.get("createdAt"),
+        } if landing_lead else None,
     }
 
 
@@ -1595,6 +1888,7 @@ def _send_payment_reminder(
 def _serialize_parent_child(store: dict[str, Any], child: dict[str, Any]) -> dict[str, Any]:
     client = next((item for item in store["clients"] if str(item.get("childId")) == str(child.get("id"))), None)
     payment = _find_latest_payment_for_client(store, str(client.get("id"))) if client else None
+    group = _find_group_by_id(store, str(child.get("groupId") or ""))
     parent_id = str(child.get("parentUserId") or "")
     child_id = str(child.get("id") or "")
 
@@ -1637,6 +1931,9 @@ def _serialize_parent_child(store: dict[str, Any], child: dict[str, Any]) -> dic
 
     return {
         **child,
+        "groupName": (group or {}).get("name"),
+        "groupSchedule": (group or {}).get("schedule"),
+        "groupTime": (group or {}).get("time"),
         "client": client,
         "payment": payment,
         "lessonsTracked": lessons_tracked,
@@ -1847,7 +2144,7 @@ app.add_middleware(
         "http://localhost:4173",
         "http://127.0.0.1:4173",
     ],
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1857,6 +2154,32 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "service": "manera-crm-mvp-backend"}
+
+
+@app.post("/api/landing/leads")
+def landing_create_lead(payload: LandingLeadPayload) -> dict[str, Any]:
+    store = _read_store()
+    created_at = _utc_now_iso()
+    phone = _normalize_phone(payload.phone)
+    lead = {
+        "id": _new_id("lead"),
+        "parentFullName": payload.parent_full_name.strip(),
+        "phone": phone,
+        "childFullName": payload.child_full_name.strip(),
+        "childBirthDate": payload.child_birth_date.strip() if payload.child_birth_date else None,
+        "medicalRestrictions": (payload.medical_restrictions or "").strip(),
+        "previousActivities": (payload.previous_activities or "").strip(),
+        "discoverySource": (payload.discovery_source or "").strip(),
+        "preferredSchedule": (payload.preferred_schedule or "").strip(),
+        "comment": (payload.comment or "").strip(),
+        "consent": bool(payload.consent),
+        "status": "new",
+        "createdAt": created_at,
+        "updatedAt": created_at,
+    }
+    store.setdefault("landingLeads", []).insert(0, lead)
+    _write_store(store)
+    return {"ok": True, "lead": lead}
 
 
 @app.post("/api/auth/otp/start")
@@ -2091,6 +2414,12 @@ def admin_create_client(
 
     birth_date = _normalize_birth_date(payload.child_birth_date)
     parent_phone = _normalize_phone(payload.parent_phone)
+    requested_group_id = str(payload.group_id or "").strip() or None
+    selected_group: dict[str, Any] | None = None
+    if requested_group_id:
+        selected_group = _find_group_by_id(store, requested_group_id)
+        if selected_group is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
     subscription_name = payload.subscription_name.strip()
     plan = _find_owner_pricing_plan(store, subscription_name)
     if plan is None or not bool(plan.get("isActive", True)):
@@ -2139,11 +2468,29 @@ def admin_create_client(
         parent_user["account_status"] = "payment_pending"
         parent_user["updated_at"] = now
 
+    linked_lead = _find_latest_landing_lead_by_phone(store, parent_phone)
+    intake_payload = {
+        "landingLeadId": linked_lead.get("id") if linked_lead else None,
+        "parentFullName": linked_lead.get("parentFullName") if linked_lead else payload.parent_full_name,
+        "phone": linked_lead.get("phone") if linked_lead else parent_phone,
+        "childFullName": linked_lead.get("childFullName") if linked_lead else payload.child_full_name,
+        "childBirthDate": linked_lead.get("childBirthDate") if linked_lead else birth_date,
+        "medicalRestrictions": linked_lead.get("medicalRestrictions") if linked_lead else "",
+        "previousActivities": linked_lead.get("previousActivities") if linked_lead else "",
+        "discoverySource": linked_lead.get("discoverySource") if linked_lead else "manual",
+        "preferredSchedule": linked_lead.get("preferredSchedule") if linked_lead else "",
+        "comment": linked_lead.get("comment") if linked_lead else "",
+        "consent": bool(linked_lead.get("consent", True)) if linked_lead else True,
+        "createdAt": linked_lead.get("createdAt") if linked_lead else now,
+        "linkedAt": now,
+    }
+
     child = {
         "id": _new_id("child"),
         "parentUserId": parent_user["id"],
         "fullName": payload.child_full_name,
         "birthDate": birth_date,
+        "groupId": selected_group.get("id") if selected_group else None,
         "createdAt": now,
         "updatedAt": now,
     }
@@ -2163,6 +2510,22 @@ def admin_create_client(
         "accessLevel": "payment_only",
         "accountStatus": "payment_pending",
         "notes": payload.notes,
+        "intake": intake_payload,
+        "profile": {
+            "internalComment": str(payload.notes or ""),
+            "healthNotes": str(intake_payload.get("medicalRestrictions") or ""),
+            "behavioralNotes": "",
+            "goals": "",
+            "strengths": "",
+            "parentExpectations": "",
+            "emergencyContactName": "",
+            "emergencyContactPhone": "",
+            "communicationPreferences": "",
+            "sourceChannel": str(intake_payload.get("discoverySource") or "manual"),
+            "priorExperience": str(intake_payload.get("previousActivities") or ""),
+            "tags": [],
+            "updatedAt": now,
+        },
         "createdByUserId": current_user["id"],
         "createdAt": now,
         "updatedAt": now,
@@ -2216,6 +2579,8 @@ def admin_create_client(
         },
     )
 
+    _recalculate_group_student_counts(store)
+
     _write_store(store)
 
     return {
@@ -2234,6 +2599,121 @@ def admin_list_clients(
     del current_user
     store = _read_store()
     return [_serialize_admin_client(store, client) for client in store["clients"]]
+
+
+@app.get("/api/admin/children")
+def admin_list_children(
+    group_id: str | None = None,
+    payment_status: PaymentStatus | None = None,
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> list[dict[str, Any]]:
+    del current_user
+    store = _read_store()
+    rows = [_serialize_admin_child_row(store, child) for child in store.get("children", [])]
+    if group_id:
+        rows = [item for item in rows if str(item.get("groupId") or "") == group_id]
+    if payment_status:
+        rows = [item for item in rows if str(item.get("paymentStatus") or "") == payment_status]
+    rows.sort(key=lambda item: str(item.get("fullName") or ""))
+    return rows
+
+
+@app.get("/api/admin/children/{child_id}")
+def admin_get_child(
+    child_id: str,
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> dict[str, Any]:
+    del current_user
+    store = _read_store()
+    child = _find_child_by_id(store, child_id)
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+    return _serialize_admin_child_row(store, child)
+
+
+@app.patch("/api/admin/children/{child_id}/profile")
+def admin_update_child_profile(
+    child_id: str,
+    payload: AdminChildProfilePayload,
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> dict[str, Any]:
+    store = _read_store()
+    child = _find_child_by_id(store, child_id)
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+
+    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == str(child.get("id"))), None)
+    if client is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Клиентская карта не найдена")
+
+    now = _utc_now_iso()
+    profile = client.get("profile") if isinstance(client.get("profile"), dict) else {}
+    profile["internalComment"] = (payload.internal_comment or "").strip()
+    profile["healthNotes"] = (payload.health_notes or "").strip()
+    profile["behavioralNotes"] = (payload.behavioral_notes or "").strip()
+    profile["goals"] = (payload.goals or "").strip()
+    profile["strengths"] = (payload.strengths or "").strip()
+    profile["parentExpectations"] = (payload.parent_expectations or "").strip()
+    profile["emergencyContactName"] = (payload.emergency_contact_name or "").strip()
+    profile["emergencyContactPhone"] = (payload.emergency_contact_phone or "").strip()
+    profile["communicationPreferences"] = (payload.communication_preferences or "").strip()
+    profile["sourceChannel"] = (payload.source_channel or "").strip()
+    profile["priorExperience"] = (payload.prior_experience or "").strip()
+    profile["tags"] = sorted(
+        {
+            str(item).strip()
+            for item in (payload.tags or [])
+            if str(item).strip()
+        }
+    )
+    profile["updatedAt"] = now
+
+    client["profile"] = profile
+    client["updatedAt"] = now
+    child["updatedAt"] = now
+    _write_store(store)
+
+    return {
+        "ok": True,
+        "child": _serialize_admin_child_row(store, child),
+        "updatedByUserId": current_user.get("id"),
+    }
+
+
+@app.patch("/api/admin/children/{child_id}/group")
+def admin_assign_child_group(
+    child_id: str,
+    payload: OwnerAssignChildGroupPayload,
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> dict[str, Any]:
+    store = _read_store()
+    child = _find_child_by_id(store, child_id)
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+
+    next_group_id = str(payload.group_id or "").strip() or None
+    next_group = None
+    if next_group_id:
+        next_group = _find_group_by_id(store, next_group_id)
+        if next_group is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+
+    previous_group_id = str(child.get("groupId") or "").strip() or None
+    if previous_group_id == next_group_id:
+        return {"ok": True, "child": _serialize_admin_child_row(store, child), "idempotent": True}
+
+    child["groupId"] = next_group_id
+    child["updatedAt"] = _utc_now_iso()
+    _recalculate_group_student_counts(store)
+    _write_store(store)
+
+    return {
+        "ok": True,
+        "child": _serialize_admin_child_row(store, child),
+        "previousGroupId": previous_group_id,
+        "group": next_group,
+        "updatedByUserId": current_user.get("id"),
+    }
 
 
 @app.get("/api/admin/payments")
@@ -2979,16 +3459,10 @@ def owner_create_group(
 ) -> dict[str, Any]:
     store = _read_store()
     now = _utc_now_iso()
+    normalized = _resolve_owner_group_payload(payload)
     group = {
         "id": _new_id("group"),
-        "name": payload.name.strip(),
-        "ageRange": payload.age_range.strip(),
-        "teacherId": payload.teacher_id,
-        "teacherName": payload.teacher_name or "",
-        "schedule": payload.schedule.strip(),
-        "time": payload.time.strip(),
-        "color": payload.color.strip() or "#133C2A",
-        "maxCapacity": int(payload.max_capacity),
+        **normalized,
         "studentCount": 0,
         "createdByUserId": current_user.get("id"),
         "createdAt": now,
@@ -3007,17 +3481,11 @@ def owner_update_group(
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
+    normalized = _resolve_owner_group_payload(payload)
     for group in store.get("ownerGroups", []):
         if str(group.get("id")) != group_id:
             continue
-        group["name"] = payload.name.strip()
-        group["ageRange"] = payload.age_range.strip()
-        group["teacherId"] = payload.teacher_id
-        group["teacherName"] = payload.teacher_name or ""
-        group["schedule"] = payload.schedule.strip()
-        group["time"] = payload.time.strip()
-        group["color"] = payload.color.strip() or "#133C2A"
-        group["maxCapacity"] = int(payload.max_capacity)
+        group.update(normalized)
         group["updatedAt"] = _utc_now_iso()
         _write_store(store)
         return group
@@ -3036,6 +3504,11 @@ def owner_delete_group(
     store["ownerGroups"] = [item for item in groups if str(item.get("id")) != group_id]
     if len(store["ownerGroups"]) == before:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    for child in store.get("children", []):
+        if str(child.get("groupId") or "") == group_id:
+            child["groupId"] = None
+            child["updatedAt"] = _utc_now_iso()
+    _recalculate_group_student_counts(store)
     _write_store(store)
     return {"ok": True}
 

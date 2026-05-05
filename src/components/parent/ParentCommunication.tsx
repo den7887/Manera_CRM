@@ -116,8 +116,8 @@ export function ParentCommunication() {
 
   if (!isChatOpened) {
     return (
-      <Card className="border-none soft-shadow h-[74vh] min-h-[580px] flex flex-col">
-        <CardHeader className="space-y-3 border-b border-[#133C2A]/10">
+      <Card className="border-none soft-shadow h-[calc(100dvh-11rem)] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
+        <CardHeader className="space-y-3 border-b border-[#133C2A]/10 p-3 md:p-6">
           <CardTitle className="text-[#133C2A] flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
             Сообщения
@@ -179,7 +179,7 @@ export function ParentCommunication() {
   }
 
   return (
-    <Card className="border-none soft-shadow h-[74vh] min-h-[580px] flex flex-col">
+    <Card className="border-none soft-shadow h-[calc(100dvh-11rem)] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
       <CardHeader className="border-b border-[#133C2A]/10 py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSelectedChatId(null)}>
@@ -241,7 +241,7 @@ export function ParentCommunication() {
             <Button
               onClick={() => void handleSend()}
               disabled={isSending || draft.trim().length === 0}
-              className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+              className="w-full rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
             >
               <Send className="w-4 h-4 mr-2" />
               Отправить

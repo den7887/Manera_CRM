@@ -1,4 +1,4 @@
-import { Home, Users, Calendar, CreditCard, Settings, GraduationCap, Coins, MessageSquare, UserCog, CheckSquare, Menu, UserCircle, Target, Tag, Sparkles, Bell, FileText, BarChart3, Receipt, LineChart, Wallet, Globe } from 'lucide-react';
+import { Home, Users, Calendar, CreditCard, Settings, GraduationCap, Coins, MessageSquare, UserCog, CheckSquare, Menu, UserCircle, Target, Tag, Sparkles, Bell, FileText, BarChart3, LineChart, Globe } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useState } from 'react';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
@@ -12,10 +12,8 @@ interface MobileNavProps {
 export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Основные табы (4 шт) для нижней панели
   const parentMainTabs = [
     { id: 'home', label: 'Главная', icon: Home },
-    { id: 'children', label: 'Дети', icon: Users },
     { id: 'schedule', label: 'Расписание', icon: Calendar },
     { id: 'payments', label: 'Оплата', icon: CreditCard },
   ];
@@ -37,16 +35,17 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   const ownerMainTabs = [
     { id: 'home', label: 'Главная', icon: Home },
     { id: 'clients', label: 'Клиенты', icon: Users },
-    { id: 'finance', label: 'Финансы', icon: BarChart3 },
-    { id: 'tasks', label: 'Задачи', icon: CheckSquare },
+    { id: 'finance', label: 'Деньги', icon: BarChart3 },
   ];
 
   // Дополнительные разделы для меню
   const parentMenuItems = [
-    { id: 'notifications', label: 'Уведомления', icon: Bell },
-    { id: 'communication', label: 'Коммуникации', icon: MessageSquare },
-    { id: 'events', label: 'Мероприятия', icon: Sparkles },
-    { id: 'profile', label: 'Профиль', icon: Settings },
+    { id: 'children', label: 'Дети', icon: Users, group: 'Учеба' },
+    { id: 'events', label: 'События', icon: Sparkles, group: 'Учеба' },
+    { id: 'documents', label: 'Документы', icon: FileText, group: 'Учеба' },
+    { id: 'notifications', label: 'Уведомления', icon: Bell, group: 'Связь' },
+    { id: 'communication', label: 'Чат со студией', icon: MessageSquare, group: 'Связь' },
+    { id: 'profile', label: 'Профиль', icon: Settings, group: 'Аккаунт' },
   ];
 
   const teacherMenuItems = [
@@ -65,23 +64,18 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   ];
 
   const ownerMenuItems = [
-    { id: 'analytics', label: 'Аналитика', icon: LineChart },
-    { id: 'team', label: 'Команда', icon: Users },
-    { id: 'groups', label: 'Группы', icon: GraduationCap },
-    { id: 'payments', label: 'Платежи', icon: Receipt },
-    { id: 'expenses', label: 'Расходы', icon: Wallet },
-    { id: 'leads', label: 'База клиентов', icon: Target },
-    { id: 'pricing', label: 'Прайс', icon: Tag },
-    { id: 'events-management', label: 'Мероприятия', icon: Sparkles },
-    { id: 'automations', label: 'Автоматизации', icon: CheckSquare },
-    { id: 'communication', label: 'Сообщения', icon: MessageSquare },
-    { id: 'news', label: 'Новости', icon: Sparkles },
-    { id: 'documents', label: 'Документы', icon: FileText },
-    { id: 'parents', label: 'Родители', icon: UserCircle },
-    { id: 'staff', label: 'Сотрудники', icon: UserCog },
-    { id: 'landing-settings', label: 'Лендинг', icon: Globe },
-    { id: 'settings', label: 'Настройки', icon: Settings },
-    { id: 'profile', label: 'Профиль', icon: Settings },
+    { id: 'groups', label: 'Группы', icon: GraduationCap, group: 'Работа' },
+    { id: 'tasks', label: 'Задачи', icon: CheckSquare, group: 'Работа' },
+    { id: 'communication', label: 'Сообщения', icon: MessageSquare, group: 'Работа' },
+    { id: 'analytics', label: 'Отчеты', icon: LineChart, group: 'Контроль' },
+    { id: 'team', label: 'Команда', icon: Users, group: 'Контроль' },
+    { id: 'documents', label: 'Документы', icon: FileText, group: 'Контроль' },
+    { id: 'pricing', label: 'Абонементы', icon: Tag, group: 'Настройка' },
+    { id: 'content', label: 'Новости', icon: Sparkles, group: 'Настройка' },
+    { id: 'automations', label: 'Автодействия', icon: CheckSquare, group: 'Настройка' },
+    { id: 'landing-settings', label: 'Сайт', icon: Globe, group: 'Настройка' },
+    { id: 'settings', label: 'Настройки', icon: Settings, group: 'Аккаунт' },
+    { id: 'profile', label: 'Профиль', icon: Settings, group: 'Аккаунт' },
   ];
 
   const mainTabs = 
@@ -99,8 +93,8 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-        <div className="h-20 bg-gradient-to-r from-[#F8F4E3] to-[#133C2A]/10 backdrop-blur-md border-t border-[#133C2A]/10">
-          <div className="flex items-center justify-around h-full px-2">
+        <div className="bg-[#fbf7e8]/95 backdrop-blur-xl border-t border-[#133C2A]/10 shadow-[0_-8px_24px_rgba(19,60,42,0.08)]">
+          <div className="grid grid-cols-4 gap-1 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
             {mainTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = currentPage === tab.id;
@@ -109,25 +103,24 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
                 <button
                   key={tab.id}
                   onClick={() => onNavigate(tab.id)}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-smooth ${
+                  className={`min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth ${
                     isActive
-                      ? 'text-[#D4AF37] -translate-y-1 gold-glow'
+                      ? 'bg-white text-[#133C2A] border border-[#D4AF37]/40 shadow-sm'
                       : 'text-[#133C2A]/60 hover:text-[#133C2A]'
                   }`}
                 >
-                  <Icon className={`w-6 h-6 ${isActive ? 'animate-scale-in' : ''}`} />
-                  <span className="text-xs">{tab.label}</span>
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span className="text-[11px] leading-tight truncate max-w-full px-1">{tab.label}</span>
                 </button>
               );
             })}
             
-            {/* Menu Button */}
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-smooth text-[#133C2A]/60 hover:text-[#133C2A]"
+              className="min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth bg-[#133C2A] text-white shadow-sm"
             >
-              <Menu className="w-6 h-6" />
-              <span className="text-xs">Меню</span>
+              <Menu className="w-5 h-5 shrink-0" />
+              <span className="text-[11px] leading-tight truncate max-w-full px-1">Меню</span>
             </button>
           </div>
         </div>

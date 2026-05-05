@@ -26,6 +26,7 @@ import { PhotoGallery } from './landing-v2/PhotoGallery';
 import { ReviewCarousel } from './landing-v2/ReviewCarousel';
 import { Notification, Task } from '../types';
 import { toast } from '../utils/toast';
+import { createLandingLead } from '../lib/backendApi';
 
 interface LandingProps {
   onLogin: () => void;
@@ -332,7 +333,7 @@ export function Landing({ onLogin, onGuestBrowse, onAddTask, onAddNotification }
     }
   };
 
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) {
       return;
@@ -398,7 +399,22 @@ export function Landing({ onLogin, onGuestBrowse, onAddTask, onAddNotification }
     onAddTask(task);
     onAddNotification(notification);
 
-    setTimeout(() => {
+    try {
+      await createLandingLead({
+        parent_full_name: form.parentFullName.trim(),
+        phone: form.phone.trim(),
+        child_full_name: form.childFullName.trim(),
+        child_birth_date: form.childBirthDate.trim() || null,
+        medical_restrictions: form.medicalRestrictions.trim(),
+        previous_activities: form.previousActivities.trim(),
+        discovery_source: form.discoverySource.trim(),
+        consent: Boolean(form.consent),
+      });
+    } catch (error) {
+      console.error('Не удалось сохранить лид в backend', error);
+    }
+
+    window.setTimeout(() => {
       setIsSubmitting(false);
       setForm(initialLeadFormState);
       setFormErrors({});

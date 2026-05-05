@@ -1,0 +1,50 @@
+
+> Multi-Platform CRM Design@0.1.0 dev
+> vite --host 0.0.0.0 --port 3000
+
+
+  [32m[1mVITE[22m v6.3.5[39m  [2mready in [0m[1m494[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.64.1:[1m3000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.110.76:[1m3000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.48.197:[1m3000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.100:[1m3000[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m09:31:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m09:31:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m09:38:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DesktopSidebar.tsx, /src/index.css[22m
+[2m09:39:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/MobileNav.tsx, /src/index.css[22m
+[2m09:40:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerDashboard.tsx, /src/index.css[22m
+[2m09:40:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerDashboard.tsx, /src/index.css[22m
+[2m09:41:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/parent/ParentDashboard.tsx, /src/index.css[22m
+[2m09:44:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m09:45:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m09:46:45[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerTasksPanel.tsx, /src/index.css[22m
+[2m09:47:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerFinancePanel.tsx, /src/index.css[22m
+[2m09:59:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m10:00:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m10:01:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m10:01:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m10:02:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m10:09:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerFinancePanel.tsx, /src/index.css[22m
+[2m10:11:22[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerTasksPanel.tsx, /src/index.css[22m
+[2m10:12:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m10:21:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerDashboard.tsx, /src/index.css[22m
+[2m10:21:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerDashboard.tsx, /src/index.css[22m
+[2m10:25:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/MobileMenuDrawer.tsx, /src/index.css[22m
+[2m10:26:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m10:26:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m10:27:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m10:35:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m10:40:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerHome.tsx, /src/index.css[22m
+[2m11:07:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m11:07:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m11:07:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerClientsPanel.tsx, /src/index.css[22m
+[2m11:07:52[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:07:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:08:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:08:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:08:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:08:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m
+[2m11:08:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/owner/OwnerGroupsPanel.tsx, /src/index.css[22m

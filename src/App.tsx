@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { Landing } from './components/Landing';
 import { Login } from './components/auth/Login';
 import { OTPVerification } from './components/auth/OTPVerification';
@@ -6,7 +6,7 @@ import { ParentDashboard } from './components/parent/ParentDashboard';
 import { OwnerDashboard } from './components/owner/OwnerDashboard';
 import { Toaster } from './components/ui/sonner';
 import { UserRole, Task, Notification, News, Document, Payment, Child, User, Event, Group, Employee, FinanceStats, MonthlyData, Expense } from './types';
-import { mockUsers, mockChildren, mockEvents, mockPayments, mockGroups, mockEmployees, mockFinanceStats, mockMonthlyData, mockPricingProducts, mockNews, mockDocuments, mockExpenses } from './data/mockData';
+import { mockUsers } from './data/mockData';
 import { createNewsNotification, createEventNotification, createEventUpdateNotification } from './utils/notifications';
 import {
   createProviderPayment,
@@ -175,29 +175,54 @@ export default function App() {
   const [ownerMonthlyData, setOwnerMonthlyData] = useState<MonthlyData[]>([]);
   const [ownerExpenses, setOwnerExpenses] = useState<Expense[]>([]);
   const [ownerAutomationCount, setOwnerAutomationCount] = useState(0);
+  const parentSyncInFlightRef = useRef(false);
+  const isRealDashboardRole = appState === 'dashboard' && (currentUserRole === 'parent' || currentUserRole === 'owner');
+  const shouldUseMocks = !isRealDashboardRole;
   const isBackendParentSession = currentUserRole === 'parent' && (backendUser !== null || parentAccess !== null);
   const isBackendOwnerSession = currentUserRole === 'owner' && backendUser !== null;
 
   const fallbackUser = mockUsers.find(u => u.role === currentUserRole) || mockUsers[0];
-  const currentUser: User = backendUser ?? fallbackUser;
+  const currentUser: User = backendUser ?? (
+    shouldUseMocks
+      ? fallbackUser
+      : {
+          id: `session-${currentUserRole}`,
+          name: currentUserRole === 'owner' ? 'Владелец' : 'Родитель',
+          phone: '',
+          role: currentUserRole,
+        }
+  );
   const userChildren = currentUserRole === 'parent'
-    ? (isBackendParentSession ? parentChildren : mockChildren.filter(c => c.parentId === currentUser.id))
-    : mockChildren.filter(c => c.parentId === currentUser.id);
+    ? (isBackendParentSession ? parentChildren : [])
+    : [];
   const userEvents = currentUserRole === 'parent'
-    ? (isBackendParentSession ? parentEvents : mockEvents.filter(e => userChildren.some(c => c.groupId === e.groupId)))
-    : mockEvents;
+    ? (isBackendParentSession ? parentEvents : [])
+    : [];
   const userPayments = currentUserRole === 'parent'
-    ? (isBackendParentSession ? parentPayments : mockPayments.filter(p => p.userId === currentUser.id))
-    : mockPayments.filter(p => p.userId === currentUser.id);
+    ? (isBackendParentSession ? parentPayments : [])
+    : [];
   const ownerScheduleEvents = useMemo(
     () => buildOwnerEvents(ownerGroups, ownerEmployees),
     [ownerGroups, ownerEmployees],
   );
 
   const syncParentState = async () => {
+    if (parentSyncInFlightRef.current) {
+      return;
+    }
+    parentSyncInFlightRef.current = true;
     setIsParentStateLoading(true);
     try {
-      const [serverUser, accessInfo, payments, children, events, parentNews, parentNotifications] = await Promise.allSettled([
+      const [
+        serverUser,
+        accessInfo,
+        payments,
+        children,
+        events,
+        parentNews,
+        parentNotifications,
+        parentDocuments,
+      ] = await Promise.allSettled([
         loadCurrentUser(),
         loadParentAccess(),
         loadParentPayments(),
@@ -205,6 +230,7 @@ export default function App() {
         loadParentEvents(),
         loadNews(),
         loadMyNotifications(),
+        loadDocuments(),
       ]);
 
       setBackendUser(serverUser.status === 'fulfilled' ? serverUser.value : null);
@@ -216,30 +242,39 @@ export default function App() {
       const resolvedNews = parentNews.status === 'fulfilled' ? parentNews.value : [];
       setNewsEvents(resolvedNews);
       setNotifications(parentNotifications.status === 'fulfilled' ? parentNotifications.value : []);
+      setDocuments(parentDocuments.status === 'fulfilled' ? parentDocuments.value : []);
     } finally {
       setIsParentStateLoading(false);
+      parentSyncInFlightRef.current = false;
     }
   };
 
   const syncServerState = async (role?: UserRole) => {
     const effectiveRole = role ?? currentUserRole;
-    const isRealRole = effectiveRole === 'parent' || effectiveRole === 'owner';
 
-    if ((role ?? currentUserRole) === 'parent') {
+    if (effectiveRole === 'parent') {
       await syncParentState();
-    } else {
-      try {
-        const user = await loadCurrentUser();
-        setBackendUser(user);
-      } catch {
-        setBackendUser(null);
-      }
-      setParentAccess(null);
-      setParentPayments([]);
-      setParentChildren([]);
-      setParentEvents([]);
-      setIsParentStateLoading(false);
+      setTasks([]);
+      setOwnerGroups([]);
+      setOwnerEmployees([]);
+      setOwnerStats(emptyOwnerStats);
+      setOwnerMonthlyData([]);
+      setOwnerExpenses([]);
+      setOwnerAutomationCount(0);
+      return;
     }
+
+    try {
+      const user = await loadCurrentUser();
+      setBackendUser(user);
+    } catch {
+      setBackendUser(null);
+    }
+    setParentAccess(null);
+    setParentPayments([]);
+    setParentChildren([]);
+    setParentEvents([]);
+    setIsParentStateLoading(false);
 
     if (effectiveRole === 'owner') {
       const [serverTasks, serverNews, serverDocuments, groups, employees, financeSummary, expenses, automations, ownerNotifications] = await Promise.allSettled([
@@ -254,8 +289,8 @@ export default function App() {
         loadOwnerNotifications({ status_filter: 'all', limit: 1000 }),
       ]);
       setTasks(serverTasks.status === 'fulfilled' ? serverTasks.value : []);
-      setNewsEvents(serverNews.status === 'fulfilled' ? serverNews.value : (isRealRole ? [] : mockNews));
-      setDocuments(serverDocuments.status === 'fulfilled' ? serverDocuments.value : (isRealRole ? [] : mockDocuments));
+      setNewsEvents(serverNews.status === 'fulfilled' ? serverNews.value : []);
+      setDocuments(serverDocuments.status === 'fulfilled' ? serverDocuments.value : []);
       setOwnerGroups(groups.status === 'fulfilled' ? groups.value : []);
       setOwnerEmployees(employees.status === 'fulfilled' ? employees.value : []);
       setOwnerStats(financeSummary.status === 'fulfilled' ? financeSummary.value.stats : emptyOwnerStats);
@@ -263,23 +298,6 @@ export default function App() {
       setOwnerExpenses(expenses.status === 'fulfilled' ? expenses.value : []);
       setOwnerAutomationCount(automations.status === 'fulfilled' ? automations.value.length : 0);
       setNotifications(ownerNotifications.status === 'fulfilled' ? ownerNotifications.value : []);
-      return;
-    }
-
-    if (effectiveRole === 'parent') {
-      const [serverNews, serverDocuments] = await Promise.allSettled([
-        loadNews(),
-        loadDocuments(),
-      ]);
-      setTasks([]);
-      setNewsEvents(serverNews.status === 'fulfilled' ? serverNews.value : []);
-      setDocuments(serverDocuments.status === 'fulfilled' ? serverDocuments.value : []);
-      setOwnerGroups([]);
-      setOwnerEmployees([]);
-      setOwnerStats(emptyOwnerStats);
-      setOwnerMonthlyData([]);
-      setOwnerExpenses([]);
-      setOwnerAutomationCount(0);
       return;
     }
 
@@ -320,14 +338,58 @@ export default function App() {
 
     const bootstrap = async () => {
       try {
-        await syncServerState(allowedRole ?? undefined);
+        const serverUser = await loadCurrentUser();
+        const serverRole = serverUser.role;
+        if (serverRole !== 'owner' && serverRole !== 'parent') {
+          clearAuth();
+          setCurrentUserRole('parent');
+          setAppState('landing');
+          return;
+        }
+        if (allowedRole !== serverRole) {
+          setCurrentUserRole(serverRole);
+        }
+        await syncServerState(serverRole);
       } catch {
-        // API не поднят — работаем с мок-данными.
+        clearAuth();
+        setCurrentUserRole('parent');
+        setAppState('landing');
       }
     };
 
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (appState !== 'dashboard' || currentUserRole !== 'parent') {
+      return;
+    }
+
+    const refresh = () => {
+      void syncParentState();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) {
+        refresh();
+      }
+    }, 30000);
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [appState, currentUserRole]);
 
   const handleLogin = async (phone: string) => {
     await startOtp(phone);
@@ -362,6 +424,7 @@ export default function App() {
     setParentChildren([]);
     setParentEvents([]);
     setIsParentStateLoading(false);
+    setDocuments([]);
     setOwnerGroups([]);
     setOwnerEmployees([]);
     setOwnerStats(emptyOwnerStats);
@@ -602,6 +665,7 @@ export default function App() {
             events={userEvents}
             payments={userPayments}
             newsEvents={newsEvents}
+            documents={documents}
             onLogout={handleLogout}
             notifications={notifications}
             accessInfo={parentAccess}
@@ -617,13 +681,13 @@ export default function App() {
           user={currentUser}
           onLogout={handleLogout}
           tasks={tasks}
-          events={isBackendOwnerSession ? ownerScheduleEvents : mockEvents}
-          payments={isBackendOwnerSession ? [] : mockPayments}
-          groups={isBackendOwnerSession ? ownerGroups : mockGroups}
-          employees={isBackendOwnerSession ? ownerEmployees : mockEmployees}
-          stats={isBackendOwnerSession ? ownerStats : mockFinanceStats}
-          monthlyData={isBackendOwnerSession ? ownerMonthlyData : mockMonthlyData}
-          expenses={isBackendOwnerSession ? ownerExpenses : mockExpenses}
+          events={isBackendOwnerSession ? ownerScheduleEvents : []}
+          payments={[]}
+          groups={isBackendOwnerSession ? ownerGroups : []}
+          employees={isBackendOwnerSession ? ownerEmployees : []}
+          stats={isBackendOwnerSession ? ownerStats : emptyOwnerStats}
+          monthlyData={isBackendOwnerSession ? ownerMonthlyData : []}
+          expenses={isBackendOwnerSession ? ownerExpenses : []}
           notifications={notifications}
           automationCount={isBackendOwnerSession ? ownerAutomationCount : 0}
         />

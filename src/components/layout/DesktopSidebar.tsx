@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Users, Calendar, Settings, CreditCard, GraduationCap, Target, UserCircle, MessageSquare, CheckSquare, Zap, BarChart3, LogOut, ChevronRight, Menu, Tag, Sparkles, Bell, FileText, UserCheck, CalendarClock, Receipt, LineChart, Wallet, Globe } from 'lucide-react';
+import { Home, Users, Calendar, Settings, CreditCard, GraduationCap, Target, UserCircle, MessageSquare, CheckSquare, Zap, BarChart3, LogOut, ChevronRight, Menu, Tag, Sparkles, Bell, FileText, UserCheck, CalendarClock, LineChart, Globe } from 'lucide-react';
 import { UserRole, User } from '../../types';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import logoImage from 'figma:asset/580482af71d4ad8de5d55c498eda06ff734efd66.png';
@@ -18,10 +18,11 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
   const parentMenu = [
     { id: 'home', label: 'Главная', icon: Home },
     { id: 'notifications', label: 'Уведомления', icon: Bell },
-    { id: 'communication', label: 'Коммуникации', icon: MessageSquare },
+    { id: 'communication', label: 'Чат со студией', icon: MessageSquare },
     { id: 'children', label: 'Мои дети', icon: Users },
     { id: 'schedule', label: 'Расписание', icon: Calendar },
-    { id: 'events', label: 'Мероприятия', icon: Sparkles },
+    { id: 'events', label: 'События', icon: Sparkles },
+    { id: 'documents', label: 'Документы', icon: FileText },
     { id: 'payments', label: 'Оплата', icon: CreditCard },
     { id: 'profile', label: 'Профиль', icon: Settings },
   ];
@@ -54,24 +55,18 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
   const ownerMenu = [
     { id: 'home', label: 'Главная', icon: Home },
     { id: 'clients', label: 'Клиенты', icon: Users },
-    { id: 'analytics', label: 'Аналитика', icon: LineChart },
+    { id: 'analytics', label: 'Отчеты', icon: LineChart },
     { id: 'team', label: 'Команда', icon: UserCheck },
     { id: 'groups', label: 'Группы', icon: GraduationCap },
     { id: 'tasks', label: 'Задачи', icon: CheckSquare },
-    { id: 'finance', label: 'Финансы', icon: BarChart3 },
-    { id: 'payments', label: 'Платежи', icon: Receipt },
-    { id: 'expenses', label: 'Расходы', icon: Wallet },
-    { id: 'leads', label: 'База клиентов', icon: Target },
-    { id: 'pricing', label: 'Прайс', icon: Tag },
-    { id: 'events-management', label: 'Мероприятия', icon: Sparkles },
-    { id: 'automations', label: 'Автоматизации', icon: Zap },
+    { id: 'finance', label: 'Деньги', icon: BarChart3 },
+    { id: 'pricing', label: 'Абонементы', icon: Tag },
+    { id: 'content', label: 'Новости и события', icon: Sparkles },
+    { id: 'automations', label: 'Автодействия', icon: Zap },
     { id: 'communication', label: 'Сообщения', icon: MessageSquare },
-    { id: 'news', label: 'Новости', icon: Sparkles },
     { id: 'documents', label: 'Документы', icon: FileText },
-    { id: 'parents', label: 'Родители', icon: UserCircle },
-    { id: 'staff', label: 'Сотрудники', icon: UserCheck },
     { id: 'settings', label: 'Настройки', icon: Settings },
-    { id: 'landing-settings', label: 'Лендинг', icon: Globe },
+    { id: 'landing-settings', label: 'Сайт', icon: Globe },
     { id: 'profile', label: 'Профиль', icon: Settings },
   ];
 

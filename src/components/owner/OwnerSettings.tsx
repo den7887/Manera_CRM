@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Settings, Zap, Globe, Save } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Settings, Zap, Globe, Save, RefreshCw, Undo2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -37,15 +37,21 @@ const defaultForm: SettingsForm = {
 
 export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: OwnerSettingsProps) {
   const [form, setForm] = useState<SettingsForm>(defaultForm);
+  const [initialForm, setInitialForm] = useState<SettingsForm>(defaultForm);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
-  const refresh = async () => {
-    setIsLoading(true);
+  const refresh = async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const data = await loadOwnerSettings();
-      setForm({
+      const nextForm = {
         studio_name: data.studio_name || '',
         support_phone: data.support_phone || '',
         support_email: data.support_email || '',
@@ -54,18 +60,30 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
         timezone: data.timezone || 'Europe/Moscow',
         currency: data.currency || 'RUB',
         parent_registration_enabled: Boolean(data.parent_registration_enabled),
-      });
+      };
+      setForm(nextForm);
+      setInitialForm(nextForm);
       setUpdatedAt(data.updated_at || null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить настройки');
     } finally {
-      setIsLoading(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     void refresh();
   }, []);
+
+  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+
+  const resetChanges = () => {
+    setForm(initialForm);
+  };
 
   const save = async () => {
     if (!form.studio_name.trim() || !form.support_phone.trim()) {
@@ -84,7 +102,7 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
         timezone: form.timezone.trim(),
         currency: form.currency.trim().toUpperCase(),
       });
-      setForm({
+      const nextForm = {
         studio_name: updated.studio_name,
         support_phone: updated.support_phone,
         support_email: updated.support_email,
@@ -93,7 +111,9 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
         timezone: updated.timezone,
         currency: updated.currency,
         parent_registration_enabled: updated.parent_registration_enabled,
-      });
+      };
+      setForm(nextForm);
+      setInitialForm(nextForm);
       setUpdatedAt(updated.updated_at || null);
       toast.success('Настройки сохранены');
     } catch (error) {
@@ -104,15 +124,21 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Настройки студии</h1>
           <p className="text-[#133C2A]/60">Реальные параметры кабинета владельца</p>
         </div>
-        {updatedAt ? (
-          <p className="text-xs text-[#133C2A]/50">Обновлено: {new Date(updatedAt).toLocaleString('ru-RU')}</p>
-        ) : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {isRefreshing ? 'Обновляем...' : 'Обновить'}
+          </Button>
+          {updatedAt ? (
+            <p className="text-xs text-[#133C2A]/50">Обновлено: {new Date(updatedAt).toLocaleString('ru-RU')}</p>
+          ) : null}
+        </div>
       </div>
 
       <Card className="border-none soft-shadow">
@@ -151,7 +177,7 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
             <Label>Валюта</Label>
             <Input value={form.currency} onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }))} />
           </div>
-          <div className="md:col-span-2 rounded-2xl border border-[#133C2A]/10 p-4 flex items-center justify-between">
+          <div className="md:col-span-2 rounded-2xl border border-[#133C2A]/10 p-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-[#133C2A]">Разрешить регистрацию родителей</p>
               <p className="text-sm text-[#133C2A]/60">Отключение блокирует создание родительских аккаунтов</p>
@@ -180,11 +206,20 @@ export function OwnerSettings({ onNavigateToAutomations, onNavigateToLanding }: 
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button onClick={() => void save()} disabled={isLoading || isSaving} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? 'Сохраняем...' : 'Сохранить'}
-        </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className={`text-xs ${isDirty ? 'text-[#B8941F]' : 'text-[#133C2A]/50'}`}>
+          {isDirty ? 'Есть несохраненные изменения' : 'Все изменения сохранены'}
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button variant="outline" onClick={resetChanges} disabled={!isDirty || isSaving || isLoading} className="rounded-2xl">
+            <Undo2 className="w-4 h-4 mr-2" />
+            Сбросить
+          </Button>
+          <Button onClick={() => void save()} disabled={isLoading || isSaving || !isDirty} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+            <Save className="w-4 h-4 mr-2" />
+            {isSaving ? 'Сохраняем...' : 'Сохранить'}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -63,6 +63,8 @@ interface SubmissionData {
   parentName: string;
   parentPhone: string;
   parentEmail: string;
+  groupId: string;
+  groupName: string;
   subscription: {
     id: string;
     name: string;
@@ -76,6 +78,7 @@ interface SubmissionData {
 export function AddStudentDialog({
   isOpen,
   onClose,
+  groups,
   parents,
   subscriptions,
   onStudentCreated,
@@ -84,6 +87,7 @@ export function AddStudentDialog({
     name: '',
     birthDate: undefined as Date | undefined,
     parentId: '',
+    groupId: '',
     subscriptionId: '',
     discountEnabled: false,
     discountedAmount: '',
@@ -144,6 +148,7 @@ export function AddStudentDialog({
       name: '',
       birthDate: undefined,
       parentId: '',
+      groupId: '',
       subscriptionId: '',
       discountEnabled: false,
       discountedAmount: '',
@@ -219,12 +224,15 @@ export function AddStudentDialog({
     const parentName = isNewParent ? newParentData.name.trim() : selectedParent!.name;
     const parentPhone = isNewParent ? newParentData.phone.trim() : selectedParent!.phone;
     const parentEmail = isNewParent ? newParentData.email.trim() : (selectedParent!.email || '');
+    const selectedGroup = groups.find((group) => group.id === formData.groupId);
     return {
       studentName: formData.name.trim(),
       birthDate: formData.birthDate,
       parentName,
       parentPhone,
       parentEmail,
+      groupId: formData.groupId || '',
+      groupName: selectedGroup?.name || 'Не назначена',
       subscription: selectedSubscription,
       payableAmount,
       paymentMethod: formData.paymentMethod,
@@ -251,6 +259,7 @@ export function AddStudentDialog({
         subscription_name: submission.subscription.name,
         subscription_amount: submission.payableAmount,
         payment_method: submission.paymentMethod,
+        group_id: submission.groupId || undefined,
         notes: undefined,
       });
       savedViaBackend = true;
@@ -295,8 +304,8 @@ export function AddStudentDialog({
       name: submission.studentName,
       birthDate: submission.birthDate,
       age,
-      groupId: '',
-      groupName: 'Не назначена',
+      groupId: submission.groupId,
+      groupName: submission.groupName,
       parentName: submission.parentName,
       parentEmail: submission.parentEmail,
       parentPhone: submission.parentPhone,
@@ -516,6 +525,27 @@ export function AddStudentDialog({
               </div>
             </div>
           )}
+
+          {/* Группа */}
+          <div className="space-y-2">
+            <Label htmlFor="group" className="text-[#133C2A]">Группа (необязательно)</Label>
+            <Select
+              value={formData.groupId || 'none'}
+              onValueChange={(value) => setFormData({ ...formData, groupId: value === 'none' ? '' : value })}
+            >
+              <SelectTrigger className="rounded-2xl border-[#133C2A]/20 focus:border-[#D4AF37]">
+                <SelectValue placeholder="Без назначения в группу" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Без назначения в группу</SelectItem>
+                {groups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Абонемент */}
           <div className="space-y-2">

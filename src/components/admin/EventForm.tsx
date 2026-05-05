@@ -32,6 +32,28 @@ export function EventForm({ event, onClose, onSubmit }: EventFormProps) {
     const minutes = d.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
   };
+
+  const formatLocalDate = (date?: Date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const year = String(d.getFullYear()).padStart(4, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatLocalDateTime = (date?: Date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const year = String(d.getFullYear()).padStart(4, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
   
   const [eventTime, setEventTime] = useState(getEventTime(event?.eventDate));
   
@@ -39,7 +61,7 @@ export function EventForm({ event, onClose, onSubmit }: EventFormProps) {
     title: event?.title || '',
     content: event?.content || '',
     image: event?.image || '',
-    published: event?.published ?? false,
+    published: event?.published ?? true,
     isEvent: true,
     eventType: event?.eventType || 'competition',
     eventDate: event?.eventDate,
@@ -343,12 +365,12 @@ export function EventForm({ event, onClose, onSubmit }: EventFormProps) {
       
       if (timeStr) {
         // Объединяем текущую дату с новым временем
-        const dateStr = currentDate.toISOString().slice(0, 10);
+        const dateStr = formatLocalDate(currentDate);
         const combinedDateTime = new Date(`${dateStr}T${timeStr}`);
         updateField('eventDate', combinedDateTime);
       } else {
         // Если время удалили, оставляем только дату (полдень)
-        const dateStr = currentDate.toISOString().slice(0, 10);
+        const dateStr = formatLocalDate(currentDate);
         const dateOnly = new Date(`${dateStr}T12:00`);
         updateField('eventDate', dateOnly);
       }
@@ -363,7 +385,7 @@ export function EventForm({ event, onClose, onSubmit }: EventFormProps) {
               <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#133C2A]/40 w-4 h-4 pointer-events-none" />
               <Input
                 type="date"
-                value={formData.eventDate && !isNaN(new Date(formData.eventDate).getTime()) ? new Date(formData.eventDate).toISOString().slice(0, 10) : ''}
+                value={formatLocalDate(formData.eventDate)}
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="pl-10 rounded-xl border-[#133C2A]/20 focus:border-[#D4AF37]"
               />
@@ -452,7 +474,7 @@ export function EventForm({ event, onClose, onSubmit }: EventFormProps) {
               <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#133C2A]/40 w-4 h-4 pointer-events-none" />
               <Input
                 type="datetime-local"
-                value={formData.eventDeadline && !isNaN(new Date(formData.eventDeadline).getTime()) ? new Date(formData.eventDeadline).toISOString().slice(0, 16) : ''}
+                value={formatLocalDateTime(formData.eventDeadline)}
                 onChange={(e) => updateField('eventDeadline', e.target.value ? new Date(e.target.value) : undefined)}
                 className="pl-10 rounded-xl border-[#133C2A]/20 focus:border-[#D4AF37]"
               />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CreditCard, RefreshCw, Send, TimerReset } from 'lucide-react';
+import { CheckCircle2, CreditCard, RefreshCw, Search, Send, SlidersHorizontal, TimerReset } from 'lucide-react';
 import {
   AdminPaymentRecord,
   confirmCashPayment,
@@ -15,11 +15,18 @@ import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import {
+  OwnerPaymentsMethodFilter,
+  OwnerPaymentsNavigationContext,
+  OwnerPaymentsStatusFilter,
+} from './paymentsNavigation';
 
-type StatusFilter = 'all' | 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'overdue' | 'cancelled';
-type MethodFilter = 'all' | 'cash' | 'online';
+type StatusFilter = OwnerPaymentsStatusFilter;
+type MethodFilter = OwnerPaymentsMethodFilter;
 
 const statusLabel: Record<string, string> = {
   unpaid: 'Не оплачено',
@@ -58,12 +65,25 @@ function formatDateTime(value?: string | null): string {
   return date.toLocaleString('ru-RU');
 }
 
-export function OwnerPaymentsJournalPanel() {
+interface OwnerPaymentsJournalPanelProps {
+  navigationContext?: OwnerPaymentsNavigationContext;
+  onNavigationContextApplied?: () => void;
+}
+
+export function OwnerPaymentsJournalPanel({
+  navigationContext,
+  onNavigationContextApplied,
+}: OwnerPaymentsJournalPanelProps) {
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [journal, setJournal] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyOutstanding, setShowOnlyOutstanding] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [activeContextLabel, setActiveContextLabel] = useState<string | null>(null);
+  const [appliedRequestId, setAppliedRequestId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [statusDraftById, setStatusDraftById] = useState<Record<string, string>>({});
@@ -77,6 +97,8 @@ export function OwnerPaymentsJournalPanel() {
   const [isRunningReminders, setIsRunningReminders] = useState(false);
   const [isSendingReminderId, setIsSendingReminderId] = useState<string | null>(null);
   const [isUpdatingStatusId, setIsUpdatingStatusId] = useState<string | null>(null);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
+  const [bulkStatusDraft, setBulkStatusDraft] = useState<string>('pending');
 
   const refresh = async () => {
     setIsLoading(true);
@@ -100,6 +122,34 @@ export function OwnerPaymentsJournalPanel() {
     void refresh();
   }, [statusFilter, methodFilter]);
 
+  useEffect(() => {
+    if (!navigationContext) return;
+    if (appliedRequestId === navigationContext.requestId) return;
+
+    if (typeof navigationContext.searchQuery === 'string') {
+      setSearchQuery(navigationContext.searchQuery);
+    }
+    if (navigationContext.statusFilter) {
+      setStatusFilter(navigationContext.statusFilter);
+    }
+    if (navigationContext.methodFilter) {
+      setMethodFilter(navigationContext.methodFilter);
+    }
+    if (typeof navigationContext.showOnlyOutstanding === 'boolean') {
+      setShowOnlyOutstanding(navigationContext.showOnlyOutstanding);
+    }
+    if (navigationContext.invoiceClientId) {
+      setInvoiceClientId(navigationContext.invoiceClientId);
+    }
+    if (navigationContext.statusFilter || navigationContext.methodFilter) {
+      setIsFiltersOpen(true);
+    }
+
+    setActiveContextLabel(navigationContext.sourceLabel || 'Фокус из другого раздела');
+    setAppliedRequestId(navigationContext.requestId);
+    onNavigationContextApplied?.();
+  }, [navigationContext, appliedRequestId, onNavigationContextApplied]);
+
   const stats = useMemo(() => {
     const paid = payments.filter((item) => item.status === 'paid');
     const outstanding = payments.filter((item) => isOutstanding(item.status));
@@ -112,6 +162,66 @@ export function OwnerPaymentsJournalPanel() {
       paidAmount: paid.reduce((sum, item) => sum + Number(item.amount || 0), 0),
     };
   }, [payments]);
+
+  const visiblePayments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return payments.filter((payment) => {
+      const matchesQuery =
+        !query ||
+        [
+          payment.parentName || '',
+          payment.parentPhone || '',
+          payment.childName || '',
+          payment.subscriptionName || '',
+          payment.invoiceNumber || '',
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+      const matchesOutstanding = !showOnlyOutstanding || isOutstanding(payment.status);
+      return matchesQuery && matchesOutstanding;
+    });
+  }, [payments, searchQuery, showOnlyOutstanding]);
+
+  const visiblePaymentIds = useMemo(() => visiblePayments.map((payment) => payment.id), [visiblePayments]);
+  const selectedVisibleCount = useMemo(
+    () => selectedPaymentIds.filter((id) => visiblePaymentIds.includes(id)).length,
+    [selectedPaymentIds, visiblePaymentIds],
+  );
+  const isAllVisibleSelected = visiblePaymentIds.length > 0 && selectedVisibleCount === visiblePaymentIds.length;
+  const selectedPayments = useMemo(
+    () => visiblePayments.filter((payment) => selectedPaymentIds.includes(payment.id)),
+    [visiblePayments, selectedPaymentIds],
+  );
+  const selectedOutstandingPayments = useMemo(
+    () => selectedPayments.filter((payment) => isOutstanding(payment.status)),
+    [selectedPayments],
+  );
+  const selectedCashPendingPayments = useMemo(
+    () => selectedPayments.filter((payment) => payment.paymentMethod === 'cash' && payment.status !== 'paid'),
+    [selectedPayments],
+  );
+
+  const togglePaymentSelection = (paymentId: string, checked: boolean) => {
+    setSelectedPaymentIds((prev) => {
+      if (checked) {
+        if (prev.includes(paymentId)) return prev;
+        return [...prev, paymentId];
+      }
+      return prev.filter((id) => id !== paymentId);
+    });
+  };
+
+  const toggleAllVisibleSelection = (checked: boolean) => {
+    setSelectedPaymentIds((prev) => {
+      if (!checked) {
+        return prev.filter((id) => !visiblePaymentIds.includes(id));
+      }
+      const merged = new Set(prev);
+      visiblePaymentIds.forEach((id) => merged.add(id));
+      return Array.from(merged);
+    });
+  };
 
   const confirmCash = async (payment: AdminPaymentRecord) => {
     if (payment.paymentMethod !== 'cash') return;
@@ -205,14 +315,80 @@ export function OwnerPaymentsJournalPanel() {
     }
   };
 
+  const runBulkReminder = async () => {
+    if (selectedOutstandingPayments.length === 0) {
+      toast.error('Выберите проблемные платежи для напоминания');
+      return;
+    }
+    setIsRunningReminders(true);
+    try {
+      await Promise.all(selectedOutstandingPayments.map((payment) => sendAdminPaymentReminder(payment.id)));
+      toast.success(`Напоминания отправлены: ${selectedOutstandingPayments.length}`);
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось отправить часть напоминаний');
+    } finally {
+      setIsRunningReminders(false);
+    }
+  };
+
+  const runBulkCashConfirm = async () => {
+    if (selectedCashPendingPayments.length === 0) {
+      toast.error('Выберите наличные платежи для подтверждения');
+      return;
+    }
+    setConfirmingId('bulk');
+    try {
+      await Promise.all(
+        selectedCashPendingPayments.map((payment) =>
+          confirmCashPayment(payment.id, {
+            paid_amount: Number(payment.amount || 0),
+            comment: 'Подтверждено владельцем (массово)',
+          }),
+        ),
+      );
+      toast.success(`Подтверждено оплат: ${selectedCashPendingPayments.length}`);
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось подтвердить часть оплат');
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
+  const runBulkStatusUpdate = async () => {
+    const statusValue = bulkStatusDraft as 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled' | 'overdue';
+    const candidates = selectedPayments.filter((payment) => payment.status !== statusValue);
+    if (candidates.length === 0) {
+      toast.error('Нет выбранных платежей для смены статуса');
+      return;
+    }
+    setIsUpdatingStatusId('bulk');
+    try {
+      await Promise.all(candidates.map((payment) => updateAdminPaymentStatus(payment.id, { status: statusValue })));
+      toast.success(`Статус обновлен у ${candidates.length} платежей`);
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось обновить часть платежей');
+    } finally {
+      setIsUpdatingStatusId(null);
+    }
+  };
+
+  const clearFocus = () => {
+    setActiveContextLabel(null);
+    setSearchQuery('');
+    setShowOnlyOutstanding(false);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Платежи и счета</h1>
           <p className="text-[#133C2A]/60">Выставление счетов, контроль оплат и напоминания</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
           <Button variant="outline" className="rounded-2xl" onClick={() => void runReminders()} disabled={isRunningReminders}>
             <TimerReset className="w-4 h-4 mr-2" />
             {isRunningReminders ? 'Проверяем...' : 'Запустить напоминания'}
@@ -224,19 +400,19 @@ export function OwnerPaymentsJournalPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="border-none soft-shadow"><CardContent className="p-5"><p className="text-sm text-[#133C2A]/60">Всего счетов</p><p className="text-3xl text-[#133C2A]">{stats.total}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-5"><p className="text-sm text-[#133C2A]/60">Оплачено</p><p className="text-3xl text-[#133C2A]">{stats.paid}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-5"><p className="text-sm text-[#133C2A]/60">Открытые</p><p className="text-3xl text-[#133C2A]">{stats.outstanding}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-5"><p className="text-sm text-[#133C2A]/60">Просроченные</p><p className="text-3xl text-[#D14343]">{stats.overdue}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-5"><p className="text-sm text-[#133C2A]/60">Сумма оплат</p><p className="text-3xl text-[#133C2A]">{stats.paidAmount.toLocaleString('ru-RU')} ₽</p></CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Всего счетов</p><p className="text-2xl text-[#133C2A] md:text-3xl">{stats.total}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Оплачено</p><p className="text-2xl text-[#133C2A] md:text-3xl">{stats.paid}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Открытые</p><p className="text-2xl text-[#133C2A] md:text-3xl">{stats.outstanding}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Просроченные</p><p className="text-2xl text-[#D14343] md:text-3xl">{stats.overdue}</p></CardContent></Card>
+        <Card className="border-none soft-shadow col-span-2 md:col-span-1"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Сумма оплат</p><p className="text-xl text-[#133C2A] md:text-3xl">{stats.paidAmount.toLocaleString('ru-RU')} ₽</p></CardContent></Card>
       </div>
 
       <Card className="border-none soft-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-[#133C2A]">Выставить счет</CardTitle>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-5 gap-3">
+        <CardContent className="grid gap-3 md:grid-cols-5">
           <Select value={invoiceClientId} onValueChange={setInvoiceClientId}>
             <SelectTrigger className="rounded-xl">
               <SelectValue placeholder="Клиент" />
@@ -287,40 +463,131 @@ export function OwnerPaymentsJournalPanel() {
       <Card className="border-none soft-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-[#133C2A] flex items-center gap-2"><CreditCard className="w-5 h-5 text-[#D4AF37]" />Платежи</CardTitle>
-          <div className="grid md:grid-cols-2 gap-2">
-            <Select value={statusFilter} onValueChange={(value: StatusFilter) => setStatusFilter(value)}>
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="unpaid">Не оплачено</SelectItem>
-                <SelectItem value="pending">Ожидает</SelectItem>
-                <SelectItem value="overdue">Просрочено</SelectItem>
-                <SelectItem value="paid">Оплачено</SelectItem>
-                <SelectItem value="failed">Ошибка</SelectItem>
-                <SelectItem value="cancelled">Отменено</SelectItem>
-                <SelectItem value="refunded">Возврат</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={methodFilter} onValueChange={(value: MethodFilter) => setMethodFilter(value)}>
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все методы</SelectItem>
-                <SelectItem value="cash">Наличные</SelectItem>
-                <SelectItem value="online">Онлайн</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-2">
+            {activeContextLabel && (
+              <div className="rounded-xl border border-[#D4AF37]/35 bg-[#FFF9E8] px-3 py-2 text-sm text-[#8B6B00] flex items-center justify-between gap-2">
+                <span>{activeContextLabel}</span>
+                <Button type="button" size="sm" variant="outline" className="rounded-lg h-7" onClick={clearFocus}>
+                  Сбросить фокус
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-col gap-2 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#133C2A]/45" />
+                <Input
+                  className="rounded-xl pl-9"
+                  placeholder="Поиск по родителю, ученику, счету"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant={showOnlyOutstanding ? 'default' : 'outline'}
+                className={showOnlyOutstanding ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl'}
+                onClick={() => setShowOnlyOutstanding((prev) => !prev)}
+              >
+                Только проблемные
+              </Button>
+              <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="md:w-auto">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" className="rounded-xl">
+                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                    Фильтры
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="grid md:grid-cols-2 gap-2">
+                    <Select value={statusFilter} onValueChange={(value: StatusFilter) => setStatusFilter(value)}>
+                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все статусы</SelectItem>
+                        <SelectItem value="unpaid">Не оплачено</SelectItem>
+                        <SelectItem value="pending">Ожидает</SelectItem>
+                        <SelectItem value="overdue">Просрочено</SelectItem>
+                        <SelectItem value="paid">Оплачено</SelectItem>
+                        <SelectItem value="failed">Ошибка</SelectItem>
+                        <SelectItem value="cancelled">Отменено</SelectItem>
+                        <SelectItem value="refunded">Возврат</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={methodFilter} onValueChange={(value: MethodFilter) => setMethodFilter(value)}>
+                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все методы</SelectItem>
+                        <SelectItem value="cash">Наличные</SelectItem>
+                        <SelectItem value="online">Онлайн</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+            <div className="mobile-scroll-x rounded-xl border border-[#133C2A]/10 bg-[#F8F4E3]/40 px-3 py-2 md:flex md:flex-wrap md:items-center md:overflow-visible md:pb-2">
+              <div className="flex items-center gap-2 min-w-[200px]">
+                <Checkbox checked={isAllVisibleSelected} onCheckedChange={(checked) => toggleAllVisibleSelection(Boolean(checked))} />
+                <span className="text-xs text-[#133C2A]/70">Выбрано: {selectedVisibleCount} из {visiblePayments.length}</span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={selectedOutstandingPayments.length === 0 || isRunningReminders}
+                onClick={() => void runBulkReminder()}
+              >
+                Напомнить выбранным
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={selectedCashPendingPayments.length === 0 || confirmingId === 'bulk'}
+                onClick={() => void runBulkCashConfirm()}
+              >
+                Подтвердить наличные
+              </Button>
+              <Select value={bulkStatusDraft} onValueChange={setBulkStatusDraft}>
+                <SelectTrigger className="w-[170px] rounded-xl h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusUpdateOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={selectedPayments.length === 0 || isUpdatingStatusId === 'bulk'}
+                onClick={() => void runBulkStatusUpdate()}
+              >
+                Применить статус к выбранным
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? (
             <p className="text-[#133C2A]/60">Загрузка...</p>
-          ) : payments.length === 0 ? (
+          ) : visiblePayments.length === 0 ? (
             <p className="text-[#133C2A]/60">Платежей пока нет</p>
           ) : (
-            payments.map((payment) => (
-              <div key={payment.id} className="rounded-2xl border border-[#133C2A]/10 p-4">
+            visiblePayments.map((payment) => (
+              <div key={payment.id} className="rounded-2xl border border-[#133C2A]/10 p-3 md:p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="space-y-1">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedPaymentIds.includes(payment.id)}
+                      onCheckedChange={(checked) => togglePaymentSelection(payment.id, Boolean(checked))}
+                      className="mt-1"
+                    />
+                    <div className="space-y-1">
                     <p className="text-[#133C2A]">{payment.subscriptionName || 'Абонемент'}</p>
                     <p className="text-sm text-[#133C2A]/70">
                       {payment.parentName || payment.parentPhone || '—'}
@@ -332,8 +599,9 @@ export function OwnerPaymentsJournalPanel() {
                     <p className="text-xs text-[#133C2A]/55">
                       Дедлайн: {formatDate(payment.dueDate)} • Напоминаний: {payment.reminderCount || 0}
                     </p>
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="w-full text-left sm:w-auto sm:text-right">
                     <p className="text-xl text-[#133C2A]">{Number(payment.amount || 0).toLocaleString('ru-RU')} ₽</p>
                     <Badge variant="outline" className="rounded-xl mt-1">{statusLabel[payment.status] || payment.status}</Badge>
                     <p className="text-xs text-[#133C2A]/55 mt-1">{payment.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}</p>
@@ -342,7 +610,7 @@ export function OwnerPaymentsJournalPanel() {
                     )}
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
                   {payment.paymentMethod === 'cash' && payment.status !== 'paid' ? (
                     <Button
                       size="sm"
@@ -370,7 +638,7 @@ export function OwnerPaymentsJournalPanel() {
                     value={statusDraftById[payment.id] || payment.status}
                     onValueChange={(value) => setStatusDraftById((prev) => ({ ...prev, [payment.id]: value }))}
                   >
-                    <SelectTrigger className="w-[190px] rounded-xl">
+                    <SelectTrigger className="w-full rounded-xl sm:w-[190px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

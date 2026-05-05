@@ -25,7 +25,7 @@
       "role": "owner",
       "access_level": "full",
       "account_status": "active",
-      "updated_at": "2026-04-29T20:56:43.076650+00:00"
+      "updated_at": "2026-05-04T20:47:39.346029+00:00"
     },
     {
       "id": "user-parent-1776976112255-c38e",
@@ -59,18 +59,18 @@
       "name": "Тест Родитель Наличные",
       "phone": "+79995550001",
       "role": "parent",
-      "access_level": "full",
-      "account_status": "active",
-      "updated_at": "2026-04-28T21:45:02.020127+00:00"
+      "access_level": "payment_only",
+      "account_status": "payment_pending",
+      "updated_at": "2026-05-04T19:41:03.902056+00:00"
     },
     {
       "id": "user-parent-1776979728672-eb49",
       "name": "Тест Родитель Онлайн",
       "phone": "+79995550002",
       "role": "parent",
-      "access_level": "full",
-      "account_status": "active",
-      "updated_at": "2026-04-28T21:45:02.088400+00:00"
+      "access_level": "payment_only",
+      "account_status": "payment_pending",
+      "updated_at": "2026-05-04T19:37:51.615478+00:00"
     },
     {
       "id": "user-parent-1776981088100-8e7e",
@@ -86,54 +86,71 @@
       "name": "Иванова Анна Сергеевна",
       "phone": "+79187777777",
       "role": "parent",
-      "access_level": "full",
-      "account_status": "active",
-      "updated_at": "2026-04-24T14:04:24.314243+03:00"
+      "access_level": "payment_only",
+      "account_status": "payment_pending",
+      "updated_at": "2026-05-04T19:37:51.582075+00:00"
     },
     {
       "id": "user-parent-1777060400254-feba",
       "name": "Болотова Олга Павловна",
       "phone": "+79181111111",
       "role": "parent",
-      "access_level": "full",
-      "account_status": "active",
-      "updated_at": "2026-04-28T21:47:06.062216+00:00"
+      "access_level": "payment_only",
+      "account_status": "payment_pending",
+      "updated_at": "2026-05-04T19:52:01.991277+00:00"
     },
     {
       "id": "user-parent-1777070295334-0109",
       "name": "Павлов Данила Витальевич",
       "phone": "+79180000000",
       "role": "parent",
-      "access_level": "payment_only",
-      "account_status": "payment_pending",
-      "updated_at": "2026-04-28T21:45:02.188219+00:00"
+      "access_level": "full",
+      "account_status": "active",
+      "updated_at": "2026-05-04T19:53:16.408269+00:00"
     },
     {
       "id": "user-parent-1777496203102-bbc3",
       "name": "Smoke Parent",
       "phone": "+79997770012",
       "role": "parent",
+      "access_level": "payment_only",
+      "account_status": "payment_pending",
+      "updated_at": "2026-05-04T19:37:51.568439+00:00"
+    },
+    {
+      "id": "user-teacher-1777885378504-01b9",
+      "name": "Иванов Иван",
+      "phone": "+79186370863",
+      "role": "teacher",
+      "email": "workingmail228@mail.ru",
+      "status": "active",
+      "birth_date": null,
+      "experience": null,
+      "location": null,
+      "permissions": [],
       "access_level": "full",
       "account_status": "active",
-      "updated_at": "2026-04-29T20:56:43.247450+00:00"
+      "updated_at": "2026-05-04T09:03:06.676919+00:00"
     }
   ],
   "tasks": [],
   "news": [
     {
-      "isEvent": false,
-      "date": "2026-04-29T00:18:38.2163366+03:00",
-      "id": "news-audit-20260429001838",
-      "content": "Проверка доставки уведомления в ЛК родителя",
+      "id": "event-1777924150254",
+      "title": "1",
+      "content": "1",
+      "date": "2026-05-04T19:49:10.254Z",
+      "image": "",
       "published": true,
-      "title": "Аудит уведомлений"
-    },
-    {
-      "id": "news-test",
-      "title": "Test",
-      "content": "Backend works",
-      "date": "2026-04-23T00:00:00Z",
-      "published": true
+      "isEvent": true,
+      "eventType": "competition",
+      "eventDate": "2026-12-12T13:00:00.000Z",
+      "eventLocation": "1",
+      "eventFee": 5000,
+      "eventDeadline": "3222-02-13T20:23:00.000Z",
+      "requiresPayment": true,
+      "maxParticipants": 0,
+      "currentParticipants": 0
     }
   ],
   "documents": [],
@@ -144,7 +161,8 @@
       "fullName": "Тестовый Ребенок",
       "birthDate": "2017-05-11",
       "createdAt": "2026-04-23T23:27:46.109797+03:00",
-      "updatedAt": "2026-04-23T23:27:46.109797+03:00"
+      "updatedAt": "2026-04-23T23:27:46.109797+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776976112255-0df6",
@@ -152,7 +170,8 @@
       "fullName": "Онлайн Ребенок",
       "birthDate": "2018-03-12",
       "createdAt": "2026-04-23T23:28:32.255843+03:00",
-      "updatedAt": "2026-04-23T23:28:32.255843+03:00"
+      "updatedAt": "2026-04-23T23:28:32.255843+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776976128323-257a",
@@ -160,7 +179,8 @@
       "fullName": "Webhook Ребенок",
       "birthDate": "2016-01-03",
       "createdAt": "2026-04-23T23:28:48.323087+03:00",
-      "updatedAt": "2026-04-23T23:28:48.323087+03:00"
+      "updatedAt": "2026-05-04T08:59:53.950101+00:00",
+      "groupId": "group-1777884684840-0321"
     },
     {
       "id": "child-1776976236435-fe23",
@@ -168,7 +188,8 @@
       "fullName": "Проверка Ребенок",
       "birthDate": "2018-04-05",
       "createdAt": "2026-04-23T23:30:36.430546+03:00",
-      "updatedAt": "2026-04-23T23:30:36.430546+03:00"
+      "updatedAt": "2026-04-23T23:30:36.430546+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776979691612-a842",
@@ -176,7 +197,8 @@
       "fullName": "Тест Ребенок Наличные",
       "birthDate": "2018-05-10",
       "createdAt": "2026-04-24T00:28:11.61257+03:00",
-      "updatedAt": "2026-04-24T00:28:11.61257+03:00"
+      "updatedAt": "2026-04-24T00:28:11.61257+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776979728672-d594",
@@ -184,7 +206,8 @@
       "fullName": "Тест Ребенок Онлайн",
       "birthDate": "2017-09-14",
       "createdAt": "2026-04-24T00:28:48.672187+03:00",
-      "updatedAt": "2026-04-24T00:28:48.672187+03:00"
+      "updatedAt": "2026-04-24T00:28:48.672187+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776981010500-004f",
@@ -192,7 +215,8 @@
       "fullName": "Иванова Мария Александровна",
       "birthDate": "2015-01-07",
       "createdAt": "2026-04-24T00:50:10.497529+03:00",
-      "updatedAt": "2026-04-24T00:50:10.497529+03:00"
+      "updatedAt": "2026-04-24T00:50:10.497529+03:00",
+      "groupId": null
     },
     {
       "id": "child-1776981088100-815e",
@@ -200,7 +224,8 @@
       "fullName": "Иванова Мария Ивановна",
       "birthDate": "2015-01-22",
       "createdAt": "2026-04-24T00:51:28.100843+03:00",
-      "updatedAt": "2026-04-24T00:51:28.100843+03:00"
+      "updatedAt": "2026-04-24T00:51:28.100843+03:00",
+      "groupId": null
     },
     {
       "id": "child-1777028603816-b12d",
@@ -208,7 +233,8 @@
       "fullName": "Иванова Мария Александровна",
       "birthDate": "2015-01-22",
       "createdAt": "2026-04-24T14:03:23.811549+03:00",
-      "updatedAt": "2026-04-24T14:03:23.811549+03:00"
+      "updatedAt": "2026-04-24T14:03:23.811549+03:00",
+      "groupId": null
     },
     {
       "id": "child-1777060400254-85a0",
@@ -216,7 +242,8 @@
       "fullName": "Павлова Олеся Витальевна",
       "birthDate": "2015-01-14",
       "createdAt": "2026-04-24T22:53:20.250165+03:00",
-      "updatedAt": "2026-04-24T22:53:20.250165+03:00"
+      "updatedAt": "2026-04-24T22:53:20.250165+03:00",
+      "groupId": null
     },
     {
       "id": "child-1777070295334-0ad1",
@@ -224,7 +251,8 @@
       "fullName": "Иванов Иван Иванович",
       "birthDate": "2020-06-27",
       "createdAt": "2026-04-25T01:38:15.334883+03:00",
-      "updatedAt": "2026-04-25T01:38:15.334883+03:00"
+      "updatedAt": "2026-05-04T08:59:58.868870+00:00",
+      "groupId": "group-1777884684840-0321"
     },
     {
       "id": "child-1777496203102-900f",
@@ -232,7 +260,8 @@
       "fullName": "Smoke Child",
       "birthDate": "2016-02-10",
       "createdAt": "2026-04-29T20:56:43.102491+00:00",
-      "updatedAt": "2026-04-29T20:56:43.102491+00:00"
+      "updatedAt": "2026-05-04T08:59:23.358928+00:00",
+      "groupId": "group-1777882289856-ac3f"
     }
   ],
   "clients": [
@@ -308,13 +337,13 @@
       "subscriptionName": "8 занятий",
       "subscriptionAmount": 7200.0,
       "paymentMethod": "cash",
-      "paymentStatus": "paid",
-      "accessLevel": "full",
-      "accountStatus": "active",
+      "paymentStatus": "unpaid",
+      "accessLevel": "payment_only",
+      "accountStatus": "payment_pending",
       "notes": "e2e cash test",
       "createdByUserId": "user-parent-1776972606894",
       "createdAt": "2026-04-24T00:28:11.61257+03:00",
-      "updatedAt": "2026-04-24T00:28:38.5825+03:00"
+      "updatedAt": "2026-05-04T19:41:03.902056+00:00"
     },
     {
       "id": "client-1776979728672-6500",
@@ -324,13 +353,13 @@
       "subscriptionName": "12 занятий",
       "subscriptionAmount": 9900.0,
       "paymentMethod": "online",
-      "paymentStatus": "paid",
-      "accessLevel": "full",
-      "accountStatus": "active",
+      "paymentStatus": "pending",
+      "accessLevel": "payment_only",
+      "accountStatus": "payment_pending",
       "notes": "e2e online test",
       "createdByUserId": "user-parent-1776972606894",
       "createdAt": "2026-04-24T00:28:48.672187+03:00",
-      "updatedAt": "2026-04-24T00:29:08.333531+03:00"
+      "updatedAt": "2026-05-04T19:37:51.615478+00:00"
     },
     {
       "id": "client-1776981010500-f5f1",
@@ -340,13 +369,13 @@
       "subscriptionName": "Абонемент 8 занятий",
       "subscriptionAmount": 5000.0,
       "paymentMethod": "cash",
-      "paymentStatus": "unpaid",
-      "accessLevel": "payment_only",
-      "accountStatus": "payment_pending",
+      "paymentStatus": "paid",
+      "accessLevel": "full",
+      "accountStatus": "active",
       "notes": null,
       "createdByUserId": "user-parent-1776976111452",
       "createdAt": "2026-04-24T00:50:10.497529+03:00",
-      "updatedAt": "2026-04-24T00:50:10.497529+03:00"
+      "updatedAt": "2026-05-04T19:40:17.098760+00:00"
     },
     {
       "id": "client-1776981088100-8aa4",
@@ -372,13 +401,13 @@
       "subscriptionName": "Подростковая группа",
       "subscriptionAmount": 5500.0,
       "paymentMethod": "cash",
-      "paymentStatus": "paid",
-      "accessLevel": "full",
-      "accountStatus": "active",
+      "paymentStatus": "pending",
+      "accessLevel": "payment_only",
+      "accountStatus": "payment_pending",
       "notes": null,
       "createdByUserId": "user-parent-1776976111452",
       "createdAt": "2026-04-24T14:03:23.811549+03:00",
-      "updatedAt": "2026-04-24T14:03:23.840877+03:00"
+      "updatedAt": "2026-05-04T19:37:51.582075+00:00"
     },
     {
       "id": "client-1777060400254-f534",
@@ -388,13 +417,13 @@
       "subscriptionName": "Подготовка к конкурсу",
       "subscriptionAmount": 18000.0,
       "paymentMethod": "online",
-      "paymentStatus": "paid",
-      "accessLevel": "full",
-      "accountStatus": "active",
+      "paymentStatus": "pending",
+      "accessLevel": "payment_only",
+      "accountStatus": "payment_pending",
       "notes": null,
       "createdByUserId": "user-parent-1776976111452",
       "createdAt": "2026-04-24T22:53:20.250165+03:00",
-      "updatedAt": "2026-04-24T22:54:46.295226+03:00"
+      "updatedAt": "2026-05-04T19:37:51.601829+00:00"
     },
     {
       "id": "client-1777070295334-20f3",
@@ -404,13 +433,13 @@
       "subscriptionName": "Про",
       "subscriptionAmount": 6500.0,
       "paymentMethod": "online",
-      "paymentStatus": "pending",
-      "accessLevel": "payment_only",
-      "accountStatus": "payment_pending",
+      "paymentStatus": "paid",
+      "accessLevel": "full",
+      "accountStatus": "active",
       "notes": null,
       "createdByUserId": "user-parent-1776974819584",
       "createdAt": "2026-04-25T01:38:15.334883+03:00",
-      "updatedAt": "2026-04-25T01:38:15.334883+03:00"
+      "updatedAt": "2026-05-04T19:53:05.963525+00:00"
     },
     {
       "id": "client-1777496203102-26a9",
@@ -421,16 +450,141 @@
       "subscriptionCode": "hobby",
       "subscriptionAmount": 5000.0,
       "paymentMethod": "cash",
-      "paymentStatus": "paid",
-      "accessLevel": "full",
-      "accountStatus": "active",
+      "paymentStatus": "pending",
+      "accessLevel": "payment_only",
+      "accountStatus": "payment_pending",
       "notes": "smoke flow",
       "createdByUserId": "user-parent-1776974819584",
       "createdAt": "2026-04-29T20:56:43.102491+00:00",
-      "updatedAt": "2026-04-29T20:56:43.205525+00:00"
+      "updatedAt": "2026-05-04T19:37:51.568439+00:00"
     }
   ],
   "paymentRecords": [
+    {
+      "id": "payment-1777923663902-f940",
+      "clientId": "client-1776979691612-fa52",
+      "parentUserId": "user-parent-1776979691612-1f72",
+      "parentPhone": "+79995550001",
+      "subscriptionName": "8 занятий",
+      "amount": 7475567.0,
+      "currency": "RUB",
+      "paymentMethod": "cash",
+      "status": "unpaid",
+      "providerPaymentId": null,
+      "paidAt": null,
+      "confirmedByUserId": null,
+      "invoiceNumber": "INV-2026-000018",
+      "dueDate": "2026-05-09",
+      "reminderCount": 0,
+      "lastReminderAt": null,
+      "nextReminderAt": "2026-05-07T00:00:00+00:00",
+      "reminderComment": null,
+      "invoiceComment": null,
+      "createdByUserId": "user-parent-1776974819584",
+      "statusUpdatedAt": "2026-05-04T19:41:03.902056+00:00",
+      "createdAt": "2026-05-04T19:41:03.902056+00:00",
+      "updatedAt": "2026-05-04T19:41:03.902056+00:00"
+    },
+    {
+      "id": "payment-1777923471615-1846",
+      "clientId": "client-1776979728672-6500",
+      "parentUserId": "user-parent-1776979728672-eb49",
+      "parentPhone": "+79995550002",
+      "subscriptionName": "12 занятий",
+      "amount": 9900.0,
+      "currency": "RUB",
+      "paymentMethod": "online",
+      "status": "pending",
+      "providerPaymentId": null,
+      "paidAt": null,
+      "confirmedByUserId": null,
+      "invoiceNumber": "INV-2026-000017",
+      "dueDate": "2026-05-09",
+      "reminderCount": 0,
+      "lastReminderAt": null,
+      "nextReminderAt": "2026-05-07T00:00:00+00:00",
+      "reminderComment": null,
+      "invoiceComment": null,
+      "createdByUserId": "user-parent-1776974819584",
+      "statusUpdatedAt": "2026-05-04T19:37:51.615478+00:00",
+      "createdAt": "2026-05-04T19:37:51.615478+00:00",
+      "updatedAt": "2026-05-04T19:37:51.615478+00:00"
+    },
+    {
+      "id": "payment-1777923471601-94a6",
+      "clientId": "client-1777060400254-f534",
+      "parentUserId": "user-parent-1777060400254-feba",
+      "parentPhone": "+79181111111",
+      "subscriptionName": "Подготовка к конкурсу",
+      "amount": 18000.0,
+      "currency": "RUB",
+      "paymentMethod": "online",
+      "status": "pending",
+      "providerPaymentId": null,
+      "paidAt": null,
+      "confirmedByUserId": null,
+      "invoiceNumber": "INV-2026-000016",
+      "dueDate": "2026-05-09",
+      "reminderCount": 0,
+      "lastReminderAt": null,
+      "nextReminderAt": "2026-05-07T00:00:00+00:00",
+      "reminderComment": null,
+      "invoiceComment": null,
+      "createdByUserId": "user-parent-1776974819584",
+      "statusUpdatedAt": "2026-05-04T19:37:51.601829+00:00",
+      "createdAt": "2026-05-04T19:37:51.601829+00:00",
+      "updatedAt": "2026-05-04T19:37:51.601829+00:00"
+    },
+    {
+      "id": "payment-1777923471582-7cf0",
+      "clientId": "client-1777028603816-3db7",
+      "parentUserId": "user-parent-1777028603816-13a2",
+      "parentPhone": "+79187777777",
+      "subscriptionName": "Подростковая группа",
+      "amount": 5500.0,
+      "currency": "RUB",
+      "paymentMethod": "online",
+      "status": "pending",
+      "providerPaymentId": null,
+      "paidAt": null,
+      "confirmedByUserId": null,
+      "invoiceNumber": "INV-2026-000015",
+      "dueDate": "2026-05-09",
+      "reminderCount": 0,
+      "lastReminderAt": null,
+      "nextReminderAt": "2026-05-07T00:00:00+00:00",
+      "reminderComment": null,
+      "invoiceComment": null,
+      "createdByUserId": "user-parent-1776974819584",
+      "statusUpdatedAt": "2026-05-04T19:37:51.582075+00:00",
+      "createdAt": "2026-05-04T19:37:51.582075+00:00",
+      "updatedAt": "2026-05-04T19:37:51.582075+00:00"
+    },
+    {
+      "id": "payment-1777923471568-7636",
+      "clientId": "client-1777496203102-26a9",
+      "parentUserId": "user-parent-1777496203102-bbc3",
+      "parentPhone": "+79997770012",
+      "subscriptionName": "Хобби",
+      "amount": 5000.0,
+      "currency": "RUB",
+      "paymentMethod": "online",
+      "status": "pending",
+      "providerPaymentId": null,
+      "paidAt": null,
+      "confirmedByUserId": null,
+      "invoiceNumber": "INV-2026-000014",
+      "dueDate": "2026-05-09",
+      "reminderCount": 0,
+      "lastReminderAt": null,
+      "nextReminderAt": "2026-05-07T00:00:00+00:00",
+      "reminderComment": null,
+      "invoiceComment": null,
+      "createdByUserId": "user-parent-1776974819584",
+      "statusUpdatedAt": "2026-05-04T19:37:51.568439+00:00",
+      "createdAt": "2026-05-04T19:37:51.568439+00:00",
+      "updatedAt": "2026-05-04T19:37:51.568439+00:00"
+    },
     {
       "id": "payment-1777496203158-de09",
       "clientId": "client-1777496203102-26a9",
@@ -490,21 +644,21 @@
       "amount": 6500.0,
       "currency": "RUB",
       "paymentMethod": "online",
-      "status": "overdue",
+      "status": "paid",
       "providerPaymentId": null,
-      "paidAt": null,
-      "confirmedByUserId": null,
+      "paidAt": "2026-05-04T19:53:05.963525+00:00",
+      "confirmedByUserId": "user-parent-1776974819584",
       "createdAt": "2026-04-25T01:38:15.334883+03:00",
-      "updatedAt": "2026-04-25T01:38:15.334883+03:00",
+      "updatedAt": "2026-05-04T19:53:05.963525+00:00",
       "invoiceNumber": "INV-2026-000001",
       "dueDate": "2026-04-29",
-      "reminderCount": 0,
-      "lastReminderAt": null,
-      "nextReminderAt": "2026-04-29T00:00:00+00:00",
-      "reminderComment": null,
+      "reminderCount": 3,
+      "lastReminderAt": "2026-05-04T19:37:49.805556+00:00",
+      "nextReminderAt": "2026-05-04T00:00:00+00:00",
+      "reminderComment": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
       "invoiceComment": null,
       "createdByUserId": null,
-      "statusUpdatedAt": "2026-04-30T10:01:35.788811+00:00"
+      "statusUpdatedAt": "2026-05-04T19:53:05.963525+00:00"
     },
     {
       "id": "payment-1777060400254-c0d4",
@@ -570,13 +724,13 @@
       "paidAt": null,
       "confirmedByUserId": null,
       "createdAt": "2026-04-24T00:51:28.100843+03:00",
-      "updatedAt": "2026-04-24T00:51:28.100843+03:00",
+      "updatedAt": "2026-05-04T19:37:49.846485+00:00",
       "invoiceNumber": "INV-2026-000004",
       "dueDate": "2026-04-28",
-      "reminderCount": 0,
-      "lastReminderAt": null,
-      "nextReminderAt": "2026-04-29T00:00:00+00:00",
-      "reminderComment": null,
+      "reminderCount": 2,
+      "lastReminderAt": "2026-05-04T19:37:49.846485+00:00",
+      "nextReminderAt": "2026-05-05T19:37:49.846485+00:00",
+      "reminderComment": "Напоминание: оплатите счет Взрослая группа на сумму 6000 ₽ до 2026-04-28.",
       "invoiceComment": null,
       "createdByUserId": null,
       "statusUpdatedAt": "2026-04-29T20:42:23.137712+00:00"
@@ -590,21 +744,21 @@
       "amount": 5000.0,
       "currency": "RUB",
       "paymentMethod": "cash",
-      "status": "overdue",
+      "status": "paid",
       "providerPaymentId": null,
-      "paidAt": null,
-      "confirmedByUserId": null,
+      "paidAt": "2026-05-04T19:40:17.098760+00:00",
+      "confirmedByUserId": "user-parent-1776974819584",
       "createdAt": "2026-04-24T00:50:10.497529+03:00",
-      "updatedAt": "2026-04-24T00:50:10.497529+03:00",
+      "updatedAt": "2026-05-04T19:40:17.098760+00:00",
       "invoiceNumber": "INV-2026-000005",
       "dueDate": "2026-04-28",
-      "reminderCount": 0,
-      "lastReminderAt": null,
-      "nextReminderAt": "2026-04-29T00:00:00+00:00",
-      "reminderComment": null,
+      "reminderCount": 3,
+      "lastReminderAt": "2026-05-04T19:37:49.825279+00:00",
+      "nextReminderAt": "2026-05-04T00:00:00+00:00",
+      "reminderComment": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
       "invoiceComment": null,
       "createdByUserId": null,
-      "statusUpdatedAt": "2026-04-29T20:42:23.137712+00:00"
+      "statusUpdatedAt": "2026-05-04T19:40:17.098760+00:00"
     },
     {
       "id": "payment-1776979728672-0739",
@@ -670,13 +824,13 @@
       "paidAt": null,
       "confirmedByUserId": null,
       "createdAt": "2026-04-23T23:30:36.430546+03:00",
-      "updatedAt": "2026-04-23T23:30:36.430546+03:00",
+      "updatedAt": "2026-05-04T19:37:49.885909+00:00",
       "invoiceNumber": "INV-2026-000008",
       "dueDate": "2026-04-28",
-      "reminderCount": 0,
-      "lastReminderAt": null,
-      "nextReminderAt": "2026-04-29T00:00:00+00:00",
-      "reminderComment": null,
+      "reminderCount": 3,
+      "lastReminderAt": "2026-05-04T19:37:49.885909+00:00",
+      "nextReminderAt": "2026-05-05T19:37:49.885909+00:00",
+      "reminderComment": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
       "invoiceComment": null,
       "createdByUserId": null,
       "statusUpdatedAt": "2026-04-29T20:42:23.137712+00:00"
@@ -720,13 +874,13 @@
       "paidAt": null,
       "confirmedByUserId": null,
       "createdAt": "2026-04-23T23:28:32.255843+03:00",
-      "updatedAt": "2026-04-23T23:28:32.255843+03:00",
+      "updatedAt": "2026-05-04T19:37:49.866197+00:00",
       "invoiceNumber": "INV-2026-000010",
       "dueDate": "2026-04-28",
-      "reminderCount": 0,
-      "lastReminderAt": null,
-      "nextReminderAt": "2026-04-29T00:00:00+00:00",
-      "reminderComment": null,
+      "reminderCount": 2,
+      "lastReminderAt": "2026-05-04T19:37:49.866197+00:00",
+      "nextReminderAt": "2026-05-05T19:37:49.866197+00:00",
+      "reminderComment": "Напоминание: оплатите счет Абонемент 12 занятий на сумму 7900 ₽ до 2026-04-28.",
       "invoiceComment": null,
       "createdByUserId": null,
       "statusUpdatedAt": "2026-04-29T20:42:23.137712+00:00"
@@ -758,6 +912,325 @@
     }
   ],
   "paymentJournal": [
+    {
+      "id": "paylog-1777924385963-e068",
+      "paymentId": "payment-1777070295334-91e5",
+      "parentUserId": "user-parent-1777070295334-0109",
+      "eventType": "payment.status_changed",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "paid",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null
+      },
+      "createdAt": "2026-05-04T19:53:05.963525+00:00"
+    },
+    {
+      "id": "paylog-1777923663902-99e9",
+      "paymentId": "payment-1777923663902-f940",
+      "parentUserId": "user-parent-1776979691612-1f72",
+      "eventType": "payment.invoice_created",
+      "source": "admin",
+      "previousStatus": null,
+      "newStatus": "unpaid",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null,
+        "dueDate": "2026-05-09"
+      },
+      "createdAt": "2026-05-04T19:41:03.902056+00:00"
+    },
+    {
+      "id": "paylog-1777923617098-ecc1",
+      "paymentId": "payment-1776981010500-2c60",
+      "parentUserId": "user-parent-1776974819584",
+      "eventType": "payment.confirmed_cash",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "paid",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": "Подтверждено владельцем",
+        "paidAmount": 5000.0
+      },
+      "createdAt": "2026-05-04T19:40:17.100271+00:00"
+    },
+    {
+      "id": "paylog-1777923471615-0e1b",
+      "paymentId": "payment-1777923471615-1846",
+      "parentUserId": "user-parent-1776979728672-eb49",
+      "eventType": "payment.invoice_created",
+      "source": "admin",
+      "previousStatus": null,
+      "newStatus": "pending",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null,
+        "dueDate": "2026-05-09"
+      },
+      "createdAt": "2026-05-04T19:37:51.615478+00:00"
+    },
+    {
+      "id": "paylog-1777923471601-c1c3",
+      "paymentId": "payment-1777923471601-94a6",
+      "parentUserId": "user-parent-1777060400254-feba",
+      "eventType": "payment.invoice_created",
+      "source": "admin",
+      "previousStatus": null,
+      "newStatus": "pending",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null,
+        "dueDate": "2026-05-09"
+      },
+      "createdAt": "2026-05-04T19:37:51.601829+00:00"
+    },
+    {
+      "id": "paylog-1777923471582-f5a7",
+      "paymentId": "payment-1777923471582-7cf0",
+      "parentUserId": "user-parent-1777028603816-13a2",
+      "eventType": "payment.invoice_created",
+      "source": "admin",
+      "previousStatus": null,
+      "newStatus": "pending",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null,
+        "dueDate": "2026-05-09"
+      },
+      "createdAt": "2026-05-04T19:37:51.582075+00:00"
+    },
+    {
+      "id": "paylog-1777923471568-b126",
+      "paymentId": "payment-1777923471568-7636",
+      "parentUserId": "user-parent-1777496203102-bbc3",
+      "eventType": "payment.invoice_created",
+      "source": "admin",
+      "previousStatus": null,
+      "newStatus": "pending",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "comment": null,
+        "dueDate": "2026-05-09"
+      },
+      "createdAt": "2026-05-04T19:37:51.568439+00:00"
+    },
+    {
+      "id": "paylog-1777923469885-2412",
+      "paymentId": "payment-1776976236435-8305",
+      "parentUserId": "user-parent-1776976236435-941b",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+        "reminderCount": 3
+      },
+      "createdAt": "2026-05-04T19:37:49.885909+00:00"
+    },
+    {
+      "id": "paylog-1777923469866-d121",
+      "paymentId": "payment-1776976112255-dd67",
+      "parentUserId": "user-parent-1776976112255-c38e",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент 12 занятий на сумму 7900 ₽ до 2026-04-28.",
+        "reminderCount": 2
+      },
+      "createdAt": "2026-05-04T19:37:49.866197+00:00"
+    },
+    {
+      "id": "paylog-1777923469846-19f9",
+      "paymentId": "payment-1776981088100-6945",
+      "parentUserId": "user-parent-1776981088100-8e7e",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Взрослая группа на сумму 6000 ₽ до 2026-04-28.",
+        "reminderCount": 2
+      },
+      "createdAt": "2026-05-04T19:37:49.846485+00:00"
+    },
+    {
+      "id": "paylog-1777923469825-f4d2",
+      "paymentId": "payment-1776981010500-2c60",
+      "parentUserId": "user-parent-1776974819584",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+        "reminderCount": 3
+      },
+      "createdAt": "2026-05-04T19:37:49.825279+00:00"
+    },
+    {
+      "id": "paylog-1777923469805-ba06",
+      "paymentId": "payment-1777070295334-91e5",
+      "parentUserId": "user-parent-1777070295334-0109",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+        "reminderCount": 3
+      },
+      "createdAt": "2026-05-04T19:37:49.805556+00:00"
+    },
+    {
+      "id": "paylog-1777923461076-6503",
+      "paymentId": "payment-1776976236435-8305",
+      "parentUserId": "user-parent-1776976236435-941b",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+        "reminderCount": 2
+      },
+      "createdAt": "2026-05-04T19:37:41.076651+00:00"
+    },
+    {
+      "id": "paylog-1777923461066-fb3d",
+      "paymentId": "payment-1776981010500-2c60",
+      "parentUserId": "user-parent-1776974819584",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+        "reminderCount": 2
+      },
+      "createdAt": "2026-05-04T19:37:41.066037+00:00"
+    },
+    {
+      "id": "paylog-1777885951559-dfb8",
+      "paymentId": "payment-1776976112255-dd67",
+      "parentUserId": "user-parent-1776976112255-c38e",
+      "eventType": "payment.reminder_sent",
+      "source": "automation",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент 12 занятий на сумму 7900 ₽ до 2026-04-28.",
+        "reminderCount": 1
+      },
+      "createdAt": "2026-05-04T09:12:31.559448+00:00"
+    },
+    {
+      "id": "paylog-1777885951559-25f2",
+      "paymentId": "payment-1776976236435-8305",
+      "parentUserId": "user-parent-1776976236435-941b",
+      "eventType": "payment.reminder_sent",
+      "source": "automation",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+        "reminderCount": 1
+      },
+      "createdAt": "2026-05-04T09:12:31.559448+00:00"
+    },
+    {
+      "id": "paylog-1777885951559-c3a9",
+      "paymentId": "payment-1776981010500-2c60",
+      "parentUserId": "user-parent-1776974819584",
+      "eventType": "payment.reminder_sent",
+      "source": "automation",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+        "reminderCount": 1
+      },
+      "createdAt": "2026-05-04T09:12:31.559448+00:00"
+    },
+    {
+      "id": "paylog-1777885951559-2215",
+      "paymentId": "payment-1776981088100-6945",
+      "parentUserId": "user-parent-1776981088100-8e7e",
+      "eventType": "payment.reminder_sent",
+      "source": "automation",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Взрослая группа на сумму 6000 ₽ до 2026-04-28.",
+        "reminderCount": 1
+      },
+      "createdAt": "2026-05-04T09:12:31.559448+00:00"
+    },
+    {
+      "id": "paylog-1777885951559-d8df",
+      "paymentId": "payment-1777070295334-91e5",
+      "parentUserId": "user-parent-1777070295334-0109",
+      "eventType": "payment.reminder_sent",
+      "source": "automation",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+        "reminderCount": 2
+      },
+      "createdAt": "2026-05-04T09:12:31.559448+00:00"
+    },
+    {
+      "id": "paylog-1777712454724-73a3",
+      "paymentId": "payment-1777070295334-91e5",
+      "parentUserId": "user-parent-1777070295334-0109",
+      "eventType": "payment.reminder_sent",
+      "source": "admin",
+      "previousStatus": "overdue",
+      "newStatus": "overdue",
+      "actorUserId": "user-parent-1776974819584",
+      "actorRole": "owner",
+      "metadata": {
+        "message": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+        "reminderCount": 1
+      },
+      "createdAt": "2026-05-02T09:00:54.724809+00:00"
+    },
     {
       "id": "paylog-1777496203205-52df",
       "paymentId": "payment-1777496203158-de09",
@@ -1142,7 +1615,7 @@
       "duration_days": 30,
       "is_active": true,
       "created_at": "2026-04-27T13:05:30.126373+03:00",
-      "updated_at": "2026-04-30T10:01:35.788811+00:00"
+      "updated_at": "2026-05-04T20:47:39.346029+00:00"
     },
     {
       "id": "plan-pro",
@@ -1152,7 +1625,7 @@
       "duration_days": 30,
       "is_active": true,
       "created_at": "2026-04-27T13:05:30.126373+03:00",
-      "updated_at": "2026-04-30T10:01:35.788811+00:00"
+      "updated_at": "2026-05-04T20:47:39.346029+00:00"
     }
   ],
   "payments": [],
@@ -1161,7 +1634,68 @@
     "year": 2026,
     "value": 0
   },
-  "ownerGroups": [],
+  "ownerGroups": [
+    {
+      "id": "group-1777925167845-e06f",
+      "name": "Legacy форма2 (копия)",
+      "ageRange": "6-9",
+      "teacherId": null,
+      "teacherName": "",
+      "schedule": "tuesday, thursday",
+      "time": "",
+      "color": "#133C2A",
+      "maxCapacity": 10,
+      "studentCount": 0,
+      "createdByUserId": "user-parent-1776974819584",
+      "createdAt": "2026-05-04T20:06:07.845032+00:00",
+      "updatedAt": "2026-05-04T20:06:07.845032+00:00"
+    },
+    {
+      "id": "group-1777884684840-0321",
+      "name": "Legacy форма2",
+      "ageRange": "6-9",
+      "teacherId": null,
+      "teacherName": "",
+      "schedule": "tuesday, thursday",
+      "time": "",
+      "color": "#133C2A",
+      "maxCapacity": 10,
+      "studentCount": 2,
+      "createdByUserId": "user-parent-1776974819584",
+      "createdAt": "2026-05-04T08:51:24.840970+00:00",
+      "updatedAt": "2026-05-04T08:59:58.868870+00:00"
+    },
+    {
+      "id": "group-1777884482824-c2a9",
+      "name": "Legacy форма",
+      "ageRange": "6-9",
+      "teacherId": null,
+      "teacherName": "",
+      "schedule": "monday, wednesday",
+      "time": "17:00-18:00",
+      "color": "#133C2A",
+      "maxCapacity": 12,
+      "studentCount": 0,
+      "createdByUserId": "user-parent-1776974819584",
+      "createdAt": "2026-05-04T08:48:02.824499+00:00",
+      "updatedAt": "2026-05-04T08:48:02.824499+00:00"
+    },
+    {
+      "id": "group-1777882289856-ac3f",
+      "name": "Тест группа 2",
+      "ageRange": "8-11",
+      "teacherId": null,
+      "teacherName": "",
+      "schedule": "ВТ,ЧТ",
+      "time": "19:00-20:00",
+      "color": "#133C2A",
+      "maxCapacity": 14,
+      "studentCount": 1,
+      "createdByUserId": "user-parent-1776974819584",
+      "createdAt": "2026-05-04T08:11:29.856158+00:00",
+      "updatedAt": "2026-05-04T08:59:23.358928+00:00"
+    }
+  ],
   "ownerExpenses": [],
   "activeTokens": {
     "Ati4mxkdXDHoVrMdVN2-fbrKfIIhTZMLGsOC__ww-5k": {
@@ -1259,11 +1793,6 @@
       "issuedAt": "2026-04-28T21:45:02.189731+00:00",
       "expiresAt": "2026-05-05T21:45:02.189731+00:00"
     },
-    "NzMv7VvXEG47OdbpYZDVij7efGG6CtkUbAw-_vB_pKA": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T21:48:25.870236+00:00",
-      "expiresAt": "2026-05-05T21:48:25.870236+00:00"
-    },
     "OQVI8TLZk4k6WNV7FFAQEqg8y5nje9fkT5rdWCb7XdQ": {
       "phone": "+79189423508",
       "issuedAt": "2026-04-28T22:01:22.436835+00:00",
@@ -1298,10 +1827,1179 @@
       "phone": "+79997770012",
       "issuedAt": "2026-04-29T20:56:43.248478+00:00",
       "expiresAt": "2026-05-06T20:56:43.248478+00:00"
+    },
+    "VDgWUEBvblWeZzsutBSXVl0Fg8aX8szr1_xlgwj83OQ": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:10:51.105513+00:00",
+      "expiresAt": "2026-05-11T08:10:51.105513+00:00"
+    },
+    "aue9AgLPCod80rxDCqygCnhjGQ_E0WnTXm5FIw6EByE": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:11:27.794726+00:00",
+      "expiresAt": "2026-05-11T08:11:27.794726+00:00"
+    },
+    "WpYW0ElF1-Ob5bFqC1n7s5jUOCr4n8zlYdaEnIo4uBI": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:41:38.440871+00:00",
+      "expiresAt": "2026-05-11T08:41:38.440871+00:00"
+    },
+    "r49qQOl7LAGrV6iBz51K9hrmNTWt7L3c1Gyo-n6jZhQ": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:42:03.730179+00:00",
+      "expiresAt": "2026-05-11T08:42:03.730179+00:00"
+    },
+    "j6EiRTGS0VmPXROJqZIollLj7zOOACVfVo-9ZUkfxRs": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:48:02.567602+00:00",
+      "expiresAt": "2026-05-11T08:48:02.567602+00:00"
+    },
+    "E6YMA8N0Ww6f-4PI571w-zq0WNoxp0Mg6SvROTcR2jo": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T08:51:24.592817+00:00",
+      "expiresAt": "2026-05-11T08:51:24.592817+00:00"
+    },
+    "ppoHqarc8a7QSlp6REdB1nN893WkVzFQrIWahF9QRYQ": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T19:55:16.219082+00:00",
+      "expiresAt": "2026-05-11T19:55:16.219082+00:00"
+    },
+    "j227nSMA38kxTwzwq0uMkN6UmfExJ45KdzFFh2nBzi0": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T20:02:18.665203+00:00",
+      "expiresAt": "2026-05-11T20:02:18.665203+00:00"
+    },
+    "LjA_XwQGP5RrIpKtiwuZPMMnb-njmKIIscC62ywwg2c": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T20:33:16.246094+00:00",
+      "expiresAt": "2026-05-11T20:33:16.246094+00:00"
+    },
+    "OiYxe7U1-QxAYdIqKbRZQFr2vmL-G7Hi67x9PST9Sw8": {
+      "phone": "+79189423508",
+      "issuedAt": "2026-05-04T20:47:39.349197+00:00",
+      "expiresAt": "2026-05-11T20:47:39.349197+00:00"
     }
   },
   "automationRules": [],
   "notifications": [
+    {
+      "id": "notif-1777924385963-84b3",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "payment",
+      "priority": "low",
+      "title": "Оплата подтверждена",
+      "message": "Про: платеж принят",
+      "additionalInfo": "Доступ к разделам кабинета активирован.",
+      "createdAt": "2026-05-04T19:53:05.963525+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777070295334-91e5",
+        "status": "paid"
+      },
+      "dedupKey": "payment:payment-1777070295334-91e5:paid"
+    },
+    {
+      "id": "notif-1777924150581-bffd",
+      "userId": "user-parent-1777496203102-bbc3",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-38a1",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": true,
+      "readAt": "2026-05-04T19:53:33.382705+00:00",
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-e8fd",
+      "userId": "user-parent-1777060400254-feba",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-958f",
+      "userId": "user-parent-1777028603816-13a2",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-5cc8",
+      "userId": "user-parent-1776981088100-8e7e",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-5334",
+      "userId": "user-parent-1776979728672-eb49",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-e98d",
+      "userId": "user-parent-1776979691612-1f72",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-289a",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-26c5",
+      "userId": "user-parent-1776976128323-9cab",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-fc97",
+      "userId": "user-parent-1776976112255-c38e",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777924150581-846c",
+      "userId": "user-parent-1",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T19:49:10.581966+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777924150254",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777924150254:created"
+    },
+    {
+      "id": "notif-1777923663902-4eb0",
+      "userId": "user-parent-1776979691612-1f72",
+      "type": "payment",
+      "priority": "high",
+      "title": "Выставлен счет",
+      "message": "8 занятий: 7475567 ₽",
+      "additionalInfo": "Для полного доступа к кабинету оплатите счет.",
+      "createdAt": "2026-05-04T19:41:03.902056+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777923663902-f940",
+        "status": "unpaid"
+      },
+      "dedupKey": "payment:payment-1777923663902-f940:unpaid"
+    },
+    {
+      "id": "notif-1777923617100-0721",
+      "userId": "user-parent-1776974819584",
+      "type": "payment",
+      "priority": "low",
+      "title": "Оплата подтверждена",
+      "message": "Абонемент 8 занятий: платеж принят",
+      "additionalInfo": "Доступ к разделам кабинета активирован.",
+      "createdAt": "2026-05-04T19:40:17.100271+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981010500-2c60",
+        "status": "paid"
+      },
+      "dedupKey": "payment:payment-1776981010500-2c60:paid"
+    },
+    {
+      "id": "notif-1777923471615-08ce",
+      "userId": "user-parent-1776979728672-eb49",
+      "type": "payment",
+      "priority": "high",
+      "title": "Выставлен счет",
+      "message": "12 занятий: 9900 ₽",
+      "additionalInfo": "Для полного доступа к кабинету оплатите счет.",
+      "createdAt": "2026-05-04T19:37:51.615478+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777923471615-1846",
+        "status": "pending"
+      },
+      "dedupKey": "payment:payment-1777923471615-1846:pending"
+    },
+    {
+      "id": "notif-1777923471601-cbe5",
+      "userId": "user-parent-1777060400254-feba",
+      "type": "payment",
+      "priority": "high",
+      "title": "Выставлен счет",
+      "message": "Подготовка к конкурсу: 18000 ₽",
+      "additionalInfo": "Для полного доступа к кабинету оплатите счет.",
+      "createdAt": "2026-05-04T19:37:51.601829+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777923471601-94a6",
+        "status": "pending"
+      },
+      "dedupKey": "payment:payment-1777923471601-94a6:pending"
+    },
+    {
+      "id": "notif-1777923471582-5a69",
+      "userId": "user-parent-1777028603816-13a2",
+      "type": "payment",
+      "priority": "high",
+      "title": "Выставлен счет",
+      "message": "Подростковая группа: 5500 ₽",
+      "additionalInfo": "Для полного доступа к кабинету оплатите счет.",
+      "createdAt": "2026-05-04T19:37:51.582075+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777923471582-7cf0",
+        "status": "pending"
+      },
+      "dedupKey": "payment:payment-1777923471582-7cf0:pending"
+    },
+    {
+      "id": "notif-1777923471568-e2b8",
+      "userId": "user-parent-1777496203102-bbc3",
+      "type": "payment",
+      "priority": "high",
+      "title": "Выставлен счет",
+      "message": "Хобби: 5000 ₽",
+      "additionalInfo": "Для полного доступа к кабинету оплатите счет.",
+      "createdAt": "2026-05-04T19:37:51.568439+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777923471568-7636",
+        "status": "pending"
+      },
+      "dedupKey": "payment:payment-1777923471568-7636:pending"
+    },
+    {
+      "id": "notif-1777923469885-2087",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент тест",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:49.885909+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776976236435-8305",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000008",
+        "reminderCount": 3
+      },
+      "dedupKey": "payment:payment-1776976236435-8305:reminder:3"
+    },
+    {
+      "id": "notif-1777923469866-2d1d",
+      "userId": "user-parent-1776976112255-c38e",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент 12 занятий",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент 12 занятий на сумму 7900 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:49.866197+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776976112255-dd67",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000010",
+        "reminderCount": 2
+      },
+      "dedupKey": "payment:payment-1776976112255-dd67:reminder:2"
+    },
+    {
+      "id": "notif-1777923469846-3332",
+      "userId": "user-parent-1776981088100-8e7e",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Взрослая группа",
+      "additionalInfo": "Напоминание: оплатите счет Взрослая группа на сумму 6000 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:49.846485+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981088100-6945",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000004",
+        "reminderCount": 2
+      },
+      "dedupKey": "payment:payment-1776981088100-6945:reminder:2"
+    },
+    {
+      "id": "notif-1777923469825-39f5",
+      "userId": "user-parent-1776974819584",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент 8 занятий",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:49.825279+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981010500-2c60",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000005",
+        "reminderCount": 3
+      },
+      "dedupKey": "payment:payment-1776981010500-2c60:reminder:3"
+    },
+    {
+      "id": "notif-1777923469805-288e",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Про",
+      "additionalInfo": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+      "createdAt": "2026-05-04T19:37:49.805556+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777070295334-91e5",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000001",
+        "reminderCount": 3
+      },
+      "dedupKey": "payment:payment-1777070295334-91e5:reminder:3"
+    },
+    {
+      "id": "notif-1777923461076-5a6c",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент тест",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:41.076651+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776976236435-8305",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000008",
+        "reminderCount": 2
+      },
+      "dedupKey": "payment:payment-1776976236435-8305:reminder:2"
+    },
+    {
+      "id": "notif-1777923461066-1f13",
+      "userId": "user-parent-1776974819584",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент 8 занятий",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T19:37:41.066037+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981010500-2c60",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000005",
+        "reminderCount": 2
+      },
+      "dedupKey": "payment:payment-1776981010500-2c60:reminder:2"
+    },
+    {
+      "id": "notif-1777888265859-b440",
+      "userId": "user-parent-1777496203102-bbc3",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-b024",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": true,
+      "readAt": "2026-05-04T19:53:36.279925+00:00",
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-3da2",
+      "userId": "user-parent-1777060400254-feba",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-a1bc",
+      "userId": "user-parent-1777028603816-13a2",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-2fa3",
+      "userId": "user-parent-1776981088100-8e7e",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-0f80",
+      "userId": "user-parent-1776979728672-eb49",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-5116",
+      "userId": "user-parent-1776979691612-1f72",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-ad03",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-dc72",
+      "userId": "user-parent-1776976128323-9cab",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-58cc",
+      "userId": "user-parent-1776976112255-c38e",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777888265859-4eb0",
+      "userId": "user-parent-1",
+      "type": "general",
+      "priority": "medium",
+      "title": "Новое мероприятие",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:51:05.859098+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "event-1777888265845",
+        "isEvent": true,
+        "mode": "created"
+      },
+      "dedupKey": "news:event-1777888265845:created"
+    },
+    {
+      "id": "notif-1777887931585-3b91",
+      "userId": "user-parent-1777496203102-bbc3",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-556a",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-9c5f",
+      "userId": "user-parent-1777060400254-feba",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-eaec",
+      "userId": "user-parent-1777028603816-13a2",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-aaf7",
+      "userId": "user-parent-1776981088100-8e7e",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-1fd9",
+      "userId": "user-parent-1776979728672-eb49",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-6be1",
+      "userId": "user-parent-1776979691612-1f72",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-4496",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-7098",
+      "userId": "user-parent-1776976128323-9cab",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-03c4",
+      "userId": "user-parent-1776976112255-c38e",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777887931585-e836",
+      "userId": "user-parent-1",
+      "type": "general",
+      "priority": "low",
+      "title": "Новая новость",
+      "message": "1",
+      "additionalInfo": "1",
+      "createdAt": "2026-05-04T09:45:31.585216+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "newsId": "news-1777887931572",
+        "isEvent": false,
+        "mode": "created"
+      },
+      "dedupKey": "news:news-1777887931572:created"
+    },
+    {
+      "id": "notif-1777885951559-c495",
+      "userId": "user-parent-1776976112255-c38e",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент 12 занятий",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент 12 занятий на сумму 7900 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T09:12:31.559448+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776976112255-dd67",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000010",
+        "reminderCount": 1
+      },
+      "dedupKey": "payment:payment-1776976112255-dd67:reminder:1"
+    },
+    {
+      "id": "notif-1777885951559-a7a8",
+      "userId": "user-parent-1776976236435-941b",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент тест",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент тест на сумму 3900 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T09:12:31.559448+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776976236435-8305",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000008",
+        "reminderCount": 1
+      },
+      "dedupKey": "payment:payment-1776976236435-8305:reminder:1"
+    },
+    {
+      "id": "notif-1777885951559-7877",
+      "userId": "user-parent-1776974819584",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Абонемент 8 занятий",
+      "additionalInfo": "Напоминание: оплатите счет Абонемент 8 занятий на сумму 5000 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T09:12:31.559448+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981010500-2c60",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000005",
+        "reminderCount": 1
+      },
+      "dedupKey": "payment:payment-1776981010500-2c60:reminder:1"
+    },
+    {
+      "id": "notif-1777885951559-259a",
+      "userId": "user-parent-1776981088100-8e7e",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Взрослая группа",
+      "additionalInfo": "Напоминание: оплатите счет Взрослая группа на сумму 6000 ₽ до 2026-04-28.",
+      "createdAt": "2026-05-04T09:12:31.559448+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1776981088100-6945",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000004",
+        "reminderCount": 1
+      },
+      "dedupKey": "payment:payment-1776981088100-6945:reminder:1"
+    },
+    {
+      "id": "notif-1777885951559-2ab6",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Про",
+      "additionalInfo": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+      "createdAt": "2026-05-04T09:12:31.559448+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777070295334-91e5",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000001",
+        "reminderCount": 2
+      },
+      "dedupKey": "payment:payment-1777070295334-91e5:reminder:2"
+    },
+    {
+      "id": "notif-1777712454724-723b",
+      "userId": "user-parent-1777070295334-0109",
+      "type": "payment",
+      "priority": "high",
+      "title": "Напоминание об оплате",
+      "message": "Про",
+      "additionalInfo": "Напоминание: оплатите счет Про на сумму 6500 ₽ до 2026-04-29.",
+      "createdAt": "2026-05-02T09:00:54.724809+00:00",
+      "read": false,
+      "readAt": null,
+      "forRoles": [
+        "parent"
+      ],
+      "metadata": {
+        "paymentId": "payment-1777070295334-91e5",
+        "status": "overdue",
+        "invoiceNumber": "INV-2026-000001",
+        "reminderCount": 1
+      },
+      "dedupKey": "payment:payment-1777070295334-91e5:reminder:1"
+    },
     {
       "id": "notif-1777496203205-89cc",
       "userId": "user-parent-1777496203102-bbc3",
@@ -1621,11 +3319,11 @@
       "parentUserId": "user-parent-1777060400254-feba",
       "employeeUserId": "user-parent-1776976111452",
       "createdAt": "2026-04-28T20:23:20.105352+00:00",
-      "updatedAt": "2026-04-28T21:47:44.388955+00:00",
-      "lastMessageAt": null,
-      "lastMessageText": null,
+      "updatedAt": "2026-05-04T20:03:44.194808+00:00",
+      "lastMessageAt": "2026-05-04T19:35:33.423081+00:00",
+      "lastMessageText": "привет",
       "status": "open",
-      "parentUnreadCount": 0,
+      "parentUnreadCount": 1,
       "employeeUnreadCount": 0
     },
     {
@@ -1657,6 +3355,14 @@
       "senderRole": "parent",
       "text": "Как дела?",
       "createdAt": "2026-04-28T20:27:27.172198+00:00"
+    },
+    {
+      "id": "cmsg-1777923333423-5b57",
+      "chatId": "chat-1777407800105-777e",
+      "senderUserId": "user-parent-1776974819584",
+      "senderRole": "owner",
+      "text": "привет",
+      "createdAt": "2026-05-04T19:35:33.423081+00:00"
     }
   ],
   "ownerPricingPlans": [
@@ -1707,6 +3413,7 @@
   },
   "invoiceSequence": {
     "year": 2026,
-    "value": 13
-  }
+    "value": 18
+  },
+  "landingLeads": []
 }

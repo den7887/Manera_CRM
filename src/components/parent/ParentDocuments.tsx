@@ -99,54 +99,54 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
+    <div className="space-y-4 animate-scale-in">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl text-[#133C2A] mb-2">Документы</h1>
-        <p className="text-[#133C2A]/60">
+      <div className="hidden md:block">
+        <h2 className="text-[#133C2A] text-xl">Документы</h2>
+        <p className="text-sm text-[#133C2A]/60">
           Документы, доступные для просмотра
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
+        <Card className="border-none soft-shadow col-span-2 sm:col-span-1">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-[#133C2A]/60">Доступно документов</p>
-                <p className="text-2xl text-[#133C2A]">{availableDocuments.length}</p>
+                <p className="text-[11px] text-[#133C2A]/60 md:text-sm">Доступно</p>
+                <p className="text-xl text-[#133C2A] md:text-2xl">{availableDocuments.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#1C8C64] flex items-center justify-center">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#1C8C64] flex items-center justify-center">
                 <Tag className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-[#133C2A]/60">Категорий</p>
-                <p className="text-2xl text-[#133C2A]">{Object.keys(documentsByCategory).length}</p>
+                <p className="text-[11px] text-[#133C2A]/60 md:text-sm">Категорий</p>
+                <p className="text-xl text-[#133C2A] md:text-2xl">{Object.keys(documentsByCategory).length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-[#133C2A]/60">Новых за месяц</p>
-                <p className="text-2xl text-[#133C2A]">
+                <p className="text-[11px] text-[#133C2A]/60 md:text-sm">Новых</p>
+                <p className="text-xl text-[#133C2A] md:text-2xl">
                   {availableDocuments.filter(d => {
                     const monthAgo = new Date();
                     monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -161,7 +161,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
 
       {/* Search */}
       <Card className="border-none soft-shadow">
-        <CardContent className="p-4">
+        <CardContent className="p-3 md:p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#133C2A]/40" />
             <Input
@@ -177,7 +177,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
       {/* Documents by Category */}
       {filteredDocuments.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-12 text-center">
+          <CardContent className="p-8 md:p-12 text-center">
             <FileText className="w-16 h-16 mx-auto mb-4 text-[#133C2A]/30" />
             <p className="text-[#133C2A]/60 mb-2">Документы не найдены</p>
             <p className="text-sm text-[#133C2A]/40">
@@ -190,8 +190,8 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
       ) : (
         Object.entries(documentsByCategory).map(([category, docs]) => (
           <Card key={category} className="border-none soft-shadow">
-            <CardHeader>
-              <CardTitle className="text-[#133C2A] flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[#133C2A] flex items-center gap-2 flex-wrap text-base">
                 <FileText className="w-5 h-5 text-[#D4AF37]" />
                 {categoryLabels[category as DocumentCategory]}
                 <Badge className={categoryColors[category as DocumentCategory]}>
@@ -199,22 +199,22 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="space-y-3">
                 {docs.map(doc => (
                   <div
                     key={doc.id}
-                    className="p-4 rounded-2xl bg-[#F8F4E3] hover:bg-[#F8F4E3]/70 transition-smooth"
+                    className="p-3 md:p-4 rounded-2xl bg-[#F8F4E3] hover:bg-[#F8F4E3]/70 transition-smooth"
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       {/* File Icon */}
-                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-2xl flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl flex-shrink-0 md:w-12 md:h-12 md:text-2xl">
                         {fileTypeIcons[doc.fileType.toLowerCase()] || '📄'}
                       </div>
 
                       {/* Document Info */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-[#133C2A] mb-1">{doc.name}</h4>
+                        <h4 className="text-[#133C2A] mb-1 line-clamp-2">{doc.name}</h4>
                         {doc.description && (
                           <p className="text-sm text-[#133C2A]/60 mb-2 line-clamp-2">
                             {doc.description}
@@ -255,7 +255,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-col sm:gap-1 md:flex-row md:gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -263,6 +263,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                           className="rounded-xl hover:bg-white/50"
                         >
                           <Eye className="w-4 h-4" />
+                          <span className="sm:hidden">Открыть</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -271,6 +272,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                           className="rounded-xl hover:bg-white/50"
                         >
                           <Download className="w-4 h-4 text-[#D4AF37]" />
+                          <span className="sm:hidden">Скачать</span>
                         </Button>
                       </div>
                     </div>

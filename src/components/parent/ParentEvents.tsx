@@ -13,9 +13,10 @@ interface ParentEventsProps {
 }
 
 export function ParentEvents({ events }: ParentEventsProps) {
+  const eventAt = (event: News) => event.eventDate || event.date;
   const allEvents = events.filter((item) => item.isEvent && item.published);
-  const upcoming = allEvents.filter((item) => item.eventDate && item.eventDate > new Date());
-  const past = allEvents.filter((item) => item.eventDate && item.eventDate <= new Date());
+  const upcoming = allEvents.filter((item) => eventAt(item) > new Date());
+  const past = allEvents.filter((item) => eventAt(item) <= new Date());
 
   const isDeadlinePassed = (deadline?: Date) => (deadline ? deadline < new Date() : false);
   const isFull = (event: News) => Boolean(event.maxParticipants && event.currentParticipants && event.currentParticipants >= event.maxParticipants);
@@ -40,10 +41,10 @@ export function ParentEvents({ events }: ParentEventsProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1 text-sm text-[#133C2A]/70">
-          {event.eventDate && (
+          {eventAt(event) && (
             <p>
               <Calendar className="w-3.5 h-3.5 inline mr-1.5" />
-              {event.eventDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {eventAt(event).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           )}
           {event.eventLocation && (
@@ -63,14 +64,14 @@ export function ParentEvents({ events }: ParentEventsProps) {
         <p className="text-sm text-[#133C2A]/75 line-clamp-3">{event.content}</p>
 
         {event.requiresPayment && typeof event.eventFee === 'number' ? (
-          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#D4AF37]/8 p-3 flex items-center justify-between gap-3">
+          <div className="rounded-xl border border-[#D4AF37]/30 bg-[#D4AF37]/8 p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs text-[#133C2A]/60">Взнос</p>
               <p className="text-[#133C2A]">{event.eventFee.toLocaleString('ru-RU')} ₽</p>
             </div>
             <Button
               size="sm"
-              className="rounded-lg bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+              className="w-full rounded-lg bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
               onClick={() => handleRegister(event)}
               disabled={!canRegister(event)}
             >
@@ -95,14 +96,14 @@ export function ParentEvents({ events }: ParentEventsProps) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-xs text-[#133C2A]/60">Всего</p><p className="text-xl text-[#133C2A] mt-1">{allEvents.length}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-xs text-[#133C2A]/60">Предстоящие</p><p className="text-xl text-[#133C2A] mt-1">{upcoming.length}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-xs text-[#133C2A]/60">Прошедшие</p><p className="text-xl text-[#133C2A] mt-1">{past.length}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-xs text-[#133C2A]/60">Открыта запись</p><p className="text-xl text-[#133C2A] mt-1">{upcoming.filter(canRegister).length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Всего</p><p className="text-xl text-[#133C2A] mt-1">{allEvents.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Предстоящие</p><p className="text-xl text-[#133C2A] mt-1">{upcoming.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Прошедшие</p><p className="text-xl text-[#133C2A] mt-1">{past.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Открыта запись</p><p className="text-xl text-[#133C2A] mt-1">{upcoming.filter(canRegister).length}</p></CardContent></Card>
       </div>
 
       <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="bg-white border border-[#133C2A]/10 rounded-xl">
+        <TabsList className="grid w-full grid-cols-2 bg-white border border-[#133C2A]/10 rounded-xl sm:inline-flex sm:w-auto">
           <TabsTrigger value="upcoming" className="rounded-lg">Предстоящие</TabsTrigger>
           <TabsTrigger value="past" className="rounded-lg">Прошедшие</TabsTrigger>
         </TabsList>

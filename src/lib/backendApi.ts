@@ -16,7 +16,12 @@ import {
   UserRole,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+const runtimeApiBaseUrl =
+  typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : 'http://localhost:8000';
+const API_BASE_URL = configuredApiBaseUrl || runtimeApiBaseUrl;
 const TOKEN_STORAGE_KEY = 'manera_crm_token';
 const ROLE_STORAGE_KEY = 'manera_crm_role';
 
@@ -37,6 +42,7 @@ export interface AdminCreateClientInput {
   subscription_name: string;
   subscription_amount: number;
   payment_method: 'cash' | 'online';
+  group_id?: string | null;
   notes?: string;
 }
 
@@ -98,6 +104,11 @@ export interface AdminClientRecord {
   childId: string;
   childFullName?: string | null;
   childBirthDate?: string | null;
+  childAge?: number | null;
+  childGroupId?: string | null;
+  childGroupName?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
   subscriptionName: string;
   subscriptionAmount: number;
   paymentMethod: 'cash' | 'online';
@@ -108,6 +119,64 @@ export interface AdminClientRecord {
   createdAt: string;
   updatedAt: string;
   payment?: any;
+}
+
+export interface AdminChildRecord {
+  id: string;
+  fullName: string;
+  birthDate?: string | null;
+  age?: number | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  parentUserId: string;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  parentAccessLevel?: 'payment_only' | 'full' | null;
+  parentAccountStatus?: 'invited' | 'payment_pending' | 'active' | 'suspended' | null;
+  clientId?: string | null;
+  subscriptionName?: string | null;
+  subscriptionCode?: string | null;
+  subscriptionAmount?: number | null;
+  paymentMethod?: 'cash' | 'online' | null;
+  paymentStatus?: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'overdue' | 'cancelled' | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  notes?: string | null;
+  latestPayment?: AdminPaymentRecord | null;
+  lessonsTracked?: boolean;
+  totalClasses?: number;
+  attendedClasses?: number;
+  remainingClasses?: number;
+  progressPercent?: number;
+  profile?: {
+    internalComment: string;
+    healthNotes: string;
+    behavioralNotes: string;
+    goals: string;
+    strengths: string;
+    parentExpectations: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
+    communicationPreferences: string;
+    sourceChannel: string;
+    priorExperience: string;
+    tags: string[];
+    updatedAt?: string | null;
+  } | null;
+  landingLead?: {
+    id: string;
+    parentFullName?: string | null;
+    phone?: string | null;
+    childFullName?: string | null;
+    childBirthDate?: string | null;
+    medicalRestrictions?: string | null;
+    previousActivities?: string | null;
+    discoverySource?: string | null;
+    preferredSchedule?: string | null;
+    comment?: string | null;
+    consent?: boolean;
+    createdAt?: string | null;
+  } | null;
 }
 
 export interface AdminPaymentRecord {
@@ -488,6 +557,25 @@ export async function startOtp(phone: string): Promise<void> {
   });
 }
 
+export async function createLandingLead(payload: {
+  parent_full_name: string;
+  phone: string;
+  child_full_name: string;
+  child_birth_date?: string | null;
+  medical_restrictions?: string;
+  previous_activities?: string;
+  discovery_source?: string;
+  preferred_schedule?: string;
+  comment?: string;
+  consent: boolean;
+}): Promise<{ ok: boolean; lead: any }> {
+  return request('/api/landing/leads', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    skipAuth: true,
+  });
+}
+
 export async function verifyOtp(phone: string, code: string): Promise<UserRole> {
   const data = await request<AuthVerifyResponse>('/api/auth/otp/verify', {
     method: 'POST',
@@ -639,6 +727,20 @@ function mapAutomation(rule: any): AutomationRule {
   };
 }
 
+function toIsoDateTime(value: unknown): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : value.toISOString();
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+  }
+  return undefined;
+}
+
 function serializeTask(task: Task): any {
   return {
     ...task,
@@ -652,9 +754,9 @@ function serializeTask(task: Task): any {
 function serializeNews(news: News): any {
   return {
     ...news,
-    date: news.date.toISOString(),
-    eventDate: news.eventDate ? news.eventDate.toISOString() : undefined,
-    eventDeadline: news.eventDeadline ? news.eventDeadline.toISOString() : undefined,
+    date: toIsoDateTime(news.date) ?? new Date().toISOString(),
+    eventDate: toIsoDateTime(news.eventDate),
+    eventDeadline: toIsoDateTime(news.eventDeadline),
     eventParticipants: news.eventParticipants?.map((participant) => ({
       ...participant,
       viewedAt: participant.viewedAt ? participant.viewedAt.toISOString() : undefined,
@@ -720,9 +822,9 @@ export async function createNews(news: News): Promise<News> {
 export async function updateNews(id: string, updates: Partial<News>): Promise<News> {
   const payload = {
     ...updates,
-    date: updates.date ? updates.date.toISOString() : undefined,
-    eventDate: updates.eventDate ? updates.eventDate.toISOString() : undefined,
-    eventDeadline: updates.eventDeadline ? updates.eventDeadline.toISOString() : undefined,
+    date: toIsoDateTime(updates.date),
+    eventDate: toIsoDateTime(updates.eventDate),
+    eventDeadline: toIsoDateTime(updates.eventDeadline),
   };
 
   const updated = await request<any>(`/api/news/${id}`, {
@@ -795,6 +897,58 @@ export async function loadAdminPayments(
 
 export async function loadAdminClients(): Promise<AdminClientRecord[]> {
   return request<AdminClientRecord[]>('/api/admin/clients');
+}
+
+export async function loadAdminChildren(params?: {
+  group_id?: string;
+  payment_status?: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'overdue' | 'cancelled';
+}): Promise<AdminChildRecord[]> {
+  const query = new URLSearchParams();
+  if (params?.group_id) {
+    query.set('group_id', params.group_id);
+  }
+  if (params?.payment_status) {
+    query.set('payment_status', params.payment_status);
+  }
+  const suffix = query.toString();
+  return request<AdminChildRecord[]>(`/api/admin/children${suffix ? `?${suffix}` : ''}`);
+}
+
+export async function loadAdminChild(childId: string): Promise<AdminChildRecord> {
+  return request<AdminChildRecord>(`/api/admin/children/${childId}`);
+}
+
+export async function assignAdminChildGroup(
+  childId: string,
+  payload: { group_id?: string | null },
+): Promise<{ ok: boolean; child: AdminChildRecord; previousGroupId?: string | null; idempotent?: boolean }> {
+  return request(`/api/admin/children/${childId}/group`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminChildProfile(
+  childId: string,
+  payload: {
+    internal_comment?: string;
+    health_notes?: string;
+    behavioral_notes?: string;
+    goals?: string;
+    strengths?: string;
+    parent_expectations?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    communication_preferences?: string;
+    source_channel?: string;
+    prior_experience?: string;
+    tags?: string[];
+  },
+): Promise<{ ok: boolean; child: AdminChildRecord }> {
+  return request(`/api/admin/children/${childId}/profile`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function confirmCashPayment(

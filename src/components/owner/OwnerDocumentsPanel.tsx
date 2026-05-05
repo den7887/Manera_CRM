@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Document, Employee, User } from '../../types';
 import {
   BackendUser,
@@ -11,6 +12,8 @@ import {
   updateDocument,
 } from '../../lib/backendApi';
 import { DocumentsManagement } from '../admin/DocumentsManagement';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
 import { toast } from 'sonner';
 
 export function OwnerDocumentsPanel() {
@@ -19,9 +22,17 @@ export function OwnerDocumentsPanel() {
   const [parents, setParents] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<BackendUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const refresh = async () => {
-    setIsLoading(true);
+  const refresh = async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setLoadError(null);
     try {
       const [docs, ownerEmployees, clients, user] = await Promise.all([
         loadDocuments(),
@@ -54,10 +65,19 @@ export function OwnerDocumentsPanel() {
         });
       });
       setParents(Array.from(uniqueParents.values()));
+      setLastSyncedAt(new Date());
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить документы');
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить документы';
+      setLoadError(message);
+      if (!silent) {
+        toast.error(message);
+      }
     } finally {
-      setIsLoading(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -77,6 +97,7 @@ export function OwnerDocumentsPanel() {
       const created = await createDocument(optimistic);
       setDocuments((prev) => [created, ...prev]);
       toast.success('Документ добавлен');
+      void refresh(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось добавить документ');
     }
@@ -87,6 +108,7 @@ export function OwnerDocumentsPanel() {
       const updated = await updateDocument(id, updates);
       setDocuments((prev) => prev.map((item) => (item.id === id ? updated : item)));
       toast.success('Документ обновлен');
+      void refresh(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось обновить документ');
     }
@@ -100,26 +122,64 @@ export function OwnerDocumentsPanel() {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((item) => item.id !== id));
       toast.success('Документ удален');
+      void refresh(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось удалить документ');
     }
   };
 
-  if (isLoading || !currentUser) {
+  if (isLoading) {
     return <div className="text-[#133C2A]/60">Загрузка документов...</div>;
   }
 
+  if (!currentUser) {
+    return (
+      <Card className="border-none soft-shadow">
+        <CardContent className="p-6 space-y-3">
+          <p className="text-[#133C2A]">Не удалось загрузить профиль владельца.</p>
+          {loadError && <p className="text-sm text-[#D14343]">{loadError}</p>}
+          <Button variant="outline" className="rounded-xl" onClick={() => void refresh()}>
+            Повторить
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <DocumentsManagement
-      documents={documents}
-      employees={employees}
-      parents={parents}
-      currentUserId={currentUser.id}
-      currentUserName={currentUser.name}
-      onAddDocument={(payload) => void handleAdd(payload)}
-      onUpdateDocument={(id, updates) => void handleUpdate(id, updates)}
-      onDeleteDocument={(id) => void handleDelete(id)}
-    />
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-[#133C2A]/60">
+          {lastSyncedAt ? `Последнее обновление: ${lastSyncedAt.toLocaleString('ru-RU')}` : 'Синхронизация не выполнена'}
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="rounded-xl sm:w-auto"
+          onClick={() => void refresh(true)}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          {isRefreshing ? 'Обновляем...' : 'Обновить'}
+        </Button>
+      </div>
+
+      {loadError && (
+        <Card className="border-[#D14343]/25 bg-[#FFF5F5]">
+          <CardContent className="p-3 text-sm text-[#B83A3A]">{loadError}</CardContent>
+        </Card>
+      )}
+
+      <DocumentsManagement
+        documents={documents}
+        employees={employees}
+        parents={parents}
+        currentUserId={currentUser.id}
+        currentUserName={currentUser.name}
+        onAddDocument={(payload) => void handleAdd(payload)}
+        onUpdateDocument={(id, updates) => void handleUpdate(id, updates)}
+        onDeleteDocument={(id) => void handleDelete(id)}
+      />
+    </div>
   );
 }
-

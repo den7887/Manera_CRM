@@ -52,7 +52,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
           <h2 className="text-[#133C2A] text-xl">Оплата и абонементы</h2>
           <p className="text-sm text-[#133C2A]/60">Контроль счетов, платежей и активных периодов обучения</p>
         </div>
-        <Badge variant="outline" className="rounded-full border-[#D14343]/30 text-[#D14343]">
+        <Badge variant="outline" className="w-full justify-center rounded-full border-[#D14343]/30 text-[#D14343] sm:w-auto">
           К оплате: {dueAmount.toLocaleString('ru-RU')} ₽
         </Badge>
       </div>
@@ -78,9 +78,9 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
               <p className="text-sm text-[#133C2A]/60">Активных абонементов пока нет.</p>
             ) : (
               subscriptions.map((item) => (
-                <div key={item.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[#133C2A]">{item.plan_title}</p>
+                      <div key={item.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[#133C2A] min-w-0">{item.plan_title}</p>
                     <Badge variant="outline" className="rounded-full">{item.status}</Badge>
                   </div>
                   <p className="text-xs text-[#133C2A]/60 mt-1">
@@ -131,7 +131,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-2 rounded-lg border-[#133C2A]/20"
+                        className="mt-2 w-full rounded-lg border-[#133C2A]/20 sm:w-auto"
                         onClick={() => void onPayOnline(payment.id)}
                       >
                         <CreditCard className="w-4 h-4 mr-2" />

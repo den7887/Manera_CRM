@@ -38,7 +38,7 @@ export function ParentChildren({ children, onNavigate }: ParentChildrenProps) {
           <h2 className="text-[#133C2A] text-xl">Мои дети</h2>
           <p className="text-sm text-[#133C2A]/60">Профили учеников и текущее состояние абонементов</p>
         </div>
-        <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
+        <Badge variant="outline" className="w-full justify-center rounded-full border-[#133C2A]/20 text-[#133C2A] sm:w-auto">
           Всего детей: {children.length}
         </Badge>
       </div>
@@ -58,7 +58,7 @@ export function ParentChildren({ children, onNavigate }: ParentChildrenProps) {
               </div>
               <Button
                 size="sm"
-                className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+                className="w-full rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
                 onClick={() => onNavigate?.('payments')}
               >
                 <CreditCard className="w-4 h-4 mr-2" />

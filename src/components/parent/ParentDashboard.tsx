@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { User, Child, Event, Payment, News, Notification } from '../../types';
+import { User, Child, Event, Payment, News, Notification, Document as StudioDocument } from '../../types';
 import { ParentAccessInfo } from '../../lib/backendApi';
 import { ParentHome } from './ParentHome';
 import { ParentChildren } from './ParentChildren';
@@ -9,6 +9,7 @@ import { ParentEvents } from './ParentEvents';
 import { ParentProfile } from './ParentProfile';
 import { ParentNotifications } from './ParentNotifications';
 import { ParentCommunication } from './ParentCommunication';
+import { ParentDocuments } from './ParentDocuments';
 import { MobileNav } from '../layout/MobileNav';
 import { DesktopSidebar } from '../layout/DesktopSidebar';
 import {
@@ -17,6 +18,8 @@ import {
   Calendar,
   ChevronRight,
   CreditCard,
+  FileText,
+  HelpCircle,
   Home,
   LockKeyhole,
   Megaphone,
@@ -34,6 +37,7 @@ interface ParentDashboardProps {
   events: Event[];
   payments: Payment[];
   newsEvents: News[];
+  documents: StudioDocument[];
   onLogout: () => void;
   notifications?: Notification[];
   accessInfo?: ParentAccessInfo | null;
@@ -42,16 +46,88 @@ interface ParentDashboardProps {
   onMarkAllNotificationsRead: () => Promise<void> | void;
 }
 
-const pageMap: Record<string, { title: string; description: string; icon: any }> = {
-  home: { title: 'Главная', description: 'Сводка по обучению и оплатам', icon: Home },
-  children: { title: 'Мои дети', description: 'Профили и статус абонементов', icon: Users },
-  schedule: { title: 'Расписание', description: 'Ближайшие занятия', icon: Calendar },
-  payments: { title: 'Оплата', description: 'Счета, оплаты, абонементы', icon: CreditCard },
-  events: { title: 'Мероприятия', description: 'Конкурсы и события студии', icon: Megaphone },
-  notifications: { title: 'Уведомления', description: 'Важные сообщения', icon: Bell },
-  communication: { title: 'Коммуникации', description: 'Чаты со студией', icon: MessageSquare },
-  profile: { title: 'Профиль', description: 'Личные данные и настройки', icon: UserCircle },
-};
+const pageMap = {
+  home: {
+    title: 'Главная',
+    description: 'Самое важное по ребенку, занятиям и оплате',
+    icon: Home,
+    whatToDo: 'Посмотрите, есть ли срочные действия: оплата, ближайшее занятие или новое сообщение.',
+  },
+  children: {
+    title: 'Мои дети',
+    description: 'Профили детей и остаток занятий',
+    icon: Users,
+    whatToDo: 'Проверьте группу, абонемент и сколько занятий осталось у каждого ребенка.',
+  },
+  schedule: {
+    title: 'Расписание',
+    description: 'Когда и где проходят занятия',
+    icon: Calendar,
+    whatToDo: 'Откройте ближайшее занятие и проверьте дату, время, группу и преподавателя.',
+  },
+  payments: {
+    title: 'Оплата',
+    description: 'Что оплачено и что нужно оплатить',
+    icon: CreditCard,
+    whatToDo: 'Если есть счет к оплате, откройте оплату. Если все оплачено, этот раздел можно не трогать.',
+  },
+  events: {
+    title: 'События',
+    description: 'Конкурсы, выступления и объявления студии',
+    icon: Megaphone,
+    whatToDo: 'Проверьте условия участия, дату, стоимость и дедлайн записи.',
+  },
+  documents: {
+    title: 'Документы',
+    description: 'Договоры, памятки и файлы студии',
+    icon: FileText,
+    whatToDo: 'Найдите нужный документ, откройте его или скачайте на телефон.',
+  },
+  notifications: {
+    title: 'Уведомления',
+    description: 'Важные сообщения от студии',
+    icon: Bell,
+    whatToDo: 'Прочитайте новые уведомления и отметьте их прочитанными, чтобы не потерять важное.',
+  },
+  communication: {
+    title: 'Чат со студией',
+    description: 'Переписка с сотрудниками студии',
+    icon: MessageSquare,
+    whatToDo: 'Выберите чат и напишите вопрос сотруднику студии.',
+  },
+  profile: {
+    title: 'Профиль',
+    description: 'Личные данные и настройки входа',
+    icon: UserCircle,
+    whatToDo: 'Проверьте свои данные и номер телефона для входа.',
+  },
+} satisfies Record<string, { title: string; description: string; icon: any; whatToDo: string }>;
+
+type ParentPage = keyof typeof pageMap;
+
+function normalizeParentPage(page: string): ParentPage {
+  return Object.prototype.hasOwnProperty.call(pageMap, page) ? (page as ParentPage) : 'home';
+}
+
+function readParentPageFromUrl(): ParentPage {
+  if (typeof window === 'undefined') {
+    return 'home';
+  }
+  const params = new URLSearchParams(window.location.search);
+  return normalizeParentPage(params.get('parentPage') || params.get('page') || 'home');
+}
+
+function writeParentPageToUrl(page: ParentPage) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  params.set('parentPage', page);
+  params.delete('ownerPage');
+  const query = params.toString();
+  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+  window.history.replaceState(null, '', nextUrl);
+}
 
 export function ParentDashboard({
   user,
@@ -59,6 +135,7 @@ export function ParentDashboard({
   events,
   payments,
   newsEvents,
+  documents,
   onLogout,
   notifications = [],
   accessInfo,
@@ -66,11 +143,17 @@ export function ParentDashboard({
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
 }: ParentDashboardProps) {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState<ParentPage>(() => readParentPageFromUrl());
   const pageInfo = pageMap[currentPage] || pageMap.home;
   const PageIcon = pageInfo.icon;
 
   const isAccessRestricted = accessInfo ? !accessInfo.canUseDashboard : false;
+
+  const navigate = (page: string) => {
+    const normalizedPage = normalizeParentPage(page);
+    setCurrentPage(normalizedPage);
+    writeParentPageToUrl(normalizedPage);
+  };
 
   const quickStats = useMemo(() => {
     const upcomingClasses = events.filter((item) => new Date(item.date) >= new Date()).length;
@@ -117,14 +200,14 @@ export function ParentDashboard({
 
         <div className="flex gap-2 flex-wrap">
           <Button
-            onClick={() => setCurrentPage('payments')}
+            onClick={() => navigate('payments')}
             className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
           >
             Перейти к оплате
           </Button>
           <Button
             variant="outline"
-            onClick={() => setCurrentPage('profile')}
+            onClick={() => navigate('profile')}
             className="rounded-xl border-[#133C2A]/20 hover:bg-[#133C2A]/5"
           >
             Профиль
@@ -148,17 +231,19 @@ export function ParentDashboard({
             events={events}
             payments={payments}
             newsEvents={newsEvents}
-            onNavigate={setCurrentPage}
+            onNavigate={navigate}
           />
         );
       case 'children':
-        return <ParentChildren children={children} onNavigate={setCurrentPage} />;
+        return <ParentChildren children={children} onNavigate={navigate} />;
       case 'schedule':
         return <ParentSchedule events={events} children={children} />;
       case 'payments':
         return <ParentPayments payments={payments} children={children} onPayOnline={onPayOnline} accessInfo={accessInfo} />;
       case 'events':
         return <ParentEvents events={newsEvents} userId={user.id} />;
+      case 'documents':
+        return <ParentDocuments documents={documents} currentUserId={user.id} />;
       case 'notifications':
         return (
           <ParentNotifications
@@ -179,7 +264,7 @@ export function ParentDashboard({
             events={events}
             payments={payments}
             newsEvents={newsEvents}
-            onNavigate={setCurrentPage}
+            onNavigate={navigate}
           />
         );
     }
@@ -189,33 +274,33 @@ export function ParentDashboard({
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,#f7f1df_0%,#f8f4e3_45%,#f2ecdb_100%)]">
       <DesktopSidebar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={navigate}
         role="parent"
         user={user}
         onLogout={onLogout}
       />
 
-      <main className="md:pl-24 pb-24 md:pb-8">
+      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
         <div className="sticky top-0 z-20 border-b border-[#133C2A]/10 bg-[#F8F4E3]/92 backdrop-blur-md">
-          <div className="max-w-6xl mx-auto px-4 md:px-7 py-4">
-            <div className="flex items-center gap-2 text-xs text-[#133C2A]/60 mb-2">
+          <div className="max-w-6xl mx-auto px-3 md:px-7 py-3 md:py-4">
+            <div className="hidden md:flex items-center gap-2 text-xs text-[#133C2A]/60 mb-2">
               <Home className="w-3.5 h-3.5" />
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="text-[#133C2A]">{pageInfo.title}</span>
             </div>
 
-            <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#D4AF37] flex items-center justify-center shrink-0">
-                  <PageIcon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#D4AF37] flex items-center justify-center shrink-0">
+                  <PageIcon className="w-[18px] h-[18px] md:w-5 md:h-5 text-white" />
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-[#133C2A] text-xl md:text-2xl truncate">{pageInfo.title}</h1>
-                  <p className="text-xs md:text-sm text-[#133C2A]/60 truncate">{pageInfo.description}</p>
+                  <p className="hidden sm:block text-xs md:text-sm text-[#133C2A]/60 truncate">{pageInfo.description}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
                   Детей: {quickStats.childrenCount}
                 </Badge>
@@ -235,17 +320,36 @@ export function ParentDashboard({
               </div>
             </div>
 
+            <div className="md:hidden mobile-scroll-x mt-3">
+              <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
+                Детей: {quickStats.childrenCount}
+              </Badge>
+              <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
+                Занятий: {quickStats.upcomingClasses}
+              </Badge>
+              {quickStats.unreadNotifications > 0 && (
+                <Badge className="rounded-full bg-[#D14343] text-white">
+                  Новых: {quickStats.unreadNotifications}
+                </Badge>
+              )}
+              {quickStats.childrenNeedingRenewal > 0 && (
+                <Badge variant="outline" className="rounded-full border-[#D4AF37]/35 text-[#B8941F]">
+                  Продлить: {quickStats.childrenNeedingRenewal}
+                </Badge>
+              )}
+            </div>
+
             {currentPage === 'home' && quickStats.childrenNeedingRenewal > 0 && (
-              <div className="mt-3 p-3 rounded-xl bg-[#D14343]/8 border border-[#D14343]/20 flex items-center justify-between gap-3">
+              <div className="mt-3 p-3 rounded-xl bg-[#D14343]/8 border border-[#D14343]/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <AlertCircle className="w-4 h-4 text-[#D14343] shrink-0" />
-                  <p className="text-sm text-[#133C2A] truncate">
+                  <p className="text-sm text-[#133C2A] sm:truncate">
                     У части абонементов заканчиваются занятия. Проверьте блок оплаты на главной.
                   </p>
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => setCurrentPage('payments')}
+                  onClick={() => navigate('payments')}
                   className="rounded-lg bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 shrink-0"
                 >
                   К оплате
@@ -255,10 +359,25 @@ export function ParentDashboard({
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 md:px-7 py-5">{renderPage()}</div>
+        <div className="max-w-6xl mx-auto px-3 md:px-7 py-4 md:py-5 space-y-4">
+          {currentPage !== 'home' && (
+            <section className="rounded-2xl border border-[#133C2A]/10 bg-white/88 p-4 soft-shadow">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#D4AF37]/15 text-[#B8941F]">
+                  <HelpCircle className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-[0.14em] text-[#133C2A]/45">Что здесь делать</p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#133C2A]/75">{pageInfo.whatToDo}</p>
+                </div>
+              </div>
+            </section>
+          )}
+          {renderPage()}
+        </div>
       </main>
 
-      <MobileNav currentPage={currentPage} onNavigate={setCurrentPage} role="parent" />
+      <MobileNav currentPage={currentPage} onNavigate={navigate} role="parent" />
     </div>
   );
 }

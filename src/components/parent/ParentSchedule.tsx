@@ -35,7 +35,7 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
       </div>
 
       <Tabs defaultValue="week" className="w-full">
-        <TabsList className="bg-white border border-[#133C2A]/10 rounded-xl">
+        <TabsList className="grid w-full grid-cols-2 bg-white border border-[#133C2A]/10 rounded-xl sm:inline-flex sm:w-auto">
           <TabsTrigger value="week" className="rounded-lg">Неделя</TabsTrigger>
           <TabsTrigger value="month" className="rounded-lg">Месяц</TabsTrigger>
         </TabsList>
@@ -55,8 +55,8 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
               return (
                 <Card key={date.toISOString()} className="border-none soft-shadow">
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-[#133C2A] text-base">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-[#133C2A] text-base leading-snug">
                         {date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
                       </CardTitle>
                       {isToday && <Badge className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">Сегодня</Badge>}
@@ -66,7 +66,7 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
                     {dayEvents.map((event) => (
                       <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
                         <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[#133C2A]">{event.groupName}</p>
                             <p className="text-xs text-[#133C2A]/60 mt-1">
                               <Clock3 className="w-3.5 h-3.5 inline mr-1" />
