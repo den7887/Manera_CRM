@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CreditCard, Receipt, ShieldAlert } from 'lucide-react';
+import { CreditCard, Receipt } from 'lucide-react';
 import { Child, Payment } from '../../types';
 import { ParentAccessInfo, ParentSubscriptionDto, loadMySubscriptions } from '../../lib/backendApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -26,7 +26,6 @@ const paymentStatusLabels: Record<string, string> = {
 
 export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaymentsProps) {
   const [subscriptions, setSubscriptions] = useState<ParentSubscriptionDto[]>([]);
-  const tempPaymentsEnabled = String(import.meta.env.VITE_TEMP_PAYMENTS_ENABLED || '').toLowerCase() === 'true';
 
   useEffect(() => {
     const load = async () => {
@@ -44,29 +43,50 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
     ['pending', 'waiting_confirmation', 'failed', 'unpaid', 'overdue'].includes(item.status),
   );
   const dueAmount = duePayments.reduce((sum, item) => sum + item.amount, 0);
+  const primaryDuePayment = duePayments[0];
 
   return (
     <div className="space-y-4 animate-scale-in">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-[#133C2A] text-xl">Оплата и абонементы</h2>
-          <p className="text-sm text-[#133C2A]/60">Контроль счетов, платежей и активных периодов обучения</p>
-        </div>
-        <Badge variant="outline" className="w-full justify-center rounded-full border-[#D14343]/30 text-[#D14343] sm:w-auto">
-          К оплате: {dueAmount.toLocaleString('ru-RU')} ₽
-        </Badge>
-      </div>
-
-      {!tempPaymentsEnabled && (
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4 md:p-5">
-            <div className="flex items-start gap-2 text-sm text-[#133C2A]/70">
-              <ShieldAlert className="w-4 h-4 text-[#D4AF37] mt-0.5 shrink-0" />
-              <p>Временный платежный контур отключен. Переходим на постоянную схему оплаты.</p>
+      <Card className={`border-none soft-shadow overflow-hidden ${duePayments.length > 0 ? 'bg-white' : 'bg-[#fbf7e8]'}`}>
+        <div className={`h-1.5 ${duePayments.length > 0 ? 'bg-[#D14343]' : 'bg-[#1C8C64]'}`} />
+        <CardContent className="p-5 md:p-6">
+          {duePayments.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="text-sm text-[#D14343]">К оплате</p>
+                <h2 className="mt-1 text-3xl text-[#133C2A]">{dueAmount.toLocaleString('ru-RU')} ₽</h2>
+                <p className="mt-2 text-sm text-[#133C2A]/65">
+                  {primaryDuePayment?.description || 'Абонемент'}
+                  {primaryDuePayment?.invoiceNumber ? ` · счет ${primaryDuePayment.invoiceNumber}` : ''}
+                  {primaryDuePayment?.dueDate ? ` · до ${primaryDuePayment.dueDate.toLocaleDateString('ru-RU')}` : ''}
+                </p>
+              </div>
+              {primaryDuePayment?.paymentMethod === 'online' ? (
+                <Button
+                  className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] px-6 hover:opacity-90"
+                  onClick={() => void onPayOnline(primaryDuePayment.id)}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Оплатить
+                </Button>
+              ) : (
+                <Badge variant="outline" className="w-fit rounded-full border-[#D4AF37]/35 text-[#B8941F]">
+                  Оплата через администратора
+                </Badge>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-[#1C8C64]">Оплата</p>
+                <h2 className="mt-1 text-2xl text-[#133C2A]">Счетов к оплате нет</h2>
+                <p className="mt-2 text-sm text-[#133C2A]/65">История платежей и активные абонементы ниже.</p>
+              </div>
+              <Badge className="rounded-full bg-[#1C8C64] text-white hover:bg-[#1C8C64]">Оплачено</Badge>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid xl:grid-cols-[0.95fr_1.05fr] gap-4">
         <Card className="border-none soft-shadow">

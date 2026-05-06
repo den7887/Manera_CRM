@@ -74,23 +74,10 @@ export function AdminDashboard({
   const isMobile = useIsMobile();
 
   const inDevelopmentPages: Record<string, string> = {
-    leads: 'База клиентов',
-    pricing: 'Прайс',
     'pricing-form': 'Прайс',
-    'events-management': 'Мероприятия',
-    groups: 'Группы',
-    parents: 'Родители',
-    schedule: 'Расписание',
-    tasks: 'Задачи',
-    'tasks-management': 'Управление задачами',
     automations: 'Автоматизации',
-    communication: 'Сообщения',
-    'documents-management': 'Документы',
     staff: 'Сотрудники',
     settings: 'Настройки',
-    'attendance-management': 'Посещаемость',
-    'clients-management': 'Клиенты',
-    'schedule-management': 'Управление расписанием',
   };
 
   // Компонент для блокировки тяжелых функций на мобильных
@@ -153,6 +140,8 @@ export function AdminDashboard({
         return <AdminTasks tasks={tasks} />;
       case 'communication':
         return <AdminCommunication />;
+      case 'payments':
+        return <FeatureInDevelopment sectionName="Оплаты" roleLabel="Администратор" description="Очередь оплат будет вынесена в отдельный рабочий экран администратора. Сейчас контроль оплат доступен владельцу в разделе “Деньги”." />;
       case 'profile':
         return <AdminProfile user={user} onLogout={onLogout} />;
       case 'tasks-management':

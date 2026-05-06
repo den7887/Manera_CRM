@@ -19,29 +19,16 @@ interface TeacherDashboardProps {
 export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDashboardProps) {
   const [currentPage, setCurrentPage] = useState('home');
 
-  const inDevelopmentPages: Record<string, string> = {
-    groups: 'Группы',
-    schedule: 'Расписание',
-    students: 'Ученики',
-  };
-
   const renderPage = () => {
-    const sectionName = inDevelopmentPages[currentPage];
-    if (sectionName) {
-      return (
-        <FeatureInDevelopment
-          sectionName={sectionName}
-          roleLabel="Преподаватель"
-          description="Раздел будет подключен к живым данным после завершения переноса teacher-кабинета на backend."
-        />
-      );
-    }
-
     switch (currentPage) {
       case 'home':
         return <TeacherHome user={user} groups={groups} events={events} onNavigate={setCurrentPage} />;
       case 'groups':
         return <TeacherGroups groups={groups} />;
+      case 'attendance':
+        return <TeacherSchedule events={events} />;
+      case 'communication':
+        return <FeatureInDevelopment sectionName="Сообщения" roleLabel="Преподаватель" description="Чат преподавателя будет подключен к общей системе коммуникаций после backend-доступа для роли teacher." />;
       case 'schedule':
         return <TeacherSchedule events={events} />;
       case 'students':

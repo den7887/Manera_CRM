@@ -19,7 +19,6 @@ import {
   ChevronRight,
   CreditCard,
   FileText,
-  HelpCircle,
   Home,
   LockKeyhole,
   Megaphone,
@@ -51,57 +50,48 @@ const pageMap = {
     title: 'Главная',
     description: 'Самое важное по ребенку, занятиям и оплате',
     icon: Home,
-    whatToDo: 'Посмотрите, есть ли срочные действия: оплата, ближайшее занятие или новое сообщение.',
   },
   children: {
     title: 'Мои дети',
     description: 'Профили детей и остаток занятий',
     icon: Users,
-    whatToDo: 'Проверьте группу, абонемент и сколько занятий осталось у каждого ребенка.',
   },
   schedule: {
     title: 'Расписание',
     description: 'Когда и где проходят занятия',
     icon: Calendar,
-    whatToDo: 'Откройте ближайшее занятие и проверьте дату, время, группу и преподавателя.',
   },
   payments: {
     title: 'Оплата',
     description: 'Что оплачено и что нужно оплатить',
     icon: CreditCard,
-    whatToDo: 'Если есть счет к оплате, откройте оплату. Если все оплачено, этот раздел можно не трогать.',
   },
   events: {
     title: 'События',
     description: 'Конкурсы, выступления и объявления студии',
     icon: Megaphone,
-    whatToDo: 'Проверьте условия участия, дату, стоимость и дедлайн записи.',
   },
   documents: {
     title: 'Документы',
     description: 'Договоры, памятки и файлы студии',
     icon: FileText,
-    whatToDo: 'Найдите нужный документ, откройте его или скачайте на телефон.',
   },
   notifications: {
     title: 'Уведомления',
     description: 'Важные сообщения от студии',
     icon: Bell,
-    whatToDo: 'Прочитайте новые уведомления и отметьте их прочитанными, чтобы не потерять важное.',
   },
   communication: {
     title: 'Чат со студией',
     description: 'Переписка с сотрудниками студии',
     icon: MessageSquare,
-    whatToDo: 'Выберите чат и напишите вопрос сотруднику студии.',
   },
   profile: {
     title: 'Профиль',
     description: 'Личные данные и настройки входа',
     icon: UserCircle,
-    whatToDo: 'Проверьте свои данные и номер телефона для входа.',
   },
-} satisfies Record<string, { title: string; description: string; icon: any; whatToDo: string }>;
+} satisfies Record<string, { title: string; description: string; icon: any }>;
 
 type ParentPage = keyof typeof pageMap;
 
@@ -360,19 +350,6 @@ export function ParentDashboard({
         </div>
 
         <div className="max-w-6xl mx-auto px-3 md:px-7 py-4 md:py-5 space-y-4">
-          {currentPage !== 'home' && (
-            <section className="rounded-2xl border border-[#133C2A]/10 bg-white/88 p-4 soft-shadow">
-              <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#D4AF37]/15 text-[#B8941F]">
-                  <HelpCircle className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.14em] text-[#133C2A]/45">Что здесь делать</p>
-                  <p className="mt-1 text-sm leading-relaxed text-[#133C2A]/75">{pageInfo.whatToDo}</p>
-                </div>
-              </div>
-            </section>
-          )}
           {renderPage()}
         </div>
       </main>

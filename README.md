@@ -1,7 +1,12 @@
 
-# Multi-Platform CRM Design
+# Manera CRM
 
-Frontend + локальный MVP backend для оживления CRM без Supabase.
+Рабочий MVP CRM для студии детского танца Manera.
+
+- Frontend: React + Vite + TypeScript.
+- Backend MVP: FastAPI.
+- Текущий режим: локальный backend MVP через `server/data/store.json`.
+- Supabase в текущем MVP не используется. Старые папки Supabase оставлены как исторический артефакт проекта и не являются активным способом запуска.
 
 ## Запуск фронтенда
 
@@ -85,11 +90,11 @@ cd server
 - `POST /api/payments/provider/webhook` — webhook оплаты онлайн (заглушка провайдера).
 - `GET /api/payments/journal` — журнал оплат (admin/owner).
 - `GET /api/parent/access` — проверка уровня доступа родителя.
-- `GET /api/parent/payments` — оплаты текущего родителя.
+- `GET /api/payments/my` — оплаты текущего родителя.
 
-## Временный MVP оплат через СБП (без эквайринга)
+## Временный MVP оплат через СБП
 
-Добавлен модуль `payments` для временного процесса оплаты по ссылке/QR с кнопкой «Я оплатил».
+Этот контур был добавлен как временный вариант без эквайринга, но сейчас не является основным платежным сценарием. Не включайте его в рабочем режиме, если не требуется отдельный тест старого MVP.
 
 Переменные окружения backend:
 
@@ -97,7 +102,7 @@ cd server
 - `MANUAL_SBP_RECEIVER_NAME` — имя получателя
 - `MANUAL_SBP_RECEIVER_PHONE` — телефон получателя
 - `PAYMENTS_AUTO_ACTIVATE_ON_USER_CONFIRM=true|false`
-- `PAYMENTS_MVP_ENABLED=true|false` — включение/отключение временного платежного MVP
+- `PAYMENTS_MVP_ENABLED=false` — временный платежный MVP должен быть отключен в текущей рабочей схеме
 
 Новые endpoint:
 

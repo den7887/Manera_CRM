@@ -26,10 +26,10 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Welcome Header */}
       <div className="animate-scale-in">
-        <h1 className="text-[#133C2A] mb-2">
-          Добрый день, {user.name.split(' ')[0]}! 🎭
-        </h1>
-        <p className="text-[#133C2A]/60">У вас {todayEvents.length} занятий сегодня</p>
+        <h1 className="text-[#133C2A] mb-2">Сегодня</h1>
+        <p className="text-[#133C2A]/60">
+          {user.name.split(' ')[0]}, занятий сегодня: {todayEvents.length}
+        </p>
       </div>
 
       {/* Stats */}
@@ -115,8 +115,7 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
               ) : (
                 <div className="text-center py-8 text-[#133C2A]/60">
                   <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Сегодня занятий нет</p>
-                  <p className="text-sm mt-1">Хорошего отдыха! 😊</p>
+              <p>Сегодня занятий нет</p>
                 </div>
               )}
             </div>
@@ -164,7 +163,7 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
       {/* Quick Actions */}
       <Card className="border-none soft-shadow">
         <CardHeader>
-          <CardTitle className="text-[#133C2A]">Быстрые действия</CardTitle>
+          <CardTitle className="text-[#133C2A]">Действия</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">

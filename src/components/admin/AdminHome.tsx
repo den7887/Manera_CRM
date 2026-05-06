@@ -19,52 +19,7 @@ interface AdminHomeProps {
 export function AdminHome({ user, events, groups, tasks, onNavigate, notifications }: AdminHomeProps) {
   const today = new Date();
   
-  // Моковые данные для дней рождения (в будущем будут из базы данных)
-  const mockBirthdays = [
-    {
-      id: '1',
-      name: 'Катя Иванова',
-      type: 'student' as const,
-      birthDate: new Date(2015, 10, 20), // 20 ноября
-      daysUntil: 3,
-      age: 9,
-      groupName: 'Дети 7-10 лет',
-    },
-    {
-      id: '2',
-      name: 'Мария Петрова',
-      type: 'parent' as const,
-      birthDate: new Date(1985, 10, 18), // 18 ноября
-      daysUntil: 1,
-      childrenNames: ['Андрей Петров', 'София Петрова'],
-    },
-    {
-      id: '3',
-      name: 'Андрей Смирнов',
-      type: 'student' as const,
-      birthDate: new Date(2012, 10, 17), // 17 ноября (сегодня для примера)
-      daysUntil: 0,
-      age: 12,
-      groupName: 'Подростки 11-14 лет',
-    },
-    {
-      id: '4',
-      name: 'Полина Волкова',
-      type: 'student' as const,
-      birthDate: new Date(2014, 10, 25), // 25 ноября
-      daysUntil: 8,
-      age: 10,
-      groupName: 'Дети 7-10 лет',
-    },
-    {
-      id: '5',
-      name: 'Елена Соколова',
-      type: 'parent' as const,
-      birthDate: new Date(1990, 11, 5), // 5 декабря
-      daysUntil: 18,
-      childrenNames: ['Мария Соколова'],
-    },
-  ];
+  const birthdays = [];
   
   const todayEvents = events.filter(e => {
     const eventDate = new Date(e.date);
@@ -119,8 +74,11 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
       {/* Welcome Header */}
       <div className="animate-scale-in">
         <h1 className="text-[#133C2A] mb-2">
-          Привет, {user.name.split(' ')[0]}! 👋
+          Сегодня
         </h1>
+        <p className="text-[#133C2A]/60">
+          {user.name.split(' ')[0]}, ниже только рабочие очереди и действия на день.
+        </p>
       </div>
 
       {/* Today's Summary */}
@@ -185,7 +143,7 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
       {/* Quick Actions */}
       <Card className="border-none soft-shadow">
         <CardHeader>
-          <CardTitle className="text-[#133C2A]">Быстрые действия</CardTitle>
+          <CardTitle className="text-[#133C2A]">Действия</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-5 gap-4">
@@ -373,8 +331,7 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
               ) : (
                 <div className="text-center py-8 text-[#133C2A]/60">
                   <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Сегодня занятий нет</p>
-                  <p className="text-sm mt-1">Хорошего отдыха! 😊</p>
+              <p>Сегодня занятий нет</p>
                 </div>
               )}
             </div>
@@ -479,7 +436,7 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
       </Card>
 
       {/* Upcoming Birthdays */}
-      <UpcomingBirthdays birthdays={mockBirthdays} />
+      <UpcomingBirthdays birthdays={birthdays} />
     </div>
   );
 }

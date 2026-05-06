@@ -156,6 +156,7 @@ export function OwnerClientsPanel({ groups, onNavigatePayments }: OwnerClientsPa
   const [isReminderPaymentId, setIsReminderPaymentId] = useState<string | null>(null);
   const [isAssigningChildId, setIsAssigningChildId] = useState<string | null>(null);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isBulkInvoicing, setIsBulkInvoicing] = useState(false);
   const [isBulkReminding, setIsBulkReminding] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -569,6 +570,20 @@ export function OwnerClientsPanel({ groups, onNavigatePayments }: OwnerClientsPa
               <Button variant="outline" onClick={() => void refreshChildren()} className="rounded-2xl">
                 Обновить
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsSelectionMode((current) => {
+                    if (current) {
+                      setSelectedChildIds([]);
+                    }
+                    return !current;
+                  });
+                }}
+                className="rounded-2xl md:hidden"
+              >
+                {isSelectionMode ? 'Готово' : 'Выбрать'}
+              </Button>
               {onNavigatePayments && (
                 <Button
                   variant="outline"
@@ -654,7 +669,7 @@ export function OwnerClientsPanel({ groups, onNavigatePayments }: OwnerClientsPa
             </Select>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/80 px-3 md:px-4 py-3">
+          <div className={`${isSelectionMode || selectedChildIds.length > 0 ? 'flex' : 'hidden'} md:flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/80 px-3 md:px-4 py-3`}>
             <div className="flex items-center gap-3 flex-wrap">
               <label className="flex items-center gap-2 text-sm text-[#133C2A] cursor-pointer">
                 <Checkbox
@@ -781,11 +796,13 @@ export function OwnerClientsPanel({ groups, onNavigatePayments }: OwnerClientsPa
                         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr_230px]">
                           <div className="p-4">
                             <div className="flex items-start gap-3">
-                              <Checkbox
-                                checked={selectedChildIds.includes(child.id)}
-                                onCheckedChange={(checked) => toggleChildSelection(child.id, Boolean(checked))}
-                                className="mt-3"
-                              />
+                              <div className={`${isSelectionMode || selectedChildIds.includes(child.id) ? 'block' : 'hidden'} md:block`}>
+                                <Checkbox
+                                  checked={selectedChildIds.includes(child.id)}
+                                  onCheckedChange={(checked) => toggleChildSelection(child.id, Boolean(checked))}
+                                  className="mt-3"
+                                />
+                              </div>
                               <Avatar className="h-12 w-12 border border-[#D4AF37]/25">
                                 <AvatarFallback className="bg-[#133C2A] text-white">
                                   {childInitials(child.fullName || '')}

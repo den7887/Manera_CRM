@@ -25,47 +25,81 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
   const pendingAmount = pendingPayments.reduce((sum, item) => sum + item.amount, 0);
   const childrenNeedingRenewal = children.filter((child) => child.totalClasses > 0 && child.remainingClasses <= 2);
   const publishedNews = newsEvents.filter((item) => item.published).slice(0, 3);
+  const primaryChild = children[0];
+  const nextEvent = upcomingEvents[0];
+  const latestNews = publishedNews[0];
 
   return (
     <div className="space-y-4 animate-scale-in">
       <Card className="border-none soft-shadow overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" />
         <CardContent className="p-5 md:p-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="text-[#133C2A] text-xl">Здравствуйте, {user.name.split(' ')[0]}</h2>
-              <p className="text-sm text-[#133C2A]/60 mt-1">Ниже сводка по детям, занятиям и оплатам.</p>
+          <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div className="min-w-0">
+              <p className="text-sm text-[#133C2A]/58">Здравствуйте, {user.name.split(' ')[0]}</p>
+              <h2 className="mt-1 text-2xl leading-tight text-[#133C2A]">
+                {primaryChild ? primaryChild.name : 'Ребёнок пока не добавлен'}
+              </h2>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-[#F8F4E3] p-3">
+                  <p className="text-xs text-[#133C2A]/50">Следующее занятие</p>
+                  <p className="mt-1 text-sm text-[#133C2A]">
+                    {nextEvent
+                      ? `${new Date(nextEvent.date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}, ${nextEvent.startTime}`
+                      : 'Не запланировано'}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[#F8F4E3] p-3">
+                  <p className="text-xs text-[#133C2A]/50">Осталось занятий</p>
+                  <p className="mt-1 text-sm text-[#133C2A]">
+                    {primaryChild && primaryChild.totalClasses > 0
+                      ? `${primaryChild.remainingClasses} из ${primaryChild.totalClasses}`
+                      : 'Без лимита'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-[#133C2A]/10 bg-[#fbf7e8] p-4">
+              {pendingPayments.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-[#D14343]">К оплате</p>
+                      <p className="mt-1 text-2xl text-[#133C2A]">{pendingAmount.toLocaleString('ru-RU')} ₽</p>
+                    </div>
+                    <Badge className="rounded-full bg-[#D14343] text-white hover:bg-[#D14343]">
+                      {pendingPayments.length} счет
+                    </Badge>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+                    onClick={() => onNavigate('payments')}
+                  >
+                    Оплатить
+                  </Button>
+                </div>
+              ) : latestNews ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('events')}
+                  className="block w-full text-left"
+                >
+                  <p className="text-sm text-[#133C2A]/55">Последнее сообщение</p>
+                  <p className="mt-1 line-clamp-2 text-[#133C2A]">{latestNews.title}</p>
+                  <p className="mt-2 text-sm text-[#D4AF37]">Открыть</p>
+                </button>
+              ) : (
+                <div>
+                  <p className="text-sm text-[#133C2A]/55">Состояние</p>
+                  <p className="mt-1 text-[#133C2A]">Срочных действий нет</p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <p className="text-xs text-[#133C2A]/60">Детей</p>
-            <p className="text-2xl text-[#133C2A] mt-1">{children.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <p className="text-xs text-[#133C2A]/60">Ближайших занятий</p>
-            <p className="text-2xl text-[#133C2A] mt-1">{upcomingEvents.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <p className="text-xs text-[#133C2A]/60">Новых новостей</p>
-            <p className="text-2xl text-[#133C2A] mt-1">{publishedNews.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <p className="text-xs text-[#133C2A]/60">Нужно продлить</p>
-            <p className="text-2xl text-[#133C2A] mt-1">{childrenNeedingRenewal.length}</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {childrenNeedingRenewal.length > 0 && (
         <Card className="border-none soft-shadow">
