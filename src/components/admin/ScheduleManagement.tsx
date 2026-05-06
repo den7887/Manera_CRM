@@ -1,524 +1,259 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { useMemo, useState } from 'react';
+import { CalendarDays, ClipboardCheck, Clock3, ArrowUpRight, Search, Users } from 'lucide-react';
+import { Event, Group } from '../../types';
+import { EmptyState } from '../EmptyState';
 import { Badge } from '../ui/badge';
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  Plus, 
-  Edit, 
-  Trash2,
-  Users,
-  User,
-  ChevronLeft,
-  ChevronRight,
-  Filter
-} from 'lucide-react';
-import { mockGroups, mockTeachers } from '../../data/mockData';
-import { toast } from '../../utils/toast';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
 
-interface ScheduleEntry {
-  id: string;
-  groupId: string;
-  teacherId: string;
-  dayOfWeek: number; // 0-6 (Вс-Сб)
-  startTime: string;
-  endTime: string;
-  room: string;
+type ScheduleQueue = 'today' | 'week' | 'gaps' | 'attendance';
+
+const queueLabels: Record<ScheduleQueue, string> = {
+  today: 'Сегодня',
+  week: 'Неделя',
+  gaps: 'Свободные места',
+  attendance: 'Посещаемость',
+};
+
+function formatRuDate(value: Date): string {
+  return new Date(value).toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 }
 
-const daysOfWeek = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-const daysShort = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+function isSameDay(left: Date, right: Date): boolean {
+  return left.toDateString() === right.toDateString();
+}
 
-export function ScheduleManagement() {
-  const [schedule, setSchedule] = useState<ScheduleEntry[]>([
-    {
-      id: '1',
-      groupId: '1',
-      teacherId: '1',
-      dayOfWeek: 1,
-      startTime: '15:00',
-      endTime: '16:30',
-      room: 'Зал 1',
-    },
-    {
-      id: '2',
-      groupId: '1',
-      teacherId: '1',
-      dayOfWeek: 3,
-      startTime: '15:00',
-      endTime: '16:30',
-      room: 'Зал 1',
-    },
-    {
-      id: '3',
-      groupId: '2',
-      teacherId: '2',
-      dayOfWeek: 2,
-      startTime: '17:00',
-      endTime: '18:30',
-      room: 'Зал 2',
-    },
-    {
-      id: '4',
-      groupId: '2',
-      teacherId: '2',
-      dayOfWeek: 4,
-      startTime: '17:00',
-      endTime: '18:30',
-      room: 'Зал 2',
-    },
-    {
-      id: '5',
-      groupId: '3',
-      teacherId: '3',
-      dayOfWeek: 1,
-      startTime: '18:00',
-      endTime: '19:30',
-      room: 'Зал 1',
-    },
-    {
-      id: '6',
-      groupId: '3',
-      teacherId: '3',
-      dayOfWeek: 5,
-      startTime: '18:00',
-      endTime: '19:30',
-      room: 'Зал 1',
-    },
-  ]);
+function isWithinWeek(date: Date): boolean {
+  const today = new Date();
+  const weekEnd = new Date(today);
+  weekEnd.setDate(today.getDate() + 6);
+  return date >= new Date(today.toDateString()) && date <= weekEnd;
+}
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
-  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
-  const [filterGroup, setFilterGroup] = useState<string>('all');
+export function ScheduleManagement({
+  events,
+  groups,
+  onNavigate,
+}: {
+  events: Event[];
+  groups: Group[];
+  onNavigate: (page: string) => void;
+}) {
+  const [queue, setQueue] = useState<ScheduleQueue>('today');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const [newEntry, setNewEntry] = useState({
-    groupId: '',
-    teacherId: '',
-    dayOfWeek: '',
-    startTime: '',
-    endTime: '',
-    room: '',
-  });
+  const today = new Date();
 
-  const handleAddEntry = () => {
-    const entry: ScheduleEntry = {
-      id: `entry-${Date.now()}`,
-      groupId: newEntry.groupId,
-      teacherId: newEntry.teacherId,
-      dayOfWeek: parseInt(newEntry.dayOfWeek),
-      startTime: newEntry.startTime,
-      endTime: newEntry.endTime,
-      room: newEntry.room,
-    };
+  const enrichedEvents = useMemo(() => {
+    return events
+      .map((event) => {
+        const group = groups.find((item) => item.id === event.groupId);
+        const maxStudents = 12;
+        const currentStudents = group?.studentCount || 0;
+        return {
+          ...event,
+          group,
+          currentStudents,
+          freePlaces: Math.max(0, maxStudents - currentStudents),
+          dateValue: new Date(event.date),
+        };
+      })
+      .sort((a, b) => {
+        const dayDiff = a.dateValue.getTime() - b.dateValue.getTime();
+        if (dayDiff !== 0) return dayDiff;
+        return a.startTime.localeCompare(b.startTime);
+      });
+  }, [events, groups]);
 
-    setSchedule([...schedule, entry]);
-    setIsAddDialogOpen(false);
-    setNewEntry({
-      groupId: '',
-      teacherId: '',
-      dayOfWeek: '',
-      startTime: '',
-      endTime: '',
-      room: '',
+  const visibleEvents = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return enrichedEvents.filter((event) => {
+      const matchesQuery =
+        !query ||
+        [event.groupName, event.teacherName, event.group?.ageRange || '']
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+
+      if (!matchesQuery) return false;
+
+      if (queue === 'today') return isSameDay(event.dateValue, today);
+      if (queue === 'week') return isWithinWeek(event.dateValue);
+      if (queue === 'gaps') return event.freePlaces > 0;
+      return true;
     });
-    toast.success('Занятие успешно добавлено');
-  };
+  }, [enrichedEvents, queue, searchQuery, today]);
 
-  const handleDeleteEntry = (id: string) => {
-    setSchedule(schedule.filter(e => e.id !== id));
-    toast.success('Занятие удалено из расписания');
-  };
-
-  const getEntriesForDay = (day: number) => {
-    return schedule
-      .filter(entry => entry.dayOfWeek === day)
-      .filter(entry => filterGroup === 'all' || entry.groupId === filterGroup)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  };
-
-  const getGroupColor = (groupId: string) => {
-    const colors = [
-      'bg-blue-500/10 border-blue-500/20 text-blue-700',
-      'bg-purple-500/10 border-purple-500/20 text-purple-700',
-      'bg-pink-500/10 border-pink-500/20 text-pink-700',
-      'bg-green-500/10 border-green-500/20 text-green-700',
-      'bg-orange-500/10 border-orange-500/20 text-orange-700',
-    ];
-    const index = parseInt(groupId) % colors.length;
-    return colors[index];
-  };
-
-  const timeSlots = Array.from({ length: 14 }, (_, i) => {
-    const hour = 9 + i;
-    return `${hour.toString().padStart(2, '0')}:00`;
-  });
+  const summary = useMemo(() => {
+    const todayLessons = enrichedEvents.filter((event) => isSameDay(event.dateValue, today));
+    const weekLessons = enrichedEvents.filter((event) => isWithinWeek(event.dateValue));
+    const openGroups = groups.filter((group) => group.studentCount < 12);
+    return {
+      todayLessons: todayLessons.length,
+      weekLessons: weekLessons.length,
+      studentsToday: todayLessons.reduce((sum, event) => sum + event.currentStudents, 0),
+      groupsWithPlaces: openGroups.length,
+    };
+  }, [enrichedEvents, groups, today]);
 
   return (
-    <div className="space-y-6">
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60 mb-1">Всего занятий</p>
-                <p className="text-3xl text-[#133C2A]">{schedule.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#133C2A] to-[#1C8C64] flex items-center justify-center">
-                <CalendarIcon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60 mb-1">Активных групп</p>
-                <p className="text-3xl text-[#133C2A]">{new Set(schedule.map(s => s.groupId)).size}</p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#133C2A] flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60 mb-1">Преподавателей</p>
-                <p className="text-3xl text-[#133C2A]">{new Set(schedule.map(s => s.teacherId)).size}</p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1C8C64] to-[#133C2A] flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-[#133C2A] mb-2">Расписание</h1>
+          <p className="text-[#133C2A]/60">Не таблица ради таблицы, а рабочая очередь по занятиям, заполняемости и посещаемости.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+          <Button variant="outline" className="rounded-2xl" onClick={() => onNavigate('attendance-management')}>
+            <ClipboardCheck className="mr-2 h-4 w-4" />
+            Посещаемость
+          </Button>
+          <Button variant="outline" className="rounded-2xl" onClick={() => onNavigate('groups')}>
+            <Users className="mr-2 h-4 w-4" />
+            Группы
+          </Button>
+        </div>
       </div>
 
-      {/* Основная карточка */}
+      <div className="grid gap-3 md:grid-cols-4">
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Занятий сегодня</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.todayLessons}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">На неделе</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.weekLessons}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Учеников сегодня</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.studentsToday}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Группы с местами</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.groupsWithPlaces}</p></CardContent></Card>
+      </div>
+
       <Card className="border-none soft-shadow">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 text-[#133C2A]">
-              <CalendarIcon className="w-6 h-6" />
-              Расписание занятий
-            </CardTitle>
-            <div className="flex items-center gap-3">
-              <Select value={filterGroup} onValueChange={setFilterGroup}>
-                <SelectTrigger className="w-[200px] rounded-2xl border-[#133C2A]/20">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все группы</SelectItem>
-                  {mockGroups.map(group => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Добавить занятие
+        <CardHeader className="pb-3">
+          <div className="space-y-3">
+            <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
+              <div className="flex min-w-max gap-1">
+                {(Object.keys(queueLabels) as ScheduleQueue[]).map((queueId) => (
+                  <Button
+                    key={queueId}
+                    type="button"
+                    size="sm"
+                    variant={queue === queueId ? 'default' : 'ghost'}
+                    className={queue === queueId ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
+                    onClick={() => setQueue(queueId)}
+                  >
+                    {queueLabels[queueId]}
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg rounded-3xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-[#133C2A]">Новое занятие</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Группа *</Label>
-                      <Select value={newEntry.groupId} onValueChange={(value) => setNewEntry({ ...newEntry, groupId: value })}>
-                        <SelectTrigger className="rounded-2xl">
-                          <SelectValue placeholder="Выберите группу" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockGroups.map(group => (
-                            <SelectItem key={group.id} value={group.id}>
-                              {group.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                ))}
+              </div>
+            </div>
 
-                    <div className="space-y-2">
-                      <Label>Преподаватель *</Label>
-                      <Select value={newEntry.teacherId} onValueChange={(value) => setNewEntry({ ...newEntry, teacherId: value })}>
-                        <SelectTrigger className="rounded-2xl">
-                          <SelectValue placeholder="Выберите преподавателя" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockTeachers.map(teacher => (
-                            <SelectItem key={teacher.id} value={teacher.id}>
-                              {teacher.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>День недели *</Label>
-                      <Select value={newEntry.dayOfWeek} onValueChange={(value) => setNewEntry({ ...newEntry, dayOfWeek: value })}>
-                        <SelectTrigger className="rounded-2xl">
-                          <SelectValue placeholder="Выберите день" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {daysOfWeek.map((day, index) => (
-                            <SelectItem key={index} value={index.toString()}>
-                              {day}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Начало *</Label>
-                        <Input
-                          type="time"
-                          value={newEntry.startTime}
-                          onChange={(e) => setNewEntry({ ...newEntry, startTime: e.target.value })}
-                          className="rounded-2xl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Конец *</Label>
-                        <Input
-                          type="time"
-                          value={newEntry.endTime}
-                          onChange={(e) => setNewEntry({ ...newEntry, endTime: e.target.value })}
-                          className="rounded-2xl"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Зал *</Label>
-                      <Select value={newEntry.room} onValueChange={(value) => setNewEntry({ ...newEntry, room: value })}>
-                        <SelectTrigger className="rounded-2xl">
-                          <SelectValue placeholder="Выберите зал" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Зал 1">Зал 1</SelectItem>
-                          <SelectItem value="Зал 2">Зал 2</SelectItem>
-                          <SelectItem value="Зал 3">Зал 3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={handleAddEntry}
-                        disabled={!newEntry.groupId || !newEntry.teacherId || !newEntry.dayOfWeek || !newEntry.startTime || !newEntry.endTime || !newEntry.room}
-                        className="flex-1 rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]"
-                      >
-                        Добавить
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsAddDialogOpen(false)}
-                        className="rounded-2xl"
-                      >
-                        Отмена
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#133C2A]/40" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Поиск по группе или педагогу"
+                className="rounded-2xl pl-9"
+              />
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Переключатель видов */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === 'week' ? 'default' : 'outline'}
-                onClick={() => setViewMode('week')}
-                className="rounded-xl"
-              >
-                Неделя
-              </Button>
-              <Button
-                variant={viewMode === 'day' ? 'default' : 'outline'}
-                onClick={() => setViewMode('day')}
-                className="rounded-xl"
-              >
-                День
-              </Button>
-            </div>
-
-            {viewMode === 'day' && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSelectedDay((selectedDay - 1 + 7) % 7)}
-                  className="rounded-xl"
-                >
-                  <ChevronLeft className="w-4 h-4" />
+          {queue === 'attendance' ? (
+            <Card className="border border-[#133C2A]/10 bg-[#F8F4E3]/55">
+              <CardContent className="flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-lg text-[#133C2A]">Отметка посещаемости</p>
+                  <p className="mt-1 text-sm text-[#133C2A]/60">
+                    Отдельный рабочий поток. Открывает список занятий, где нужно отметить пришел, опоздал или отсутствовал.
+                  </p>
+                </div>
+                <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onNavigate('attendance-management')}>
+                  Перейти к посещаемости
                 </Button>
-                <span className="text-sm text-[#133C2A] min-w-[120px] text-center">
-                  {daysOfWeek[selectedDay]}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSelectedDay((selectedDay + 1) % 7)}
-                  className="rounded-xl"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Вид недели */}
-          {viewMode === 'week' && (
-            <div className="overflow-x-auto">
-              <div className="min-w-[800px]">
-                <div className="grid grid-cols-7 gap-3">
-                  {[1, 2, 3, 4, 5, 6, 0].map((day) => {
-                    const entries = getEntriesForDay(day);
-                    const isToday = day === new Date().getDay();
-
-                    return (
-                      <div key={day} className={`space-y-2 ${isToday ? 'ring-2 ring-[#D4AF37] rounded-2xl p-2' : ''}`}>
-                        <div className="text-center pb-2 border-b border-[#133C2A]/10">
-                          <p className="text-sm text-[#133C2A]">{daysShort[day]}</p>
-                          {isToday && (
-                            <Badge className="mt-1 text-xs bg-[#D4AF37] text-white">Сегодня</Badge>
-                          )}
+              </CardContent>
+            </Card>
+          ) : visibleEvents.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title={queue === 'today' ? 'Сегодня занятий нет' : 'Подходящих занятий нет'}
+              description={
+                queue === 'gaps'
+                  ? 'Свободных мест в текущих группах не найдено.'
+                  : 'Измените очередь или проверьте расписание групп.'
+              }
+              actionLabel="Открыть группы"
+              onAction={() => onNavigate('groups')}
+            />
+          ) : (
+            visibleEvents.map((event) => (
+              <Card key={event.id} className="overflow-hidden border-[#133C2A]/10 bg-white/92 shadow-[0_10px_30px_rgba(19,60,42,0.06)]">
+                <CardContent className="p-0">
+                  <div className="grid gap-0 xl:grid-cols-[1.15fr_0.85fr_250px]">
+                    <div className="p-4 md:p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className="rounded-full border border-[#D4AF37]/25 bg-[#FFF9E8] text-[#8B6B00]">
+                              {formatRuDate(event.dateValue)}
+                            </Badge>
+                            {isSameDay(event.dateValue, today) ? (
+                              <Badge variant="outline" className="rounded-full border-green-200 bg-green-50 text-green-700">
+                                Сегодня
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-3 text-lg leading-tight text-[#133C2A]">{event.groupName}</p>
+                          <p className="mt-1 text-sm text-[#133C2A]/65">
+                            {event.group?.ageRange || 'Возраст не указан'} • {event.teacherName}
+                          </p>
                         </div>
-                        <div className="space-y-2 min-h-[400px]">
-                          {entries.map((entry) => {
-                            const group = mockGroups.find(g => g.id === entry.groupId);
-                            const teacher = mockTeachers.find(t => t.id === entry.teacherId);
-
-                            return (
-                              <Card
-                                key={entry.id}
-                                className={`border ${getGroupColor(entry.groupId)} hover-lift cursor-pointer transition-smooth`}
-                              >
-                                <CardContent className="p-3 space-y-1">
-                                  <div className="flex items-start justify-between gap-1">
-                                    <p className="text-xs leading-tight">{group?.name}</p>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteEntry(entry.id)}
-                                      className="h-6 w-6 p-0 hover:bg-red-100"
-                                    >
-                                      <Trash2 className="w-3 h-3 text-red-600" />
-                                    </Button>
-                                  </div>
-                                  <p className="text-[10px] text-[#133C2A]/60">
-                                    {entry.startTime} - {entry.endTime}
-                                  </p>
-                                  <p className="text-[10px] text-[#133C2A]/60">
-                                    👤 {teacher?.name}
-                                  </p>
-                                  <p className="text-[10px] text-[#133C2A]/60">
-                                    📍 {entry.room}
-                                  </p>
-                                </CardContent>
-                              </Card>
-                            );
-                          })}
+                        <div className="text-left xl:text-right">
+                          <p className="text-xl text-[#133C2A]">{event.startTime} - {event.endTime}</p>
+                          <p className="mt-1 text-xs text-[#133C2A]/55">Педагог: {event.teacherName}</p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+                    </div>
 
-          {/* Вид дня */}
-          {viewMode === 'day' && (
-            <div className="space-y-2">
-              {getEntriesForDay(selectedDay).length > 0 ? (
-                getEntriesForDay(selectedDay).map((entry) => {
-                  const group = mockGroups.find(g => g.id === entry.groupId);
-                  const teacher = mockTeachers.find(t => t.id === entry.teacherId);
-
-                  return (
-                    <Card
-                      key={entry.id}
-                      className={`border ${getGroupColor(entry.groupId)} hover-lift transition-smooth`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="flex items-center gap-2 text-[#133C2A]">
-                                <Clock className="w-5 h-5" />
-                                <span className="text-lg">
-                                  {entry.startTime} - {entry.endTime}
-                                </span>
-                              </div>
-                              <Badge variant="outline">{entry.room}</Badge>
-                            </div>
-                            <h3 className="text-[#133C2A] mb-2">{group?.name}</h3>
-                            <div className="flex items-center gap-4 text-sm text-[#133C2A]/60">
-                              <span className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
-                                {teacher?.name}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Users className="w-4 h-4" />
-                                {group?.currentStudents || 0}/{group?.maxStudents || 0} учеников
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-xl"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteEntry(entry.id)}
-                              className="rounded-xl text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    <div className="border-y border-[#133C2A]/8 bg-[#fbf7e8]/72 p-4 md:p-5 xl:border-x xl:border-y-0">
+                      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
+                        <div className="rounded-2xl bg-white p-3">
+                          <p className="text-xs text-[#133C2A]/45">Состав</p>
+                          <p className="mt-1 text-[#133C2A]">{event.currentStudents} учеников</p>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              ) : (
-                <div className="text-center py-12 text-[#133C2A]/60">
-                  <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-[#133C2A]/20" />
-                  <p>На этот день занятий не запланировано</p>
-                </div>
-              )}
-            </div>
+                        <div className="rounded-2xl bg-white p-3">
+                          <p className="text-xs text-[#133C2A]/45">Свободные места</p>
+                          <p className="mt-1 text-[#133C2A]">{event.freePlaces}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-3">
+                          <p className="text-xs text-[#133C2A]/45">Следующее действие</p>
+                          <p className="mt-1 text-[#133C2A]">
+                            {event.freePlaces > 0 ? 'Можно добавить пробного' : 'Группа заполнена'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 md:p-5">
+                      <div className="flex h-full flex-col gap-2">
+                        <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onNavigate('attendance-management')}>
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Посещаемость
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigate('groups')}>
+                          <ArrowUpRight className="mr-2 h-4 w-4" />
+                          Открыть группу
+                        </Button>
+                        <div className="mt-auto rounded-2xl border border-dashed border-[#133C2A]/12 px-3 py-3 text-sm text-[#133C2A]/48">
+                          Перенос и редактирование занятия оставлены на следующий backend-этап.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </CardContent>
       </Card>

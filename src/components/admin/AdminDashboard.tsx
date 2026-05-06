@@ -5,7 +5,6 @@ import { AdminStudents } from './AdminStudents';
 import { AdminParents } from './AdminParents';
 import { AdminLeads } from './AdminLeads';
 import { AdminGroups } from './AdminGroups';
-import { AdminSchedule } from './AdminSchedule';
 import { AdminCommunication } from './AdminCommunication';
 import { AdminProfile } from './AdminProfile';
 import { AdminTasks } from './AdminTasks';
@@ -19,6 +18,7 @@ import { DocumentsManagement } from './DocumentsManagement';
 import { AttendanceManagement } from './AttendanceManagement';
 import { ClientsManagement } from './ClientsManagement';
 import { ScheduleManagement } from './ScheduleManagement';
+import { AdminPayments, AdminPaymentsNavigationContext } from './AdminPayments';
 import { MobileNav } from '../layout/MobileNav';
 import { DesktopSidebar } from '../layout/DesktopSidebar';
 import { useIsMobile } from '../../hooks/useMediaQuery';
@@ -71,6 +71,8 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
+  const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<AdminPaymentsNavigationContext | null>(null);
+  const [clientsNavigationContext, setClientsNavigationContext] = useState<{ requestId: number; searchQuery?: string; sourceLabel?: string } | null>(null);
   const isMobile = useIsMobile();
 
   const inDevelopmentPages: Record<string, string> = {
@@ -119,10 +121,6 @@ export function AdminDashboard({
     if (isMobile && currentPage === 'tasks-management') {
       return <DesktopOnlyMessage feature="Задачи" />;
     }
-    if (isMobile && currentPage === 'groups') {
-      return <DesktopOnlyMessage feature="Создание и редактирование групп" />;
-    }
-
     switch (currentPage) {
       case 'home':
         return <AdminHome user={user} events={events} groups={groups} tasks={tasks} onNavigate={setCurrentPage} notifications={notifications} />;
@@ -135,13 +133,26 @@ export function AdminDashboard({
       case 'groups':
         return <AdminGroups groups={groups} />;
       case 'schedule':
-        return <AdminSchedule events={events} groups={groups} />;
+        return <ScheduleManagement events={events} groups={groups} onNavigate={setCurrentPage} />;
       case 'tasks':
         return <AdminTasks tasks={tasks} />;
       case 'communication':
         return <AdminCommunication />;
       case 'payments':
-        return <FeatureInDevelopment sectionName="Оплаты" roleLabel="Администратор" description="Очередь оплат будет вынесена в отдельный рабочий экран администратора. Сейчас контроль оплат доступен владельцу в разделе “Деньги”." />;
+        return (
+          <AdminPayments
+            navigationContext={paymentsNavigationContext || undefined}
+            onNavigationContextApplied={() => setPaymentsNavigationContext(null)}
+            onOpenClient={(payment) => {
+              setClientsNavigationContext({
+                requestId: Date.now(),
+                searchQuery: payment.parentPhone || payment.parentName || payment.childName || '',
+                sourceLabel: `Платеж ${payment.invoiceNumber || payment.id}`,
+              });
+              setCurrentPage('clients-management');
+            }}
+          />
+        );
       case 'profile':
         return <AdminProfile user={user} onLogout={onLogout} />;
       case 'tasks-management':
@@ -190,9 +201,24 @@ export function AdminDashboard({
       case 'attendance-management':
         return <AttendanceManagement />;
       case 'clients-management':
-        return <ClientsManagement />;
+        return (
+          <ClientsManagement
+            navigationContext={clientsNavigationContext || undefined}
+            onNavigationContextApplied={() => setClientsNavigationContext(null)}
+            onNavigatePayments={(context) => {
+              setPaymentsNavigationContext({
+                requestId: Date.now(),
+                searchQuery: context?.searchQuery,
+                queue: context?.queue,
+                sourceLabel: context?.sourceLabel,
+                invoiceClientId: context?.invoiceClientId,
+              });
+              setCurrentPage('payments');
+            }}
+          />
+        );
       case 'schedule-management':
-        return <ScheduleManagement />;
+        return <ScheduleManagement events={events} groups={groups} onNavigate={setCurrentPage} />;
       default:
         return <AdminHome user={user} events={events} groups={groups} tasks={tasks} onNavigate={setCurrentPage} />;
     }
