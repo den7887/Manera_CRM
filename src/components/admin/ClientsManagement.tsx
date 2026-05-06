@@ -10,16 +10,15 @@ import {
   sendAdminPaymentReminder,
   updateAdminChildProfile,
 } from '../../lib/backendApi';
-import { Group } from '../../types';
+import { Group, Task, User } from '../../types';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowUpRight,
+  CheckCircle2,
+  ClipboardList,
   CreditCard,
-  Eye,
-  Filter,
-  MoreHorizontal,
-  Phone,
+  FolderArchive,
   Plus,
   RefreshCw,
   Search,
@@ -28,71 +27,75 @@ import {
 } from 'lucide-react';
 import { AddStudentDialog } from './AddStudentDialog';
 import { EmptyState } from '../EmptyState';
-import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
-import { isOutstandingPaymentStatus, paymentStatusLabel } from '../payments/PaymentStatusBadge';
+import { PaymentStatusBadge, isOutstandingPaymentStatus, paymentStatusLabel } from '../payments/PaymentStatusBadge';
+import { ClientCard } from '../clients/ClientCard';
+import { ClientNextAction } from '../clients/ClientNextAction';
+import { ClientStatusBadge } from '../clients/ClientStatusBadge';
+import { ClientTemperatureBadge } from '../clients/ClientTemperatureBadge';
+import {
+  ClientStage,
+  TrialWorkspaceStage,
+  buildClientTasks,
+  buildClientTimeline,
+  clientStageLabel,
+  deriveClientStage,
+  deriveClientTemperature,
+  deriveNextAction,
+  deriveTrialStage,
+  trialStageLabel,
+} from '../clients/clientStatus';
 
-type ClientQueue = 'all' | 'new' | 'trial' | 'waiting' | 'active' | 'risk' | 'archive';
+type WorkspaceTab = 'today' | 'funnel' | 'base' | 'trials' | 'tasks' | 'archive';
+type TaskTab = 'mine' | 'today' | 'overdue' | 'unassigned' | 'done';
 
-const queueLabels: Record<ClientQueue, string> = {
-  all: 'Все',
-  new: 'Новые заявки',
-  trial: 'Пробные',
-  waiting: 'Ждут оплату',
-  active: 'Активные',
-  risk: 'Риск',
+const workspaceLabels: Record<WorkspaceTab, string> = {
+  today: 'Сегодня',
+  funnel: 'Воронка',
+  base: 'База клиентов',
+  trials: 'Пробные',
+  tasks: 'Задачи',
   archive: 'Архив',
 };
 
-const parentStatusLabels: Record<string, string> = {
-  invited: 'Приглашен',
-  payment_pending: 'Ожидает оплату',
-  active: 'Активен',
-  suspended: 'Приостановлен',
-};
+const stageOrder: ClientStage[] = [
+  'lead_new',
+  'contact_needed',
+  'in_dialog',
+  'trial_scheduled',
+  'trial_attended',
+  'trial_missed',
+  'thinking',
+  'waiting_payment',
+  'active',
+  'risk',
+  'frozen',
+  'paused',
+  'lost',
+  'archived',
+];
 
-const parentBadgeClass: Record<string, string> = {
-  active: 'border-green-200 bg-green-50 text-green-700',
-  payment_pending: 'border-blue-200 bg-blue-50 text-blue-700',
-  invited: 'border-[#D4AF37]/30 bg-[#FFF9E8] text-[#8B6B00]',
-  suspended: 'border-orange-200 bg-orange-50 text-orange-700',
-};
-
-const paymentBadgeClass: Record<string, string> = {
-  paid: 'border-green-200 bg-green-50 text-green-700',
-  pending: 'border-blue-200 bg-blue-50 text-blue-700',
-  unpaid: 'border-[#D4AF37]/30 bg-[#FFF9E8] text-[#8B6B00]',
-  overdue: 'border-red-200 bg-red-50 text-red-700',
-  failed: 'border-red-200 bg-red-50 text-red-700',
-  refunded: 'border-slate-200 bg-slate-100 text-slate-700',
-  cancelled: 'border-slate-200 bg-slate-100 text-slate-700',
-  expired: 'border-slate-200 bg-slate-100 text-slate-700',
-};
+const trialSectionOrder: TrialWorkspaceStage[] = [
+  'new_request',
+  'scheduled',
+  'waiting_decision',
+  'waiting_payment',
+  'converted',
+  'at_risk',
+];
 
 export interface AdminClientsNavigationContext {
   requestId: number;
   searchQuery?: string;
   sourceLabel?: string;
-}
-
-function childInitials(fullName?: string | null): string {
-  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'У';
-  return parts.slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase();
 }
 
 function formatRuDate(value?: string | null): string {
@@ -109,56 +112,82 @@ function formatRuDateTime(value?: string | null): string {
   return date.toLocaleString('ru-RU');
 }
 
-function deriveQueue(child: AdminChildRecord): ClientQueue {
-  const paymentStatus = String(child.paymentStatus || '');
-  const parentStatus = String(child.parentAccountStatus || '');
-  const hasLead = Boolean(child.landingLead);
-  const inGroup = Boolean(child.groupId);
+function sourceLabel(child: AdminChildRecord): string {
+  return child.profile?.sourceChannel || child.landingLead?.discoverySource || 'Не указан';
+}
 
-  if (['cancelled', 'refunded'].includes(paymentStatus) || parentStatus === 'suspended') {
-    return 'archive';
-  }
-  if (['overdue', 'failed'].includes(paymentStatus)) {
-    return 'risk';
-  }
-  if (hasLead && !inGroup && !isOutstandingPaymentStatus(paymentStatus) && paymentStatus !== 'paid') {
-    return 'new';
-  }
-  if (hasLead && inGroup && paymentStatus !== 'paid') {
-    return 'trial';
-  }
-  if (isOutstandingPaymentStatus(paymentStatus)) {
-    return 'waiting';
-  }
-  if (inGroup && paymentStatus === 'paid' && parentStatus === 'active') {
-    return 'active';
-  }
-  if (!inGroup) {
-    return 'risk';
-  }
-  return 'all';
+function buildFunnelSteps(stage: ClientStage, child: AdminChildRecord) {
+  const currentIndex = stageOrder.indexOf(stage);
+  const steps = [
+    { id: 'lead', label: 'Заявка', date: child.createdAt || '' },
+    { id: 'contact', label: 'Связались', date: child.updatedAt || '' },
+    { id: 'trial', label: 'Пробное', date: child.groupId ? child.updatedAt || '' : '' },
+    { id: 'decision', label: 'Решение', date: child.updatedAt || '' },
+    { id: 'payment', label: 'Оплата', date: child.latestPayment?.paidAt || child.latestPayment?.createdAt || '' },
+    { id: 'active', label: 'Активный ученик', date: stage === 'active' ? child.updatedAt || '' : '' },
+  ];
+  return steps.map((step, index) => ({
+    ...step,
+    state: currentIndex > index ? 'done' : currentIndex === index ? 'current' : 'pending',
+  }));
+}
+
+function buildTrialFacts(child: AdminChildRecord, payments: AdminPaymentRecord[]) {
+  const trialStage = deriveTrialStage(child, payments);
+  return {
+    trialStage,
+    title: trialStageLabel[trialStage],
+    note:
+      trialStage === 'new_request'
+        ? 'Есть интерес с сайта, но еще нет записи в группу.'
+        : trialStage === 'scheduled'
+          ? 'Пробное, вероятно, запланировано через группу. Отдельной backend-сущности пока нет.'
+          : trialStage === 'waiting_decision'
+            ? 'Пробный интерес подтвержден, решение после него еще не закрыто.'
+            : trialStage === 'waiting_payment'
+              ? 'После пробного сценария остался открытый платеж.'
+              : trialStage === 'converted'
+                ? 'Карточка прошла путь до покупки абонемента.'
+                : 'Пробный сценарий требует ручной проверки.',
+  };
+}
+
+function taskDueLabel(task: Task): string {
+  if (!task.dueDate) return 'Без срока';
+  return new Date(task.dueDate).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 export function ClientsManagement({
   navigationContext,
   onNavigationContextApplied,
   onNavigatePayments,
+  onNavigateSection,
+  tasks,
+  currentUser,
 }: {
   navigationContext?: AdminClientsNavigationContext;
   onNavigationContextApplied?: () => void;
   onNavigatePayments?: (context?: { searchQuery?: string; queue?: 'review' | 'waiting' | 'overdue' | 'paid' | 'problem' | 'all'; sourceLabel?: string; invoiceClientId?: string }) => void;
+  onNavigateSection?: (page: string) => void;
+  tasks: Task[];
+  currentUser: User;
 }) {
   const [children, setChildren] = useState<AdminChildRecord[]>([]);
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [queue, setQueue] = useState<ClientQueue>('all');
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('today');
+  const [taskTab, setTaskTab] = useState<TaskTab>('mine');
   const [searchQuery, setSearchQuery] = useState('');
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAssigningChildId, setIsAssigningChildId] = useState<string | null>(null);
   const [isInvoicingChildId, setIsInvoicingChildId] = useState<string | null>(null);
@@ -223,33 +252,58 @@ export function ClientsManagement({
     onNavigationContextApplied?.();
   }, [navigationContext, contextId, onNavigationContextApplied]);
 
-  const outstandingPaymentByClientId = useMemo(() => {
-    const filtered = payments.filter((payment) => isOutstandingPaymentStatus(payment.status));
-    filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
-    const map = new Map<string, AdminPaymentRecord>();
-    filtered.forEach((payment) => {
+  const sourceOptions = useMemo(() => {
+    return Array.from(
+      new Set(children.map((child) => sourceLabel(child)).filter((value) => value && value !== 'Не указан')),
+    );
+  }, [children]);
+
+  const childPaymentsMap = useMemo(() => {
+    const map = new Map<string, AdminPaymentRecord[]>();
+    payments.forEach((payment) => {
       const key = String(payment.clientId || '');
-      if (!key || map.has(key)) return;
-      map.set(key, payment);
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)?.push(payment);
     });
+    map.forEach((value) => value.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()));
     return map;
   }, [payments]);
 
-  const selectedChild = useMemo(
-    () => children.find((child) => child.id === selectedChildId) || null,
-    [children, selectedChildId],
+  const childrenWithMeta = useMemo(() => {
+    return children.map((child) => {
+      const childPayments = childPaymentsMap.get(String(child.clientId || '')) || [];
+      const stage = deriveClientStage(child, childPayments);
+      const temperature = deriveClientTemperature(child, childPayments, tasks);
+      const nextAction = deriveNextAction(child, childPayments);
+      const timeline = buildClientTimeline(child, childPayments);
+      const relatedTasks = buildClientTasks(child, tasks);
+      const trialFacts = buildTrialFacts(child, childPayments);
+      const latestOpenPayment = childPayments.find((payment) => isOutstandingPaymentStatus(payment.status)) || null;
+      return {
+        child,
+        payments: childPayments,
+        stage,
+        temperature,
+        nextAction,
+        timeline,
+        relatedTasks,
+        trialFacts,
+        latestOpenPayment,
+      };
+    });
+  }, [children, childPaymentsMap, tasks]);
+
+  const selectedClient = useMemo(
+    () => childrenWithMeta.find((entry) => entry.child.id === selectedChildId) || null,
+    [childrenWithMeta, selectedChildId],
   );
 
-  const selectedChildPayments = useMemo(() => {
-    if (!selectedChild) return [];
-    return payments
-      .filter((payment) => String(payment.clientId || '') === String(selectedChild.clientId || ''))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [payments, selectedChild]);
-
   useEffect(() => {
-    if (!selectedChild) return;
-    const profile = selectedChild.profile || {
+    if (!selectedClient) return;
+    const profile = selectedClient.child.profile || {
       internalComment: '',
       healthNotes: '',
       behavioralNotes: '',
@@ -273,63 +327,187 @@ export function ClientsManagement({
       emergencyContactName: profile.emergencyContactName || '',
       emergencyContactPhone: profile.emergencyContactPhone || '',
       communicationPreferences: profile.communicationPreferences || '',
-      sourceChannel: profile.sourceChannel || selectedChild.landingLead?.discoverySource || '',
-      priorExperience: profile.priorExperience || selectedChild.landingLead?.previousActivities || '',
+      sourceChannel: profile.sourceChannel || sourceLabel(selectedClient.child),
+      priorExperience: profile.priorExperience || selectedClient.child.landingLead?.previousActivities || '',
       tagsInput: (profile.tags || []).join(', '),
     });
-  }, [selectedChild]);
+  }, [selectedClient]);
 
-  const filteredChildren = useMemo(() => {
+  const filteredClients = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return children.filter((child) => {
-      const currentQueue = deriveQueue(child);
-      const matchesQueue = queue === 'all' || currentQueue === queue;
-      const matchesSearch =
-        !query ||
-        [
-          child.fullName || '',
-          child.parentName || '',
-          child.parentPhone || '',
-          child.subscriptionName || '',
-          child.groupName || '',
-          child.landingLead?.discoverySource || '',
-        ]
-          .join(' ')
-          .toLowerCase()
-          .includes(query);
+    return childrenWithMeta.filter((entry) => {
+      const { child, stage } = entry;
+      const searchText = [
+        child.fullName || '',
+        child.parentName || '',
+        child.parentPhone || '',
+        child.groupName || '',
+        child.subscriptionName || '',
+        sourceLabel(child),
+        child.profile?.internalComment || '',
+        clientStageLabel[stage],
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      const matchesSearch = !query || searchText.includes(query);
       const matchesGroup =
         groupFilter === 'all' ||
         (groupFilter === 'ungrouped' && !child.groupId) ||
         String(child.groupId || '') === groupFilter;
       const matchesPayment = paymentFilter === 'all' || String(child.paymentStatus || '') === paymentFilter;
-      return matchesQueue && matchesSearch && matchesGroup && matchesPayment;
+      const matchesSource = sourceFilter === 'all' || sourceLabel(child) === sourceFilter;
+      return matchesSearch && matchesGroup && matchesPayment && matchesSource;
     });
-  }, [children, queue, searchQuery, groupFilter, paymentFilter]);
+  }, [childrenWithMeta, searchQuery, groupFilter, paymentFilter, sourceFilter]);
 
-  const summary = useMemo(() => {
+  const todaySummary = useMemo(() => {
+    const newRequests = filteredClients.filter((entry) => ['lead_new', 'contact_needed'].includes(entry.stage)).length;
+    const trials = filteredClients.filter((entry) => ['trial_scheduled', 'thinking'].includes(entry.stage)).length;
+    const waitingDecision = filteredClients.filter((entry) => entry.stage === 'thinking').length;
+    const waitingPayment = filteredClients.filter((entry) => entry.stage === 'waiting_payment').length;
+    const risk = filteredClients.filter((entry) => entry.stage === 'risk').length;
+    const withoutConcreteAction = filteredClients.filter((entry) => !entry.nextAction.concrete && entry.stage !== 'archived').length;
     return {
-      total: children.length,
-      active: children.filter((child) => deriveQueue(child) === 'active').length,
-      waiting: children.filter((child) => deriveQueue(child) === 'waiting').length,
-      withoutGroup: children.filter((child) => !child.groupId).length,
-      risk: children.filter((child) => deriveQueue(child) === 'risk').length,
+      newRequests,
+      trials,
+      waitingDecision,
+      waitingPayment,
+      risk,
+      withoutConcreteAction,
     };
-  }, [children]);
+  }, [filteredClients]);
+
+  const baseSummary = useMemo(() => {
+    return {
+      total: childrenWithMeta.length,
+      active: childrenWithMeta.filter((entry) => entry.stage === 'active').length,
+      waiting: childrenWithMeta.filter((entry) => entry.stage === 'waiting_payment').length,
+      trials: childrenWithMeta.filter((entry) => ['trial_scheduled', 'thinking'].includes(entry.stage)).length,
+      risk: childrenWithMeta.filter((entry) => entry.stage === 'risk').length,
+      archived: childrenWithMeta.filter((entry) => entry.stage === 'archived').length,
+    };
+  }, [childrenWithMeta]);
+
+  const todaySections = useMemo(() => {
+    return [
+      {
+        id: 'new',
+        title: 'Новые заявки',
+        items: filteredClients.filter((entry) => ['lead_new', 'contact_needed'].includes(entry.stage)),
+      },
+      {
+        id: 'dialog',
+        title: 'Связаться сегодня',
+        items: filteredClients.filter((entry) => entry.stage === 'in_dialog'),
+      },
+      {
+        id: 'trials',
+        title: 'Пробные без решения',
+        items: filteredClients.filter((entry) => ['trial_scheduled', 'thinking'].includes(entry.stage)),
+      },
+      {
+        id: 'payments',
+        title: 'Ждут оплату',
+        items: filteredClients.filter((entry) => entry.stage === 'waiting_payment'),
+      },
+      {
+        id: 'risk',
+        title: 'Просрочки и риск',
+        items: filteredClients.filter((entry) => entry.stage === 'risk'),
+      },
+      {
+        id: 'no-action',
+        title: 'Нет четкого следующего действия',
+        items: filteredClients.filter((entry) => !entry.nextAction.concrete && entry.stage !== 'archived'),
+      },
+    ].filter((section) => section.items.length > 0);
+  }, [filteredClients]);
+
+  const funnelSections = useMemo(() => {
+    return [
+      {
+        id: 'new',
+        title: 'Новые',
+        items: filteredClients.filter((entry) => ['lead_new', 'contact_needed', 'in_dialog'].includes(entry.stage)),
+      },
+      {
+        id: 'trials',
+        title: 'Пробные',
+        items: filteredClients.filter((entry) => ['trial_scheduled', 'thinking'].includes(entry.stage)),
+      },
+      {
+        id: 'waiting',
+        title: 'Ждут оплату',
+        items: filteredClients.filter((entry) => entry.stage === 'waiting_payment'),
+      },
+      {
+        id: 'active',
+        title: 'Активные',
+        items: filteredClients.filter((entry) => entry.stage === 'active'),
+      },
+      {
+        id: 'risk',
+        title: 'Риск',
+        items: filteredClients.filter((entry) => entry.stage === 'risk'),
+      },
+      {
+        id: 'archive',
+        title: 'Архив',
+        items: filteredClients.filter((entry) => entry.stage === 'archived'),
+      },
+    ].filter((section) => section.items.length > 0);
+  }, [filteredClients]);
+
+  const trialSections = useMemo(() => {
+    return trialSectionOrder
+      .map((trialKey) => ({
+        id: trialKey,
+        title: trialStageLabel[trialKey],
+        items: filteredClients.filter((entry) => entry.trialFacts.trialStage === trialKey),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [filteredClients]);
+
+  const taskPool = useMemo(() => {
+    return tasks.filter((task) => task.relatedChildId || task.relatedUserId);
+  }, [tasks]);
+
+  const visibleTaskPool = useMemo(() => {
+    const now = new Date();
+    return taskPool.filter((task) => {
+      if (taskTab === 'mine') return task.assigneeId === currentUser.id && task.status !== 'done';
+      if (taskTab === 'today') {
+        if (!task.dueDate) return false;
+        return new Date(task.dueDate).toDateString() === now.toDateString() && task.status !== 'done';
+      }
+      if (taskTab === 'overdue') {
+        if (!task.dueDate) return false;
+        return new Date(task.dueDate) < now && task.status !== 'done';
+      }
+      if (taskTab === 'unassigned') return !task.assigneeId && task.status !== 'done';
+      return task.status === 'done';
+    });
+  }, [taskPool, taskTab, currentUser.id]);
+
+  const archivePool = useMemo(() => {
+    return filteredClients.filter((entry) => ['archived', 'paused', 'lost', 'frozen'].includes(entry.stage));
+  }, [filteredClients]);
 
   const parentOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string; email: string; phone: string }>();
-    for (const child of children) {
-      const key = child.parentUserId || child.parentPhone || '';
+    for (const entry of childrenWithMeta) {
+      const key = entry.child.parentUserId || entry.child.parentPhone || '';
       if (!key || map.has(key)) continue;
       map.set(key, {
-        id: String(child.parentUserId || key),
-        name: child.parentName || child.parentPhone || 'Родитель',
+        id: String(entry.child.parentUserId || key),
+        name: entry.child.parentName || entry.child.parentPhone || 'Родитель',
         email: '',
-        phone: child.parentPhone || '',
+        phone: entry.child.parentPhone || '',
       });
     }
     return Array.from(map.values());
-  }, [children]);
+  }, [childrenWithMeta]);
 
   const subscriptions = useMemo(
     () => [
@@ -339,11 +517,16 @@ export function ClientsManagement({
     [],
   );
 
+  const openClient = (childId: string) => {
+    setSelectedChildId(childId);
+    setIsDetailsOpen(true);
+  };
+
   const saveProfile = async () => {
-    if (!selectedChild) return;
+    if (!selectedClient) return;
     setIsProfileSaving(true);
     try {
-      const response = await updateAdminChildProfile(selectedChild.id, {
+      const response = await updateAdminChildProfile(selectedClient.child.id, {
         internal_comment: profileDraft.internalComment,
         health_notes: profileDraft.healthNotes,
         behavioral_notes: profileDraft.behavioralNotes,
@@ -363,7 +546,7 @@ export function ClientsManagement({
       setChildren((prev) => prev.map((child) => (child.id === response.child.id ? response.child : child)));
       toast.success('Внутренний профиль обновлен');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить профиль');
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить внутренний профиль');
     } finally {
       setIsProfileSaving(false);
     }
@@ -384,7 +567,7 @@ export function ClientsManagement({
 
   const createInvoiceForChild = async (child: AdminChildRecord) => {
     if (!child.clientId) {
-      toast.error('У карточки нет связанного клиента для выставления счета');
+      toast.error('У карточки нет clientId для выставления счета');
       return;
     }
     setIsInvoicingChildId(child.id);
@@ -416,34 +599,66 @@ export function ClientsManagement({
     }
   };
 
+  const renderClientCard = (entry: (typeof childrenWithMeta)[number], sectionLabel?: string) => (
+    <ClientCard
+      key={entry.child.id}
+      child={entry.child}
+      stage={entry.stage}
+      temperature={entry.temperature}
+      nextAction={entry.nextAction}
+      outstandingPayment={entry.latestOpenPayment}
+      groups={groups}
+      onOpen={() => openClient(entry.child.id)}
+      onOpenPayments={() =>
+        onNavigatePayments?.({
+          searchQuery: entry.child.parentPhone || entry.child.fullName,
+          queue: entry.stage === 'waiting_payment' ? 'waiting' : entry.stage === 'risk' ? 'problem' : 'all',
+          sourceLabel: `Оплаты по ${entry.child.fullName}`,
+          invoiceClientId: entry.child.clientId || undefined,
+        })
+      }
+      onCreateInvoice={() => void createInvoiceForChild(entry.child)}
+      onRemind={entry.latestOpenPayment ? () => void remindAboutPayment(entry.latestOpenPayment as AdminPaymentRecord) : undefined}
+      onAssignGroup={(groupId) => void assignGroup(entry.child.id, groupId)}
+      onOpenTasks={() => {
+        setWorkspaceTab('tasks');
+        if (entry.relatedTasks.length === 0 && onNavigateSection) {
+          onNavigateSection('tasks-management');
+        }
+      }}
+      isAssigning={isAssigningChildId === entry.child.id}
+      isInvoicing={isInvoicingChildId === entry.child.id}
+      isReminding={entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : false}
+      sectionLabel={sectionLabel}
+    />
+  );
+
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-[#133C2A] mb-2">Клиенты</h1>
-          <p className="text-[#133C2A]/60">Рабочий центр по ученикам: статус, оплата, группа и внутренняя информация.</p>
+          <h1 className="text-[#133C2A] mb-2">Клиенты и заявки</h1>
+          <p className="text-[#133C2A]/60">Единый CRM-центр по заявкам, пробным, действующим ученикам, оплатам и рискам.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
           <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
             <RefreshCw className="mr-2 h-4 w-4" />
             {isRefreshing ? 'Обновляем...' : 'Обновить'}
           </Button>
-          <Button
-            className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]"
-            onClick={() => setIsAddDialogOpen(true)}
-          >
+          <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Добавить ученика
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-5">
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Всего</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.total}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Активные</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.active}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Ждут оплату</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.waiting}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Без группы</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.withoutGroup}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-3xl text-[#D14343]">{summary.risk}</p></CardContent></Card>
+      <div className="grid gap-3 md:grid-cols-6">
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Новые заявки</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.newRequests}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Пробные</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.trials}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">После пробного</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingDecision}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Ждут оплату</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingPayment}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-3xl text-[#D14343]">{todaySummary.risk}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Без следующего шага</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.withoutConcreteAction}</p></CardContent></Card>
       </div>
 
       <Card className="border-none soft-shadow">
@@ -451,16 +666,16 @@ export function ClientsManagement({
           <div className="space-y-3">
             <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
               <div className="flex min-w-max gap-1">
-                {(Object.keys(queueLabels) as ClientQueue[]).map((queueId) => (
+                {(Object.keys(workspaceLabels) as WorkspaceTab[]).map((tab) => (
                   <Button
-                    key={queueId}
+                    key={tab}
                     type="button"
                     size="sm"
-                    variant={queue === queueId ? 'default' : 'ghost'}
-                    className={queue === queueId ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
-                    onClick={() => setQueue(queueId)}
+                    variant={workspaceTab === tab ? 'default' : 'ghost'}
+                    className={workspaceTab === tab ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
+                    onClick={() => setWorkspaceTab(tab)}
                   >
-                    {queueLabels[queueId]}
+                    {workspaceLabels[tab]}
                   </Button>
                 ))}
               </div>
@@ -483,13 +698,13 @@ export function ClientsManagement({
               </div>
             ) : null}
 
-            <div className="grid gap-2 lg:grid-cols-[1fr_220px_220px]">
+            <div className="grid gap-2 xl:grid-cols-[1fr_220px_220px_220px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#133C2A]/40" />
                 <Input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Поиск по ребенку, родителю, группе"
+                  placeholder="Поиск по ребенку, родителю, телефону, группе, источнику"
                   className="rounded-2xl pl-9"
                 />
               </div>
@@ -504,10 +719,7 @@ export function ClientsManagement({
                 </SelectContent>
               </Select>
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="rounded-2xl">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="rounded-2xl"><SelectValue placeholder="Оплата" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все оплаты</SelectItem>
                   <SelectItem value="paid">Оплачено</SelectItem>
@@ -516,314 +728,363 @@ export function ClientsManagement({
                   <SelectItem value="overdue">Просрочено</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="rounded-2xl"><SelectValue placeholder="Источник" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все источники</SelectItem>
+                  {sourceOptions.map((source) => (
+                    <SelectItem key={source} value={source}>{source}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           {isLoading ? (
-            <p className="py-10 text-center text-[#133C2A]/60">Загрузка клиентов...</p>
-          ) : filteredChildren.length === 0 ? (
+            <div className="py-12 text-center text-[#133C2A]/60">Загрузка клиентской базы...</div>
+          ) : workspaceTab === 'today' ? (
+            todaySections.length === 0 ? (
+              <EmptyState
+                icon={ClipboardList}
+                title="Сегодня нет клиентов в активной обработке"
+                description="Когда появятся новые заявки, пробные или оплаты в работе, они будут собраны здесь."
+              />
+            ) : (
+              todaySections.map((section) => (
+                <section key={section.id} className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-[#133C2A]">{section.title}</h2>
+                      <p className="text-sm text-[#133C2A]/55">{section.items.length} карточек на контроле</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {section.items.map((entry) => renderClientCard(entry, section.title))}
+                  </div>
+                </section>
+              ))
+            )
+          ) : workspaceTab === 'funnel' ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {funnelSections.map((section) => (
+                <section key={section.id} className="space-y-3">
+                  <div className="rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/72 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-[#133C2A]">{section.title}</h2>
+                        <p className="text-sm text-[#133C2A]/55">Этап воронки студии</p>
+                      </div>
+                      <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {section.items.map((entry) => renderClientCard(entry, section.title))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : workspaceTab === 'base' ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-6">
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Всего</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.total}</p></CardContent></Card>
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Активные</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.active}</p></CardContent></Card>
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Пробные</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.trials}</p></CardContent></Card>
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Ждут оплату</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.waiting}</p></CardContent></Card>
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-2xl text-[#D14343]">{baseSummary.risk}</p></CardContent></Card>
+                <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Архив</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.archived}</p></CardContent></Card>
+              </div>
+              <div className="space-y-3">
+                {filteredClients.map((entry) => renderClientCard(entry, clientStageLabel[entry.stage]))}
+              </div>
+            </>
+          ) : workspaceTab === 'trials' ? (
+            trialSections.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Пробных сценариев не найдено"
+                description="Когда заявки с сайта начнут переходить в пробные, они будут собраны здесь."
+              />
+            ) : (
+              trialSections.map((section) => (
+                <section key={section.id} className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-[#133C2A]">{section.title}</h2>
+                      <p className="text-sm text-[#133C2A]/55">
+                        Отдельный бизнес-процесс пробных. Точный attendance/status появится после backend-полей `trial_lessons`.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {section.items.map((entry) => renderClientCard(entry, section.title))}
+                  </div>
+                </section>
+              ))
+            )
+          ) : workspaceTab === 'tasks' ? (
+            <div className="space-y-4">
+              <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
+                <div className="flex min-w-max gap-1">
+                  {[
+                    { id: 'mine', label: 'Мои' },
+                    { id: 'today', label: 'Сегодня' },
+                    { id: 'overdue', label: 'Просрочены' },
+                    { id: 'unassigned', label: 'Без ответственного' },
+                    { id: 'done', label: 'Выполнены' },
+                  ].map((item) => (
+                    <Button
+                      key={item.id}
+                      type="button"
+                      size="sm"
+                      variant={taskTab === item.id ? 'default' : 'ghost'}
+                      className={taskTab === item.id ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
+                      onClick={() => setTaskTab(item.id as TaskTab)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {visibleTaskPool.length === 0 ? (
+                <EmptyState
+                  icon={ClipboardList}
+                  title="Клиентских задач по этому фильтру нет"
+                  description="Прямое создание задач из карточки клиента еще не подключено. Пока отображаются только реальные задачи, уже связанные с клиентом или ребенком."
+                  actionLabel="Открыть раздел задач"
+                  onAction={() => onNavigateSection?.('tasks-management')}
+                />
+              ) : (
+                visibleTaskPool.map((task) => {
+                  const linkedClient = childrenWithMeta.find(
+                    (entry) => entry.child.id === task.relatedChildId || entry.child.parentUserId === task.relatedUserId,
+                  );
+                  return (
+                    <Card key={task.id} className="border-[#133C2A]/10 bg-white/92 shadow-[0_10px_30px_rgba(19,60,42,0.06)]">
+                      <CardContent className="p-4 md:p-5">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className="rounded-full">{task.status === 'done' ? 'Выполнено' : 'В работе'}</Badge>
+                              <Badge variant="outline" className="rounded-full">{task.priority}</Badge>
+                            </div>
+                            <div>
+                              <p className="text-lg text-[#133C2A]">{task.title}</p>
+                              <p className="mt-1 text-sm text-[#133C2A]/62">{task.description}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-sm text-[#133C2A]/62">
+                              <span>Срок: {taskDueLabel(task)}</span>
+                              <span>Ответственный: {task.assigneeName}</span>
+                              {linkedClient ? <span>Клиент: {linkedClient.child.parentName || linkedClient.child.fullName}</span> : null}
+                            </div>
+                            {task.assigneeComment ? <p className="text-sm text-[#133C2A]/58">Комментарий исполнителя: {task.assigneeComment}</p> : null}
+                          </div>
+                          <div className="flex flex-col gap-2 md:w-[220px]">
+                            {linkedClient ? (
+                              <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => openClient(linkedClient.child.id)}>
+                                Открыть клиента
+                              </Button>
+                            ) : null}
+                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
+                              Перейти в задачи
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          ) : archivePool.length === 0 ? (
             <EmptyState
-              icon={Users}
-              title="Клиентов в этой очереди пока нет"
-              description="Добавьте ученика вручную или дождитесь новой заявки с сайта."
-              actionLabel="Добавить ученика"
-              onAction={() => setIsAddDialogOpen(true)}
+              icon={FolderArchive}
+              title="Архив пуст"
+              description="Архивные и ушедшие карточки появятся здесь. Причины архива будут доступны после добавления backend-поля `archive_reason`."
             />
           ) : (
-            filteredChildren.map((child) => {
-              const childQueue = deriveQueue(child);
-              const outstandingPayment = child.clientId ? outstandingPaymentByClientId.get(String(child.clientId)) : undefined;
-              const nextAction =
-                childQueue === 'waiting'
-                  ? {
-                      label: outstandingPayment ? 'Напомнить' : 'Выставить счет',
-                      onClick: outstandingPayment ? () => void remindAboutPayment(outstandingPayment) : () => void createInvoiceForChild(child),
-                      disabled:
-                        Boolean(outstandingPayment && isReminderPaymentId === outstandingPayment.id) ||
-                        isInvoicingChildId === child.id,
-                    }
-                  : childQueue === 'risk'
-                    ? {
-                        label: 'Открыть карточку',
-                        onClick: () => {
-                          setSelectedChildId(child.id);
-                          setIsDialogOpen(true);
-                        },
-                        disabled: false,
-                      }
-                    : childQueue === 'new' || childQueue === 'trial'
-                      ? {
-                          label: 'Открыть карточку',
-                          onClick: () => {
-                            setSelectedChildId(child.id);
-                            setIsDialogOpen(true);
-                          },
-                          disabled: false,
-                        }
-                      : {
-                          label: 'Открыть карточку',
-                          onClick: () => {
-                            setSelectedChildId(child.id);
-                            setIsDialogOpen(true);
-                          },
-                          disabled: false,
-                        };
-
-              return (
-                <Card key={child.id} className="overflow-hidden border-[#133C2A]/10 bg-white/92 shadow-[0_10px_30px_rgba(19,60,42,0.06)]">
-                  <CardContent className="p-0">
-                    <div className="grid gap-0 xl:grid-cols-[1.15fr_0.85fr_260px]">
-                      <div className="p-4 md:p-5">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-14 w-14 border border-[#D4AF37]/20">
-                            <AvatarFallback className="bg-gradient-to-br from-[#133C2A] to-[#D4AF37] text-white">
-                              {childInitials(child.fullName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedChildId(child.id);
-                                    setIsDialogOpen(true);
-                                  }}
-                                  className="text-left text-lg leading-tight text-[#133C2A] hover:underline"
-                                >
-                                  {child.fullName || 'Ученик'}
-                                </button>
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#133C2A]/66">
-                                  <span>{child.age ?? '—'} лет</span>
-                                  <span>•</span>
-                                  <span>{child.parentName || 'Родитель не указан'}</span>
-                                  <span>•</span>
-                                  <span>{child.parentPhone || 'Телефон не указан'}</span>
-                                </div>
-                                <div className="mt-3 flex flex-wrap gap-1.5">
-                                  <Badge className={`${paymentBadgeClass[String(child.paymentStatus || '')] || 'border-slate-200 bg-slate-100 text-slate-700'} rounded-full border`}>
-                                    {paymentStatusLabel(child.paymentStatus)}
-                                  </Badge>
-                                  <Badge className={`${parentBadgeClass[String(child.parentAccountStatus || '')] || 'border-slate-200 bg-slate-100 text-slate-700'} rounded-full border`}>
-                                    ЛК: {parentStatusLabels[String(child.parentAccountStatus || '')] || String(child.parentAccountStatus || 'не задан')}
-                                  </Badge>
-                                  <Badge variant="outline" className="rounded-full border-[#133C2A]/12 text-[#133C2A]/70">
-                                    {queueLabels[childQueue]}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="rounded-xl">
-                                  <DropdownMenuItem onSelect={() => { setSelectedChildId(child.id); setIsDialogOpen(true); }}>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Открыть карточку
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onSelect={() => void createInvoiceForChild(child)} disabled={!child.clientId}>
-                                    <CreditCard className="mr-2 h-4 w-4" />
-                                    Выставить счет
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onSelect={() => {
-                                      onNavigatePayments?.({
-                                        queue: isOutstandingPaymentStatus(child.paymentStatus) ? 'waiting' : 'all',
-                                        searchQuery: child.parentPhone || child.fullName,
-                                        sourceLabel: `Оплаты по ${child.fullName}`,
-                                        invoiceClientId: child.clientId || undefined,
-                                      });
-                                    }}
-                                  >
-                                    <ArrowUpRight className="mr-2 h-4 w-4" />
-                                    Открыть оплаты
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem disabled>
-                                    <Phone className="mr-2 h-4 w-4" />
-                                    Написать родителю
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-
-                            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 text-sm">
-                              <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
-                                <p className="text-xs text-[#133C2A]/45">Группа</p>
-                                <p className="mt-1 text-[#133C2A]">{child.groupName || 'Не назначена'}</p>
-                              </div>
-                              <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
-                                <p className="text-xs text-[#133C2A]/45">Абонемент</p>
-                                <p className="mt-1 text-[#133C2A]">
-                                  {child.subscriptionName || 'Не выбран'}
-                                  {child.subscriptionAmount ? ` • ${Number(child.subscriptionAmount).toLocaleString('ru-RU')} ₽` : ''}
-                                </p>
-                              </div>
-                              <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
-                                <p className="text-xs text-[#133C2A]/45">Последнее изменение</p>
-                                <p className="mt-1 text-[#133C2A]">{formatRuDate(child.updatedAt || child.createdAt)}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="border-y border-[#133C2A]/8 bg-[#fbf7e8]/72 p-4 md:p-5 xl:border-x xl:border-y-0">
-                        <div className="grid gap-3">
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Что важно</p>
-                            <p className="mt-2 text-sm leading-relaxed text-[#133C2A]">
-                              {childQueue === 'new'
-                                ? 'Карточка пришла из анкеты. Нужно уточнить данные и решить вопрос с пробным.'
-                                : childQueue === 'trial'
-                                  ? 'Пробный интерес зафиксирован, но оплата еще не закрыта.'
-                                  : childQueue === 'waiting'
-                                    ? 'Есть открытый счет или подтверждение оплаты от родителя.'
-                                    : childQueue === 'risk'
-                                      ? 'Нужен ручной контроль: долг, ошибка платежа или не назначена группа.'
-                                      : childQueue === 'archive'
-                                        ? 'Карточка выведена из активной работы.'
-                                        : 'Группа и оплата уже оформлены, карточка в рабочем состоянии.'}
-                            </p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs text-[#133C2A]/45">Группа</Label>
-                            <Select
-                              value={child.groupId || 'none'}
-                              onValueChange={(value) => void assignGroup(child.id, value === 'none' ? null : value)}
-                              disabled={isAssigningChildId === child.id}
-                            >
-                              <SelectTrigger className="rounded-xl bg-white">
-                                <SelectValue placeholder="Без группы" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Без группы</SelectItem>
-                                {groups.map((group) => (
-                                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="rounded-2xl border border-[#133C2A]/10 bg-white px-3 py-3 text-sm text-[#133C2A]/68">
-                            <p className="text-xs text-[#133C2A]/45">Источник</p>
-                            <p className="mt-1 text-[#133C2A]">{child.profile?.sourceChannel || child.landingLead?.discoverySource || '—'}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 md:p-5">
-                        <div className="flex h-full flex-col gap-2">
-                          <Button
-                            onClick={() => nextAction.onClick()}
-                            disabled={nextAction.disabled}
-                            className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]"
-                          >
-                            {nextAction.label}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="rounded-2xl border-[#133C2A]/15"
-                            onClick={() => {
-                              setSelectedChildId(child.id);
-                              setIsDialogOpen(true);
-                            }}
-                          >
-                            Открыть карточку
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="rounded-2xl border-[#133C2A]/15"
-                            disabled={!child.clientId}
-                            onClick={() => void createInvoiceForChild(child)}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Выставить счет
-                          </Button>
-                          {outstandingPayment ? (
-                            <Button
-                              variant="outline"
-                              className="rounded-2xl border-[#133C2A]/15"
-                              onClick={() => void remindAboutPayment(outstandingPayment)}
-                              disabled={isReminderPaymentId === outstandingPayment.id}
-                            >
-                              {isReminderPaymentId === outstandingPayment.id ? 'Отправляем...' : 'Напомнить'}
-                            </Button>
-                          ) : (
-                            <div className="mt-auto rounded-2xl border border-dashed border-[#133C2A]/12 px-3 py-3 text-sm text-[#133C2A]/48">
-                              Чат с родителем появится здесь после подключения раздела сообщений.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-[#D4AF37]/25 bg-[#FFF9E8] px-4 py-3 text-sm text-[#8B6B00]">
+                Причины архива пока не хранятся отдельно. Сейчас архив собирается по статусам `archived`, `paused`, `lost`, `frozen`.
+              </div>
+              <div className="space-y-3">
+                {archivePool.map((entry) => renderClientCard(entry, 'Архив / неактуальные'))}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-3xl">
-          {selectedChild ? (
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-3xl">
+          {selectedClient ? (
             <>
               <DialogHeader>
-                <DialogTitle className="flex min-w-0 items-center gap-3 pr-8 text-[#133C2A]">
-                  <Avatar className="h-12 w-12 border border-[#D4AF37]/20">
-                    <AvatarFallback className="bg-gradient-to-br from-[#133C2A] to-[#D4AF37] text-white">
-                      {childInitials(selectedChild.fullName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="truncate">{selectedChild.fullName}</span>
+                <DialogTitle className="flex min-w-0 items-center justify-between gap-3 pr-8 text-[#133C2A]">
+                  <div className="min-w-0">
+                    <p className="truncate text-2xl">{selectedClient.child.parentName || selectedClient.child.fullName}</p>
+                    <p className="mt-1 text-sm text-[#133C2A]/60">Телефон: {selectedClient.child.parentPhone || '—'} • Источник: {sourceLabel(selectedClient.child)}</p>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <ClientStatusBadge stage={selectedClient.stage} />
+                    <ClientTemperatureBadge temperature={selectedClient.temperature} />
+                  </div>
                 </DialogTitle>
               </DialogHeader>
 
+              <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                <Card className="border-[#133C2A]/10">
+                  <CardContent className="p-5">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <p className="text-xs text-[#133C2A]/60">Ответственный</p>
+                        <p className="text-[#133C2A]">Не назначен в backend</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#133C2A]/60">Последнее событие</p>
+                        <p className="text-[#133C2A]">{selectedClient.timeline[0] ? formatRuDateTime(selectedClient.timeline[0].occurredAt) : '—'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <ClientNextAction nextAction={selectedClient.nextAction} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[#133C2A]/10">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col gap-2">
+                      <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onNavigatePayments?.({
+                        searchQuery: selectedClient.child.parentPhone || selectedClient.child.fullName,
+                        queue: selectedClient.stage === 'waiting_payment' ? 'waiting' : selectedClient.stage === 'risk' ? 'problem' : 'all',
+                        sourceLabel: `Оплаты по ${selectedClient.child.fullName}`,
+                        invoiceClientId: selectedClient.child.clientId || undefined,
+                      })}>
+                        Открыть оплаты
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void createInvoiceForChild(selectedClient.child)} disabled={!selectedClient.child.clientId || isInvoicingChildId === selectedClient.child.id}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Выставить счет
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
+                        Поставить задачу
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" disabled>
+                        Связь со статусом и ответственным появится после backend-расширения
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
               <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList className="w-full overflow-x-auto whitespace-nowrap rounded-2xl bg-[#F8F4E3] p-1">
-                  <TabsTrigger value="overview" className="min-w-[120px] rounded-xl">Основное</TabsTrigger>
-                  <TabsTrigger value="payments" className="min-w-[120px] rounded-xl">Оплата</TabsTrigger>
+                  <TabsTrigger value="overview" className="min-w-[120px] rounded-xl">Обзор</TabsTrigger>
+                  <TabsTrigger value="child" className="min-w-[120px] rounded-xl">Ребенок</TabsTrigger>
                   <TabsTrigger value="parent" className="min-w-[120px] rounded-xl">Родитель</TabsTrigger>
-                  <TabsTrigger value="intake" className="min-w-[120px] rounded-xl">Анкета</TabsTrigger>
-                  <TabsTrigger value="profile" className="min-w-[130px] rounded-xl">Комментарии</TabsTrigger>
+                  <TabsTrigger value="funnel" className="min-w-[120px] rounded-xl">Воронка</TabsTrigger>
+                  <TabsTrigger value="trials" className="min-w-[120px] rounded-xl">Пробные</TabsTrigger>
+                  <TabsTrigger value="payments" className="min-w-[120px] rounded-xl">Оплаты</TabsTrigger>
+                  <TabsTrigger value="group" className="min-w-[120px] rounded-xl">Группа</TabsTrigger>
+                  <TabsTrigger value="attendance" className="min-w-[120px] rounded-xl">Посещаемость</TabsTrigger>
+                  <TabsTrigger value="tasks" className="min-w-[120px] rounded-xl">Задачи</TabsTrigger>
+                  <TabsTrigger value="comments" className="min-w-[120px] rounded-xl">Комментарии</TabsTrigger>
+                  <TabsTrigger value="history" className="min-w-[120px] rounded-xl">История</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-4">
                   <Card className="border-[#133C2A]/10">
                     <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">Возраст</p><p className="text-[#133C2A]">{selectedChild.age ?? '—'} лет</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Дата рождения</p><p className="text-[#133C2A]">{formatRuDate(selectedChild.birthDate)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Группа</p><p className="text-[#133C2A]">{selectedChild.groupName || 'Не назначена'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Абонемент</p><p className="text-[#133C2A]">{selectedChild.subscriptionName || 'Не выбран'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Статус оплаты</p><p className="text-[#133C2A]">{paymentStatusLabel(selectedChild.paymentStatus)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Осталось занятий</p><p className="text-[#133C2A]">{selectedChild.remainingClasses ?? '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Статус клиента</p><p className="text-[#133C2A]">{clientStageLabel[selectedClient.stage]}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Температура</p><p className="text-[#133C2A]">{selectedClient.temperature}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Ребенок</p><p className="text-[#133C2A]">{selectedClient.child.fullName}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Группа</p><p className="text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Абонемент</p><p className="text-[#133C2A]">{selectedClient.child.subscriptionName || 'Не выбран'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Статус оплаты</p><p className="text-[#133C2A]">{paymentStatusLabel(selectedClient.latestOpenPayment?.status || selectedClient.child.paymentStatus)}</p></div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="child" className="space-y-4">
+                  <Card className="border-[#133C2A]/10">
+                    <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                      <div><p className="text-xs text-[#133C2A]/60">ФИО</p><p className="text-[#133C2A]">{selectedClient.child.fullName}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Возраст</p><p className="text-[#133C2A]">{selectedClient.child.age ?? '—'} лет</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Дата рождения</p><p className="text-[#133C2A]">{formatRuDate(selectedClient.child.birthDate)}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Опыт</p><p className="text-[#133C2A]">{profileDraft.priorExperience || selectedClient.child.landingLead?.previousActivities || '—'}</p></div>
+                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Ограничения</p><p className="whitespace-pre-wrap text-[#133C2A]">{profileDraft.healthNotes || selectedClient.child.landingLead?.medicalRestrictions || '—'}</p></div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="parent" className="space-y-4">
+                  <Card className="border-[#133C2A]/10">
+                    <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                      <div><p className="text-xs text-[#133C2A]/60">ФИО родителя</p><p className="text-[#133C2A]">{selectedClient.child.parentName || '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Телефон</p><p className="text-[#133C2A]">{selectedClient.child.parentPhone || '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{selectedClient.child.parentAccountStatus || '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Уровень доступа</p><p className="text-[#133C2A]">{selectedClient.child.parentAccessLevel || '—'}</p></div>
+                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Предпочтения по связи</p><p className="text-[#133C2A]">{profileDraft.communicationPreferences || 'Не заданы'}</p></div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="funnel" className="space-y-4">
+                  <Card className="border-[#133C2A]/10">
+                    <CardContent className="space-y-3 p-6">
+                      {buildFunnelSteps(selectedClient.stage, selectedClient.child).map((step) => (
+                        <div key={step.id} className="flex items-center gap-3 rounded-2xl border border-[#133C2A]/10 bg-white px-4 py-3">
+                          <span className={`h-3 w-3 rounded-full ${step.state === 'done' ? 'bg-green-500' : step.state === 'current' ? 'bg-[#D4AF37]' : 'bg-[#133C2A]/15'}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[#133C2A]">{step.label}</p>
+                            <p className="text-xs text-[#133C2A]/55">{step.date ? formatRuDateTime(step.date) : 'Дата пока не хранится отдельно'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="trials" className="space-y-4">
+                  <Card className="border-[#133C2A]/10">
+                    <CardContent className="p-6">
+                      <p className="text-[#133C2A]">{selectedClient.trialFacts.title}</p>
+                      <p className="mt-2 text-sm text-[#133C2A]/62">{selectedClient.trialFacts.note}</p>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div><p className="text-xs text-[#133C2A]/60">Источник</p><p className="text-[#133C2A]">{sourceLabel(selectedClient.child)}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Предпочтительный график</p><p className="text-[#133C2A]">{selectedClient.child.landingLead?.preferredSchedule || '—'}</p></div>
+                        <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Комментарий из заявки</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedClient.child.landingLead?.comment || '—'}</p></div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
 
                 <TabsContent value="payments" className="space-y-4">
-                  {selectedChildPayments.length === 0 ? (
-                    <Card className="border-[#133C2A]/10">
-                      <CardContent className="p-6 text-[#133C2A]/60">Платежей по этой карточке пока нет.</CardContent>
-                    </Card>
+                  {selectedClient.payments.length === 0 ? (
+                    <EmptyState
+                      icon={CreditCard}
+                      title="Платежей пока нет"
+                      description="Можно выставить первый счет из карточки клиента."
+                      actionLabel="Выставить счет"
+                      onAction={() => void createInvoiceForChild(selectedClient.child)}
+                    />
                   ) : (
-                    selectedChildPayments.map((payment) => (
+                    selectedClient.payments.map((payment) => (
                       <Card key={payment.id} className="border-[#133C2A]/10">
                         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                           <div>
-                            <p className="text-[#133C2A]">{payment.subscriptionName || selectedChild.subscriptionName || 'Абонемент'}</p>
+                            <p className="text-[#133C2A]">{payment.subscriptionName || selectedClient.child.subscriptionName || 'Абонемент'}</p>
                             <p className="text-xs text-[#133C2A]/60">
                               Счет: {payment.invoiceNumber || '—'} • Создан: {formatRuDateTime(payment.createdAt)}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-lg text-[#133C2A]">{Number(payment.amount || 0).toLocaleString('ru-RU')} ₽</p>
-                            <p className="text-xs text-[#133C2A]/60">{paymentStatusLabel(payment.status)}</p>
+                            <PaymentStatusBadge status={payment.status} />
                           </div>
                         </CardContent>
                       </Card>
@@ -831,45 +1092,84 @@ export function ClientsManagement({
                   )}
                 </TabsContent>
 
-                <TabsContent value="parent" className="space-y-4">
+                <TabsContent value="group" className="space-y-4">
                   <Card className="border-[#133C2A]/10">
-                    <CardHeader><CardTitle className="text-sm text-[#133C2A]/60">Контакты плательщика</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">ФИО</p><p className="text-[#133C2A]">{selectedChild.parentName || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Телефон</p><p className="text-[#133C2A]">{selectedChild.parentPhone || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{parentStatusLabels[String(selectedChild.parentAccountStatus || '')] || (selectedChild.parentAccountStatus || '—')}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Уровень доступа</p><p className="text-[#133C2A]">{selectedChild.parentAccessLevel || '—'}</p></div>
+                    <CardContent className="space-y-4 p-6">
+                      <div>
+                        <p className="text-xs text-[#133C2A]/60">Текущая группа</p>
+                        <p className="text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Изменить группу</Label>
+                        <Select value={selectedClient.child.groupId || 'none'} onValueChange={(value) => void assignGroup(selectedClient.child.id, value === 'none' ? null : value)} disabled={isAssigningChildId === selectedClient.child.id}>
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Без группы" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Без группы</SelectItem>
+                            {groups.map((group) => (
+                              <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="intake" className="space-y-4">
+                <TabsContent value="attendance" className="space-y-4">
                   <Card className="border-[#133C2A]/10">
-                    <CardHeader><CardTitle className="text-sm text-[#133C2A]/60">Первичная анкета</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">Ребенок</p><p className="text-[#133C2A]">{selectedChild.landingLead?.childFullName || selectedChild.fullName || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Дата рождения</p><p className="text-[#133C2A]">{formatRuDate(selectedChild.landingLead?.childBirthDate || selectedChild.birthDate)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Источник</p><p className="text-[#133C2A]">{selectedChild.landingLead?.discoverySource || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Предпочтительный график</p><p className="text-[#133C2A]">{selectedChild.landingLead?.preferredSchedule || '—'}</p></div>
-                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Медицинские ограничения</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedChild.landingLead?.medicalRestrictions || '—'}</p></div>
-                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Опыт занятий</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedChild.landingLead?.previousActivities || '—'}</p></div>
-                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Комментарий</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedChild.landingLead?.comment || '—'}</p></div>
+                    <CardContent className="grid gap-4 p-6 md:grid-cols-3">
+                      <div><p className="text-xs text-[#133C2A]/60">Всего занятий</p><p className="text-[#133C2A]">{selectedClient.child.totalClasses ?? '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Посещено</p><p className="text-[#133C2A]">{selectedClient.child.attendedClasses ?? '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Осталось</p><p className="text-[#133C2A]">{selectedClient.child.remainingClasses ?? '—'}</p></div>
                     </CardContent>
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="profile" className="space-y-4">
+                <TabsContent value="tasks" className="space-y-4">
+                  {selectedClient.relatedTasks.length === 0 ? (
+                    <EmptyState
+                      icon={ClipboardList}
+                      title="Связанных задач пока нет"
+                      description="Backend уже хранит `relatedUserId` и `relatedChildId`, но создание задачи из карточки клиента еще не подключено в этом разделе."
+                      actionLabel="Открыть задачи"
+                      onAction={() => onNavigateSection?.('tasks-management')}
+                    />
+                  ) : (
+                    selectedClient.relatedTasks.map((task) => (
+                      <Card key={task.id} className="border-[#133C2A]/10">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="text-[#133C2A]">{task.title}</p>
+                              <p className="mt-1 text-sm text-[#133C2A]/60">{task.description}</p>
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#133C2A]/55">
+                                <span>Срок: {task.dueLabel}</span>
+                                <span>Приоритет: {task.priority}</span>
+                                <span>Ответственный: {task.assigneeName}</span>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="rounded-full">{task.status}</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="comments" className="space-y-4">
                   <Card className="border-[#133C2A]/10">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-sm text-[#133C2A]/60">
                         <ShieldCheck className="h-4 w-4 text-[#D4AF37]" />
-                        Внутренние данные
+                        Внутренние комментарии и заметки
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-1">
-                          <Label>Комментарий</Label>
+                          <Label>Важное</Label>
                           <Textarea value={profileDraft.internalComment} onChange={(event) => setProfileDraft((prev) => ({ ...prev, internalComment: event.target.value }))} className="min-h-[90px] rounded-xl" />
                         </div>
                         <div className="space-y-1">
@@ -893,15 +1193,7 @@ export function ClientsManagement({
                           <Textarea value={profileDraft.parentExpectations} onChange={(event) => setProfileDraft((prev) => ({ ...prev, parentExpectations: event.target.value }))} className="min-h-[90px] rounded-xl" />
                         </div>
                         <div className="space-y-1">
-                          <Label>Экстренный контакт</Label>
-                          <Input value={profileDraft.emergencyContactName} onChange={(event) => setProfileDraft((prev) => ({ ...prev, emergencyContactName: event.target.value }))} className="rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Телефон экстренного контакта</Label>
-                          <Input value={profileDraft.emergencyContactPhone} onChange={(event) => setProfileDraft((prev) => ({ ...prev, emergencyContactPhone: event.target.value }))} className="rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Предпочтения по связи</Label>
+                          <Label>Коммуникация</Label>
                           <Input value={profileDraft.communicationPreferences} onChange={(event) => setProfileDraft((prev) => ({ ...prev, communicationPreferences: event.target.value }))} className="rounded-xl" />
                         </div>
                         <div className="space-y-1">
@@ -914,17 +1206,42 @@ export function ClientsManagement({
                         </div>
                         <div className="space-y-1 md:col-span-2">
                           <Label>Теги</Label>
-                          <Input value={profileDraft.tagsInput} onChange={(event) => setProfileDraft((prev) => ({ ...prev, tagsInput: event.target.value }))} className="rounded-xl" placeholder="Например: конкурс, сильная техника, нужна адаптация" />
+                          <Input value={profileDraft.tagsInput} onChange={(event) => setProfileDraft((prev) => ({ ...prev, tagsInput: event.target.value }))} className="rounded-xl" placeholder="например: не звонить поздно, сильная техника, конкурс" />
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <Button
-                          onClick={() => void saveProfile()}
-                          disabled={isProfileSaving}
-                          className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]"
-                        >
-                          {isProfileSaving ? 'Сохраняем...' : 'Сохранить внутренний профиль'}
+                        <Button onClick={() => void saveProfile()} disabled={isProfileSaving} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+                          {isProfileSaving ? 'Сохраняем...' : 'Сохранить комментарии'}
                         </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="history" className="space-y-4">
+                  <Card className="border-[#133C2A]/10">
+                    <CardHeader>
+                      <CardTitle className="text-[#133C2A]">История карточки</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {selectedClient.timeline.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-[#133C2A]/12 px-4 py-5 text-sm text-[#133C2A]/55">
+                            История пока собирается из заявки, платежей и изменений профиля. Для полной ленты нужен backend `client_timeline`.
+                          </div>
+                        ) : (
+                          selectedClient.timeline.map((entry) => (
+                            <div key={entry.id} className="rounded-2xl border border-[#133C2A]/10 bg-white/92 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-[#133C2A]">{entry.title}</p>
+                                  <p className="mt-1 text-sm text-[#133C2A]/60">{entry.description}</p>
+                                </div>
+                                <p className="text-xs text-[#133C2A]/45">{formatRuDateTime(entry.occurredAt)}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </CardContent>
                   </Card>

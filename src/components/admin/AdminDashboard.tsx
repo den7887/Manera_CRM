@@ -215,6 +215,9 @@ export function AdminDashboard({
               });
               setCurrentPage('payments');
             }}
+            onNavigateSection={setCurrentPage}
+            tasks={tasks}
+            currentUser={user}
           />
         );
       case 'schedule-management':

@@ -1615,7 +1615,7 @@
       "duration_days": 30,
       "is_active": true,
       "created_at": "2026-04-27T13:05:30.126373+03:00",
-      "updated_at": "2026-05-04T20:47:39.346029+00:00"
+      "updated_at": "2026-05-06T09:47:17.629559+00:00"
     },
     {
       "id": "plan-pro",
@@ -1625,7 +1625,7 @@
       "duration_days": 30,
       "is_active": true,
       "created_at": "2026-04-27T13:05:30.126373+03:00",
-      "updated_at": "2026-05-04T20:47:39.346029+00:00"
+      "updated_at": "2026-05-06T09:47:17.629559+00:00"
     }
   ],
   "payments": [],
@@ -1698,106 +1698,6 @@
   ],
   "ownerExpenses": [],
   "activeTokens": {
-    "Ati4mxkdXDHoVrMdVN2-fbrKfIIhTZMLGsOC__ww-5k": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T23:03:06.22743+03:00",
-      "expiresAt": "2026-05-05T23:03:06.22743+03:00"
-    },
-    "w5AbozFCJLpEOL4jHzh13InmnxoO7agTO_8vQGKfpXk": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T20:23:15.969076+00:00",
-      "expiresAt": "2026-05-05T20:23:15.969076+00:00"
-    },
-    "Cvy23Wf0X_Z7I1IiezFTkwLdIrr5O9pnLxEQSQ59s6g": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T20:23:39.148498+00:00",
-      "expiresAt": "2026-05-05T20:23:39.148498+00:00"
-    },
-    "QxFsW7F8JsGx2B7fRQJnJKFJnkg7rSE3222BY4pxI3s": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T20:23:47.386971+00:00",
-      "expiresAt": "2026-05-05T20:23:47.386971+00:00"
-    },
-    "vKPpu2ybuAIhHXaW_7Hfx0wOzAlOEdQ0hgGVRMygj7g": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T20:24:43.632802+00:00",
-      "expiresAt": "2026-05-05T20:24:43.632802+00:00"
-    },
-    "wtVvYNdwMwvGgUutkUnxWlprVjMtc3bM4awzA_yUYuk": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:16:32.817881+00:00",
-      "expiresAt": "2026-05-05T21:16:32.817881+00:00"
-    },
-    "yfNvs2aD2wMst9mG-6KL_FVzVLervSjmG2woUSUx2Qs": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T21:18:38.201257+00:00",
-      "expiresAt": "2026-05-05T21:18:38.201257+00:00"
-    },
-    "zrvG9yMH-gOF-QfN4X2ioCf4G6mE6L50JYaG_lEtC9Y": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:18:44.394702+00:00",
-      "expiresAt": "2026-05-05T21:18:44.394702+00:00"
-    },
-    "gYXbvSPhaJss70SkBADvRkev-b3sryGQFN7L1fMsUFQ": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:20:17.904103+00:00",
-      "expiresAt": "2026-05-05T21:20:17.904103+00:00"
-    },
-    "tAXjP3y-fGTBiRL1kmpS7Hi921sT4J5Z2gN3ONR-UEs": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:21:15.591566+00:00",
-      "expiresAt": "2026-05-05T21:21:15.591566+00:00"
-    },
-    "rb8SiJexkekRCBW-N6NPtRZn_yUO7g9i1kOwvNjCT8g": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:21:43.237775+00:00",
-      "expiresAt": "2026-05-05T21:21:43.237775+00:00"
-    },
-    "GtIxj0Ihdcee9Jnt028xjUTMefqI7aBGGWUYcxgi38E": {
-      "phone": "+79180000000",
-      "issuedAt": "2026-04-28T21:21:43.846636+00:00",
-      "expiresAt": "2026-05-05T21:21:43.846636+00:00"
-    },
-    "a_Gj0GVkBI45cV_zEetzV9v8NUwTiBBu4TjSjmze0zI": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:22:05.893960+00:00",
-      "expiresAt": "2026-05-05T21:22:05.893960+00:00"
-    },
-    "ZGPMPpKa3I-5y_paENUXJwyJlWvDSwa95aJgrzsmjNk": {
-      "phone": "+79180000000",
-      "issuedAt": "2026-04-28T21:22:12.075873+00:00",
-      "expiresAt": "2026-05-05T21:22:12.075873+00:00"
-    },
-    "Ac6VUgKzPXCS1xU8_ZXF7HdjoQqaic6-f-6G5NvPmAE": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:44:35.013041+00:00",
-      "expiresAt": "2026-05-05T21:44:35.013041+00:00"
-    },
-    "lWcl44QTGwATxlD0pyEbS-vHTPXwt-ODy0Ap3eHP7DE": {
-      "phone": "+79995550001",
-      "issuedAt": "2026-04-28T21:45:02.021639+00:00",
-      "expiresAt": "2026-05-05T21:45:02.021639+00:00"
-    },
-    "rYk17vBaX1u6FsH6O8nyO9Y9J_IuIcjk2wHMh_93gpQ": {
-      "phone": "+79995550002",
-      "issuedAt": "2026-04-28T21:45:02.089917+00:00",
-      "expiresAt": "2026-05-05T21:45:02.089917+00:00"
-    },
-    "w_9-RkG68F1ZQiRwTHJ3bifoQvYQ6k7i1H5Nr9pt3Fw": {
-      "phone": "+79181111111",
-      "issuedAt": "2026-04-28T21:45:02.141025+00:00",
-      "expiresAt": "2026-05-05T21:45:02.141025+00:00"
-    },
-    "8Lh9w6cNn-ykQ_nOnd0IoRDGziboRmUXgOcuySfXnUE": {
-      "phone": "+79180000000",
-      "issuedAt": "2026-04-28T21:45:02.189731+00:00",
-      "expiresAt": "2026-05-05T21:45:02.189731+00:00"
-    },
-    "OQVI8TLZk4k6WNV7FFAQEqg8y5nje9fkT5rdWCb7XdQ": {
-      "phone": "+79189423508",
-      "issuedAt": "2026-04-28T22:01:22.436835+00:00",
-      "expiresAt": "2026-05-05T22:01:22.436835+00:00"
-    },
     "Tvz-G6Isx7ihqvPokXLgxKeNJFeorPT-JnvGZUh3XtU": {
       "phone": "+79189423508",
       "issuedAt": "2026-04-29T10:51:10.210919+00:00",
