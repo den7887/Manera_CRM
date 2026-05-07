@@ -58,7 +58,7 @@ const teacherPrimaryMenu: SidebarItem[] = [
 
 const adminPrimaryMenu: SidebarItem[] = [
   { id: 'home', label: 'Сегодня', icon: Home },
-  { id: 'clients-management', label: 'Клиенты', icon: Users },
+  { id: 'clients-management', label: 'Клиенты и заявки', icon: Users },
   { id: 'schedule', label: 'Расписание', icon: Calendar },
   { id: 'payments', label: 'Оплаты', icon: CreditCard },
   { id: 'communication', label: 'Сообщения', icon: MessageSquare },
@@ -78,7 +78,7 @@ const adminSecondaryMenu: SidebarItem[] = [
 const ownerPrimaryMenu: SidebarItem[] = [
   { id: 'home', label: 'Главная', icon: Home },
   { id: 'finance', label: 'Деньги', icon: BarChart3 },
-  { id: 'clients', label: 'Клиенты', icon: Users },
+  { id: 'clients', label: 'Клиенты и заявки', icon: Users },
   { id: 'team', label: 'Команда', icon: UserCheck },
   { id: 'analytics', label: 'Отчеты', icon: LineChart },
 ];

@@ -108,7 +108,7 @@ export const clientTemperatureLabel: Record<ClientTemperature, string> = {
 };
 
 export const clientTemperatureClassName: Record<ClientTemperature, string> = {
-  hot: 'border-red-200 bg-red-50 text-red-700',
+  hot: 'border-[#D4AF37]/30 bg-[#FFF8E1] text-[#9A6B00]',
   warm: 'border-[#D4AF37]/30 bg-[#FFF9E8] text-[#8B6B00]',
   cold: 'border-slate-200 bg-slate-100 text-slate-700',
   problem: 'border-red-200 bg-red-50 text-red-700',

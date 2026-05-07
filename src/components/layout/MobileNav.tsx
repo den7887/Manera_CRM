@@ -29,7 +29,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
 
   const adminMainTabs = [
     { id: 'home', label: 'Сегодня', icon: Home },
-    { id: 'clients-management', label: 'Клиенты', icon: Users },
+    { id: 'clients-management', label: 'Заявки', icon: Users },
     { id: 'schedule', label: 'Расписание', icon: Calendar },
     { id: 'payments', label: 'Оплаты', icon: CreditCard },
   ];
@@ -37,7 +37,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   const ownerMainTabs = [
     { id: 'home', label: 'Главная', icon: Home },
     { id: 'finance', label: 'Деньги', icon: BarChart3 },
-    { id: 'clients', label: 'Клиенты', icon: Users },
+    { id: 'clients', label: 'Заявки', icon: Users },
     { id: 'team', label: 'Команда', icon: UserCog },
   ];
 

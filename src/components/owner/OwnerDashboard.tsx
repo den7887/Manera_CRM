@@ -171,7 +171,14 @@ export function OwnerDashboard({
       return <OwnerProfile user={user} onLogout={onLogout} />;
     }
     if (currentPage === 'clients') {
-      return <OwnerClientsPanel groups={groups} onNavigatePayments={openPayments} />;
+      return (
+        <OwnerClientsPanel
+          tasks={tasks}
+          currentUser={user}
+          onNavigatePayments={openPayments}
+          onNavigateSection={navigate}
+        />
+      );
     }
     if (currentPage === 'analytics') {
       return <OwnerAnalyticsPanel />;

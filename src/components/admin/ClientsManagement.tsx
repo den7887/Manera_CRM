@@ -36,26 +36,35 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
+import { useIsMobile } from '../ui/use-mobile';
 import { PaymentStatusBadge, isOutstandingPaymentStatus, paymentStatusLabel } from '../payments/PaymentStatusBadge';
 import { ClientCard } from '../clients/ClientCard';
 import { ClientNextAction } from '../clients/ClientNextAction';
 import { ClientStatusBadge } from '../clients/ClientStatusBadge';
 import { ClientTemperatureBadge } from '../clients/ClientTemperatureBadge';
+import { MobileClientsWorkspace } from '../clients/MobileClientsWorkspace';
+import { MobileClientDetails } from '../clients/MobileClientDetails';
 import {
   ClientStage,
   TrialWorkspaceStage,
   buildClientTasks,
   buildClientTimeline,
   clientStageLabel,
+  clientTemperatureLabel,
   deriveClientStage,
   deriveClientTemperature,
   deriveNextAction,
   deriveTrialStage,
   trialStageLabel,
 } from '../clients/clientStatus';
-
-type WorkspaceTab = 'today' | 'funnel' | 'base' | 'trials' | 'tasks' | 'archive';
-type TaskTab = 'mine' | 'today' | 'overdue' | 'unassigned' | 'done';
+import {
+  ArchiveFilter,
+  ClientWorkspaceEntry,
+  StageFilter,
+  TaskTab,
+  TemperatureFilter,
+  WorkspaceTab,
+} from '../clients/clientsWorkspaceTypes';
 
 const workspaceLabels: Record<WorkspaceTab, string> = {
   today: 'Сегодня',
@@ -91,6 +100,63 @@ const trialSectionOrder: TrialWorkspaceStage[] = [
   'converted',
   'at_risk',
 ];
+
+const stageFilterOptions: Array<{ value: StageFilter; label: string }> = [
+  { value: 'all', label: 'Все статусы' },
+  { value: 'leads', label: 'Новые и в работе' },
+  { value: 'trials', label: 'Пробные' },
+  { value: 'waiting_payment', label: 'Ждут оплату' },
+  { value: 'active', label: 'Активные' },
+  { value: 'risk', label: 'Риск' },
+  { value: 'archive', label: 'Архив' },
+];
+
+const temperatureFilterOptions: Array<{ value: TemperatureFilter; label: string }> = [
+  { value: 'all', label: 'Любая температура' },
+  { value: 'hot', label: 'Горячие' },
+  { value: 'warm', label: 'Теплые' },
+  { value: 'cold', label: 'Холодные' },
+  { value: 'problem', label: 'Проблемные' },
+];
+
+const archiveFilterOptions: Array<{ value: ArchiveFilter; label: string }> = [
+  { value: 'all', label: 'Все' },
+  { value: 'lost', label: 'Отказ' },
+  { value: 'no_response', label: 'Не отвечает' },
+  { value: 'no_show', label: 'Не пришел' },
+  { value: 'too_expensive', label: 'Дорого' },
+  { value: 'schedule', label: 'Не подошло расписание' },
+  { value: 'former', label: 'Бывшие' },
+  { value: 'duplicate', label: 'Дубль' },
+  { value: 'other', label: 'Другое' },
+];
+
+const todaySectionDescriptions: Record<string, string> = {
+  new: 'Первый контакт еще не закрыт.',
+  dialog: 'Есть интерес, но нужно дожать следующий шаг.',
+  trials: 'Нужно закрыть решение после пробного.',
+  payments: 'Есть счет или ожидается подтверждение оплаты.',
+  risk: 'Карточки с долгом, проблемой или зависшим сценарием.',
+  'no-action': 'Нет четкого следующего шага и ответственного решения.',
+};
+
+const funnelSectionDescriptions: Record<string, string> = {
+  new: 'Люди, с которыми работа только начинается.',
+  trials: 'Записаны на пробное, были или думают после него.',
+  waiting: 'Счет уже есть или платеж еще не подтвержден.',
+  active: 'Занимаются и находятся в текущей базе студии.',
+  risk: 'Просрочка, нет группы или карточка зависла.',
+  archive: 'Неактуальные, ушедшие и закрытые сценарии.',
+};
+
+const trialSectionDescriptions: Record<Exclude<TrialWorkspaceStage, 'not_trial'>, string> = {
+  new_request: 'Есть интерес, но еще нет явной записи на пробное.',
+  scheduled: 'Пробный сценарий уже движется, нужен контроль до занятия.',
+  waiting_decision: 'После пробного нужно дожать решение или записать повторно.',
+  waiting_payment: 'Пробный сценарий дошел до счета и ждет оплаты.',
+  converted: 'Пробный сценарий завершился покупкой абонемента.',
+  at_risk: 'Пробный сценарий завис или пошел в проблемную ветку.',
+};
 
 export interface AdminClientsNavigationContext {
   requestId: number;
@@ -160,6 +226,47 @@ function taskDueLabel(task: Task): string {
   });
 }
 
+function stageReason(stage: ClientStage): string {
+  switch (stage) {
+    case 'lead_new':
+      return 'Новая заявка недавно попала в CRM и еще не обработана.';
+    case 'contact_needed':
+      return 'Интерес подтвержден, но первый контакт еще не закрыт.';
+    case 'in_dialog':
+      return 'Контакт есть, но решение по пробному или группе еще не принято.';
+    case 'trial_scheduled':
+      return 'Пробный сценарий уже движется и требует подтверждения.';
+    case 'thinking':
+      return 'После пробного решения по покупке еще нет.';
+    case 'waiting_payment':
+      return 'Есть открытый счет, ожидание оплаты или подтверждения.';
+    case 'active':
+      return 'Клиент в действующей базе и занимается в группе.';
+    case 'risk':
+      return 'Есть просрочка, проблема с группой или зависшее действие.';
+    case 'paused':
+      return 'Клиент временно выпал из активного потока и требует уточнения.';
+    case 'frozen':
+      return 'Сценарий находится в заморозке и требует ручного контроля.';
+    case 'lost':
+      return 'Сделка закрылась без продолжения, нужна причина отказа.';
+    case 'archived':
+      return 'Карточка выведена из активной работы.';
+    default:
+      return 'Статус рассчитан по текущим данным карточки.';
+  }
+}
+
+function archiveCategory(stage: ClientStage): ArchiveFilter {
+  if (stage === 'lost') return 'lost';
+  if (stage === 'paused' || stage === 'frozen') return 'former';
+  return 'other';
+}
+
+function archiveCategoryLabel(filter: ArchiveFilter): string {
+  return archiveFilterOptions.find((item) => item.value === filter)?.label || 'Причина не указана';
+}
+
 export function ClientsManagement({
   navigationContext,
   onNavigationContextApplied,
@@ -175,6 +282,7 @@ export function ClientsManagement({
   tasks: Task[];
   currentUser: User;
 }) {
+  const isMobile = useIsMobile();
   const [children, setChildren] = useState<AdminChildRecord[]>([]);
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -186,6 +294,9 @@ export function ClientsManagement({
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [stageFilter, setStageFilter] = useState<StageFilter>('all');
+  const [temperatureFilter, setTemperatureFilter] = useState<TemperatureFilter>('all');
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('all');
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -272,7 +383,7 @@ export function ClientsManagement({
     return map;
   }, [payments]);
 
-  const childrenWithMeta = useMemo(() => {
+  const childrenWithMeta = useMemo<ClientWorkspaceEntry[]>(() => {
     return children.map((child) => {
       const childPayments = childPaymentsMap.get(String(child.clientId || '')) || [];
       const stage = deriveClientStage(child, childPayments);
@@ -357,9 +468,16 @@ export function ClientsManagement({
         String(child.groupId || '') === groupFilter;
       const matchesPayment = paymentFilter === 'all' || String(child.paymentStatus || '') === paymentFilter;
       const matchesSource = sourceFilter === 'all' || sourceLabel(child) === sourceFilter;
-      return matchesSearch && matchesGroup && matchesPayment && matchesSource;
+      const matchesStage =
+        stageFilter === 'all' ||
+        (stageFilter === 'leads' && ['lead_new', 'contact_needed', 'in_dialog'].includes(stage)) ||
+        (stageFilter === 'trials' && ['trial_scheduled', 'thinking'].includes(stage)) ||
+        stage === stageFilter ||
+        (stageFilter === 'archive' && ['archived', 'paused', 'lost', 'frozen'].includes(stage));
+      const matchesTemperature = temperatureFilter === 'all' || entry.temperature === temperatureFilter;
+      return matchesSearch && matchesGroup && matchesPayment && matchesSource && matchesStage && matchesTemperature;
     });
-  }, [childrenWithMeta, searchQuery, groupFilter, paymentFilter, sourceFilter]);
+  }, [childrenWithMeta, searchQuery, groupFilter, paymentFilter, sourceFilter, stageFilter, temperatureFilter]);
 
   const todaySummary = useMemo(() => {
     const newRequests = filteredClients.filter((entry) => ['lead_new', 'contact_needed'].includes(entry.stage)).length;
@@ -421,7 +539,7 @@ export function ClientsManagement({
         title: 'Нет четкого следующего действия',
         items: filteredClients.filter((entry) => !entry.nextAction.concrete && entry.stage !== 'archived'),
       },
-    ].filter((section) => section.items.length > 0);
+    ];
   }, [filteredClients]);
 
   const funnelSections = useMemo(() => {
@@ -456,7 +574,7 @@ export function ClientsManagement({
         title: 'Архив',
         items: filteredClients.filter((entry) => entry.stage === 'archived'),
       },
-    ].filter((section) => section.items.length > 0);
+    ];
   }, [filteredClients]);
 
   const trialSections = useMemo(() => {
@@ -465,8 +583,7 @@ export function ClientsManagement({
         id: trialKey,
         title: trialStageLabel[trialKey],
         items: filteredClients.filter((entry) => entry.trialFacts.trialStage === trialKey),
-      }))
-      .filter((section) => section.items.length > 0);
+      }));
   }, [filteredClients]);
 
   const taskPool = useMemo(() => {
@@ -491,8 +608,16 @@ export function ClientsManagement({
   }, [taskPool, taskTab, currentUser.id]);
 
   const archivePool = useMemo(() => {
-    return filteredClients.filter((entry) => ['archived', 'paused', 'lost', 'frozen'].includes(entry.stage));
-  }, [filteredClients]);
+    return filteredClients.filter((entry) => {
+      if (!['archived', 'paused', 'lost', 'frozen'].includes(entry.stage)) {
+        return false;
+      }
+      if (archiveFilter === 'all') {
+        return true;
+      }
+      return archiveCategory(entry.stage) === archiveFilter;
+    });
+  }, [filteredClients, archiveFilter]);
 
   const parentOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string; email: string; phone: string }>();
@@ -633,8 +758,178 @@ export function ClientsManagement({
     />
   );
 
+  const renderCompactClientRow = (
+    entry: (typeof childrenWithMeta)[number],
+    options?: {
+      contextLabel?: string;
+      highlight?: string;
+      showSource?: boolean;
+      showPayment?: boolean;
+      showGroup?: boolean;
+      showArchive?: boolean;
+    },
+  ) => (
+    <Card key={`${options?.contextLabel || 'compact'}-${entry.child.id}`} className="border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <button type="button" onClick={() => openClient(entry.child.id)} className="truncate text-left text-lg text-[#133C2A] hover:underline">
+                  {entry.child.fullName || 'Ученик'}
+                </button>
+                <p className="mt-1 text-sm text-[#133C2A]/62">
+                  {entry.child.age ?? '—'} лет • {entry.child.parentName || 'Родитель не указан'} • {entry.child.parentPhone || 'Телефон не указан'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <ClientStatusBadge stage={entry.stage} />
+                <ClientTemperatureBadge temperature={entry.temperature} />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {options?.showSource !== false ? (
+                <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
+                  <p className="text-xs text-[#133C2A]/45">Источник</p>
+                  <p className="mt-1 text-sm text-[#133C2A]">{sourceLabel(entry.child)}</p>
+                </div>
+              ) : null}
+              {options?.showGroup !== false ? (
+                <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
+                  <p className="text-xs text-[#133C2A]/45">Группа</p>
+                  <p className="mt-1 text-sm text-[#133C2A]">{entry.child.groupName || 'Не назначена'}</p>
+                </div>
+              ) : null}
+              <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
+                <p className="text-xs text-[#133C2A]/45">Следующий шаг</p>
+                <p className="mt-1 text-sm text-[#133C2A]">{entry.nextAction.title}</p>
+                <p className="mt-1 text-xs text-[#133C2A]/50">{entry.nextAction.dueLabel}</p>
+              </div>
+              {options?.showPayment !== false ? (
+                <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
+                  <p className="text-xs text-[#133C2A]/45">Оплата</p>
+                  <p className="mt-1 text-sm text-[#133C2A]">
+                    {paymentStatusLabel(entry.latestOpenPayment?.status || entry.child.paymentStatus)}
+                    {entry.latestOpenPayment?.amount ? ` • ${Number(entry.latestOpenPayment.amount).toLocaleString('ru-RU')} ₽` : ''}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {options?.highlight ? (
+              <div className="rounded-2xl border border-[#D4AF37]/25 bg-[#FFF9E8] px-3 py-3 text-sm text-[#8B6B00]">
+                {options.highlight}
+              </div>
+            ) : null}
+
+            {options?.showArchive ? (
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/72 px-3 py-3 text-sm text-[#133C2A]/68">
+                Причина архива: {archiveCategoryLabel(archiveCategory(entry.stage))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex w-full flex-col gap-2 lg:w-[230px]">
+            <Button onClick={() => openClient(entry.child.id)} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+              Открыть карточку
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl border-[#133C2A]/15"
+              onClick={() =>
+                onNavigatePayments?.({
+                  searchQuery: entry.child.parentPhone || entry.child.fullName,
+                  queue: entry.stage === 'waiting_payment' ? 'waiting' : entry.stage === 'risk' ? 'problem' : 'all',
+                  sourceLabel: `Оплаты по ${entry.child.fullName}`,
+                  invoiceClientId: entry.child.clientId || undefined,
+                })
+              }
+            >
+              Открыть оплаты
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl border-[#133C2A]/15"
+              onClick={() => {
+                if (entry.latestOpenPayment) {
+                  void remindAboutPayment(entry.latestOpenPayment);
+                  return;
+                }
+                void createInvoiceForChild(entry.child);
+              }}
+              disabled={Boolean(entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : isInvoicingChildId === entry.child.id)}
+            >
+              {entry.latestOpenPayment ? 'Напомнить' : 'Выставить счет'}
+            </Button>
+            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
+              Задачи
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const openPaymentsForEntry = (entry: (typeof childrenWithMeta)[number]) => {
+    onNavigatePayments?.({
+      searchQuery: entry.child.parentPhone || entry.child.fullName,
+      queue: entry.stage === 'waiting_payment' ? 'waiting' : entry.stage === 'risk' ? 'problem' : 'all',
+      sourceLabel: `Оплаты по ${entry.child.fullName}`,
+      invoiceClientId: entry.child.clientId || undefined,
+    });
+  };
+
+  const openTasksForEntry = (entry: (typeof childrenWithMeta)[number]) => {
+    setWorkspaceTab('tasks');
+    if (entry.relatedTasks.length === 0 && onNavigateSection) {
+      onNavigateSection('tasks-management');
+    }
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
+      {isMobile ? (
+        <MobileClientsWorkspace
+          isLoading={isLoading}
+          groups={groups}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          groupFilter={groupFilter}
+          setGroupFilter={setGroupFilter}
+          paymentFilter={paymentFilter}
+          setPaymentFilter={setPaymentFilter}
+          sourceFilter={sourceFilter}
+          setSourceFilter={setSourceFilter}
+          stageFilter={stageFilter}
+          setStageFilter={setStageFilter}
+          temperatureFilter={temperatureFilter}
+          setTemperatureFilter={setTemperatureFilter}
+          archiveFilter={archiveFilter}
+          setArchiveFilter={setArchiveFilter}
+          sourceOptions={sourceOptions}
+          filteredClients={filteredClients}
+          todaySummary={todaySummary}
+          todaySections={todaySections}
+          funnelSections={funnelSections}
+          trialSections={trialSections}
+          visibleTaskPool={visibleTaskPool}
+          taskTab={taskTab}
+          setTaskTab={setTaskTab}
+          archivePool={archivePool}
+          onOpenClient={openClient}
+          onOpenPayments={openPaymentsForEntry}
+          onCreateInvoice={(entry) => void createInvoiceForChild(entry.child)}
+          onRemind={(payment) => void remindAboutPayment(payment)}
+          onOpenTasks={openTasksForEntry}
+          onAssignGroup={(entry) => openClient(entry.child.id)}
+          onOpenComments={(entry) => openClient(entry.child.id)}
+          isInvoicingChildId={isInvoicingChildId}
+          isReminderPaymentId={isReminderPaymentId}
+          onNavigateSection={onNavigateSection}
+        />
+      ) : (
+        <>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Клиенты и заявки</h1>
@@ -653,12 +948,12 @@ export function ClientsManagement({
       </div>
 
       <div className="grid gap-3 md:grid-cols-6">
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Новые заявки</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.newRequests}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Пробные</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.trials}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">После пробного</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingDecision}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Ждут оплату</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingPayment}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-3xl text-[#D14343]">{todaySummary.risk}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Без следующего шага</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.withoutConcreteAction}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Новые заявки</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.newRequests}</p><p className="mt-2 text-xs text-[#133C2A]/45">Кто ждет первого контакта</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Пробные</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.trials}</p><p className="mt-2 text-xs text-[#133C2A]/45">Записаны или зависли после пробного</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">После пробного</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingDecision}</p><p className="mt-2 text-xs text-[#133C2A]/45">Нужно дожать решение</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Ждут оплату</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.waitingPayment}</p><p className="mt-2 text-xs text-[#133C2A]/45">Счет есть, деньги еще не закрыты</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-3xl text-[#D14343]">{todaySummary.risk}</p><p className="mt-2 text-xs text-[#133C2A]/45">Просрочки, нет группы, зависшие сценарии</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Без следующего шага</p><p className="mt-1 text-3xl text-[#133C2A]">{todaySummary.withoutConcreteAction}</p><p className="mt-2 text-xs text-[#133C2A]/45">Где нет ясного действия на сегодня</p></CardContent></Card>
       </div>
 
       <Card className="border-none soft-shadow">
@@ -698,7 +993,7 @@ export function ClientsManagement({
               </div>
             ) : null}
 
-            <div className="grid gap-2 xl:grid-cols-[1fr_220px_220px_220px]">
+            <div className="grid gap-2 xl:grid-cols-[1fr_180px_180px_180px_180px_180px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#133C2A]/40" />
                 <Input
@@ -737,6 +1032,22 @@ export function ClientsManagement({
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={stageFilter} onValueChange={(value) => setStageFilter(value as StageFilter)}>
+                <SelectTrigger className="rounded-2xl"><SelectValue placeholder="Статус" /></SelectTrigger>
+                <SelectContent>
+                  {stageFilterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={temperatureFilter} onValueChange={(value) => setTemperatureFilter(value as TemperatureFilter)}>
+                <SelectTrigger className="rounded-2xl"><SelectValue placeholder="Температура" /></SelectTrigger>
+                <SelectContent>
+                  {temperatureFilterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -745,46 +1056,93 @@ export function ClientsManagement({
           {isLoading ? (
             <div className="py-12 text-center text-[#133C2A]/60">Загрузка клиентской базы...</div>
           ) : workspaceTab === 'today' ? (
-            todaySections.length === 0 ? (
-              <EmptyState
-                icon={ClipboardList}
-                title="Сегодня нет клиентов в активной обработке"
-                description="Когда появятся новые заявки, пробные или оплаты в работе, они будут собраны здесь."
-              />
-            ) : (
-              todaySections.map((section) => (
-                <section key={section.id} className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-[#133C2A]">{section.title}</h2>
-                      <p className="text-sm text-[#133C2A]/55">{section.items.length} карточек на контроле</p>
-                    </div>
-                    <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
+            <div className="space-y-5">
+              <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+                <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня нужно обработать</p>
+                <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h2 className="text-2xl">Очереди дня</h2>
+                    <p className="mt-1 text-sm text-white/72">Новые заявки, пробные, оплаты и риск собраны в одном рабочем потоке.</p>
                   </div>
-                  <div className="space-y-3">
-                    {section.items.map((entry) => renderClientCard(entry, section.title))}
+                  <div className="flex flex-wrap gap-2 text-sm text-white/72">
+                    <span>{todaySummary.newRequests} новых</span>
+                    <span>•</span>
+                    <span>{todaySummary.waitingPayment} ждут оплату</span>
+                    <span>•</span>
+                    <span>{todaySummary.withoutConcreteAction} без следующего шага</span>
                   </div>
-                </section>
-              ))
-            )
-          ) : workspaceTab === 'funnel' ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {funnelSections.map((section) => (
-                <section key={section.id} className="space-y-3">
-                  <div className="rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/72 p-4">
-                    <div className="flex items-center justify-between gap-3">
+                </div>
+              </div>
+
+              {todaySections.every((section) => section.items.length === 0) ? (
+                <EmptyState
+                  icon={ClipboardList}
+                  title="Сегодня нет клиентов в активной обработке"
+                  description="Когда появятся новые заявки, пробные или оплаты в работе, они будут собраны здесь по очередям."
+                />
+              ) : (
+                todaySections.map((section) => (
+                  <section key={section.id} className="rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4 md:p-5">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <h2 className="text-[#133C2A]">{section.title}</h2>
-                        <p className="text-sm text-[#133C2A]/55">Этап воронки студии</p>
+                        <p className="text-sm text-[#133C2A]/55">{todaySectionDescriptions[section.id] || 'Рабочая очередь по клиентам.'}</p>
                       </div>
-                      <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
+                      <Badge variant="outline" className="w-fit rounded-full border-[#133C2A]/12 bg-white px-3 py-1 text-[#133C2A]/72">
+                        {section.items.length}
+                      </Badge>
                     </div>
-                  </div>
-                  <div className="space-y-3">
-                    {section.items.map((entry) => renderClientCard(entry, section.title))}
-                  </div>
-                </section>
-              ))}
+                    <div className="mt-4 space-y-3">
+                      {section.items.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                          В этой очереди сейчас пусто.
+                        </div>
+                      ) : (
+                        section.items.map((entry) => renderClientCard(entry, section.title))
+                      )}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          ) : workspaceTab === 'funnel' ? (
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#fbf7e8]/70 px-5 py-4">
+                <h2 className="text-[#133C2A]">Воронка клиентов</h2>
+                <p className="mt-1 text-sm text-[#133C2A]/58">Здесь видно, где именно зависает каждый человек: новая заявка, пробное, оплата, активная база или риск.</p>
+              </div>
+              <div className="mobile-scroll-x pb-1">
+                <div className="flex min-w-max gap-4">
+                  {funnelSections.map((section) => (
+                    <section key={section.id} className="flex w-[320px] shrink-0 flex-col rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4">
+                      <div className="rounded-2xl bg-white/85 px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <h2 className="text-[#133C2A]">{section.title}</h2>
+                            <p className="mt-1 text-sm text-[#133C2A]/55">{funnelSectionDescriptions[section.id] || 'Этап клиентской воронки.'}</p>
+                          </div>
+                          <Badge variant="outline" className="rounded-full border-[#133C2A]/12 px-3 py-1">{section.items.length}</Badge>
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {section.items.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                            На этом этапе пока нет клиентов.
+                          </div>
+                        ) : (
+                          section.items.map((entry) =>
+                            renderCompactClientRow(entry, {
+                              contextLabel: section.title,
+                              highlight: stageReason(entry.stage),
+                              showArchive: section.id === 'archive',
+                            }),
+                          )
+                        )}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : workspaceTab === 'base' ? (
             <>
@@ -796,35 +1154,81 @@ export function ClientsManagement({
                 <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Риск</p><p className="mt-1 text-2xl text-[#D14343]">{baseSummary.risk}</p></CardContent></Card>
                 <Card className="border-[#133C2A]/8 bg-[#fbf7e8]/55"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Архив</p><p className="mt-1 text-2xl text-[#133C2A]">{baseSummary.archived}</p></CardContent></Card>
               </div>
-              <div className="space-y-3">
-                {filteredClients.map((entry) => renderClientCard(entry, clientStageLabel[entry.stage]))}
+              <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4 md:p-5">
+                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h2 className="text-[#133C2A]">База клиентов</h2>
+                    <p className="text-sm text-[#133C2A]/55">Спокойный справочник по всем людям в CRM: ребенок, родитель, группа, статус и следующий шаг.</p>
+                  </div>
+                  <p className="text-sm text-[#133C2A]/48">Найдено: {filteredClients.length}</p>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {filteredClients.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                      По текущим фильтрам клиентов не найдено.
+                    </div>
+                  ) : (
+                    filteredClients.map((entry) =>
+                      renderCompactClientRow(entry, {
+                        contextLabel: clientStageLabel[entry.stage],
+                        showSource: false,
+                        highlight: entry.child.profile?.internalComment ? `Важно: ${entry.child.profile.internalComment}` : undefined,
+                      }),
+                    )
+                  )}
+                </div>
               </div>
             </>
           ) : workspaceTab === 'trials' ? (
-            trialSections.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="Пробных сценариев не найдено"
-                description="Когда заявки с сайта начнут переходить в пробные, они будут собраны здесь."
-              />
-            ) : (
-              trialSections.map((section) => (
-                <section key={section.id} className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-[#133C2A]">{section.title}</h2>
-                      <p className="text-sm text-[#133C2A]/55">
-                        Отдельный бизнес-процесс пробных. Точный attendance/status появится после backend-полей `trial_lessons`.
-                      </p>
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#fbf7e8]/70 px-5 py-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h2 className="text-[#133C2A]">Пробные как отдельный процесс</h2>
+                    <p className="mt-1 text-sm text-[#133C2A]/58">Пока статус пробного рассчитывается по заявке, группе, оплате и дате обновления. Для точного сценария нужен backend `trial_lessons`.</p>
+                  </div>
+                  <Badge variant="outline" className="w-fit rounded-full border-[#133C2A]/12 bg-white px-3 py-1 text-[#133C2A]/70">
+                    {trialSections.reduce((sum, section) => sum + section.items.length, 0)} карточек
+                  </Badge>
+                </div>
+              </div>
+
+              {trialSections.every((section) => section.items.length === 0) ? (
+                <EmptyState
+                  icon={Users}
+                  title="Пробных сценариев не найдено"
+                  description="Когда заявки начнут переходить в пробные, они будут собраны здесь по этапам."
+                />
+              ) : (
+                trialSections.map((section) => (
+                  <section key={section.id} className="rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4 md:p-5">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <h2 className="text-[#133C2A]">{section.title}</h2>
+                        <p className="text-sm text-[#133C2A]/55">{trialSectionDescriptions[section.id as Exclude<TrialWorkspaceStage, 'not_trial'>]}</p>
+                      </div>
+                      <Badge variant="outline" className="w-fit rounded-full border-[#133C2A]/12 bg-white px-3 py-1 text-[#133C2A]/70">
+                        {section.items.length}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="rounded-full">{section.items.length}</Badge>
-                  </div>
-                  <div className="space-y-3">
-                    {section.items.map((entry) => renderClientCard(entry, section.title))}
-                  </div>
-                </section>
-              ))
-            )
+                    <div className="mt-4 space-y-3">
+                      {section.items.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                          На этом этапе пробных пока никого нет.
+                        </div>
+                      ) : (
+                        section.items.map((entry) =>
+                          renderCompactClientRow(entry, {
+                            contextLabel: section.title,
+                            highlight: `${entry.trialFacts.title}. ${entry.nextAction.title} — ${entry.nextAction.dueLabel}.`,
+                          }),
+                        )
+                      )}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
           ) : workspaceTab === 'tasks' ? (
             <div className="space-y-4">
               <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
@@ -851,13 +1255,24 @@ export function ClientsManagement({
               </div>
 
               {visibleTaskPool.length === 0 ? (
-                <EmptyState
-                  icon={ClipboardList}
-                  title="Клиентских задач по этому фильтру нет"
-                  description="Прямое создание задач из карточки клиента еще не подключено. Пока отображаются только реальные задачи, уже связанные с клиентом или ребенком."
-                  actionLabel="Открыть раздел задач"
-                  onAction={() => onNavigateSection?.('tasks-management')}
-                />
+                <Card className="border-[#133C2A]/10 bg-[#fcfaf0]">
+                  <CardContent className="space-y-4 p-6">
+                    <div>
+                      <h2 className="text-[#133C2A]">Задач по клиентам пока нет</h2>
+                      <p className="mt-1 text-sm text-[#133C2A]/58">
+                        Сейчас система показывает вычисляемые следующие действия в карточках клиентов. Для полноценной работы нужно связать задачи с `client_id` и `child_id`.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 md:flex-row">
+                      <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onNavigateSection?.('tasks-management')}>
+                        Открыть общий раздел задач
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => setWorkspaceTab('today')}>
+                        Открыть клиентов без следующего шага
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 visibleTaskPool.map((task) => {
                   const linkedClient = childrenWithMeta.find(
@@ -901,37 +1316,133 @@ export function ClientsManagement({
               )}
             </div>
           ) : archivePool.length === 0 ? (
-            <EmptyState
-              icon={FolderArchive}
-              title="Архив пуст"
-              description="Архивные и ушедшие карточки появятся здесь. Причины архива будут доступны после добавления backend-поля `archive_reason`."
-            />
+            <div className="space-y-4">
+              <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
+                <div className="flex min-w-max gap-1">
+                  {archiveFilterOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={archiveFilter === option.value ? 'default' : 'ghost'}
+                      className={archiveFilter === option.value ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
+                      onClick={() => setArchiveFilter(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <EmptyState
+                icon={FolderArchive}
+                title="Архив пуст"
+                description="Архивные и ушедшие карточки появятся здесь. Причины архива будут доступны после добавления backend-поля `archive_reason`."
+              />
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="rounded-2xl border border-[#D4AF37]/25 bg-[#FFF9E8] px-4 py-3 text-sm text-[#8B6B00]">
                 Причины архива пока не хранятся отдельно. Сейчас архив собирается по статусам `archived`, `paused`, `lost`, `frozen`.
               </div>
+              <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
+                <div className="flex min-w-max gap-1">
+                  {archiveFilterOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={archiveFilter === option.value ? 'default' : 'ghost'}
+                      className={archiveFilter === option.value ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
+                      onClick={() => setArchiveFilter(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="space-y-3">
-                {archivePool.map((entry) => renderClientCard(entry, 'Архив / неактуальные'))}
+                {archivePool.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                    По выбранной причине архива карточек пока нет.
+                  </div>
+                ) : (
+                  archivePool.map((entry) =>
+                    renderCompactClientRow(entry, {
+                      contextLabel: 'Архив',
+                      showArchive: true,
+                      highlight: stageReason(entry.stage),
+                    }),
+                  )
+                )}
               </div>
             </div>
           )}
+          <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-[#fbf7e8]/50 px-4 py-3 text-sm text-[#133C2A]/52">
+            Часть CRM-статусов сейчас рассчитывается по заявке, группе, оплате и дате обновления. Для точной работы нужны backend-поля `crm_status`, `next_action`, `trial_lessons`, `client_timeline`.
+          </div>
         </CardContent>
       </Card>
 
+        </>
+      )}
+
+      {isMobile ? (
+        <MobileClientDetails
+          open={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          entry={selectedClient}
+          groups={groups}
+          profileDraft={profileDraft}
+          setProfileDraft={setProfileDraft}
+          isProfileSaving={isProfileSaving}
+          onSaveProfile={() => void saveProfile()}
+          onOpenPayments={() => {
+            if (selectedClient) {
+              openPaymentsForEntry(selectedClient);
+            }
+          }}
+          onCreateInvoice={() => {
+            if (selectedClient) {
+              void createInvoiceForChild(selectedClient.child);
+            }
+          }}
+          onRemind={
+            selectedClient?.latestOpenPayment
+              ? () => void remindAboutPayment(selectedClient.latestOpenPayment as AdminPaymentRecord)
+              : undefined
+          }
+          onOpenTasks={() => {
+            if (selectedClient) {
+              openTasksForEntry(selectedClient);
+            }
+          }}
+          onAssignGroup={(groupId) => {
+            if (selectedClient) {
+              void assignGroup(selectedClient.child.id, groupId);
+            }
+          }}
+        />
+      ) : (
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-3xl">
           {selectedClient ? (
             <>
               <DialogHeader>
                 <DialogTitle className="flex min-w-0 items-center justify-between gap-3 pr-8 text-[#133C2A]">
-                  <div className="min-w-0">
-                    <p className="truncate text-2xl">{selectedClient.child.parentName || selectedClient.child.fullName}</p>
-                    <p className="mt-1 text-sm text-[#133C2A]/60">Телефон: {selectedClient.child.parentPhone || '—'} • Источник: {sourceLabel(selectedClient.child)}</p>
-                  </div>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <ClientStatusBadge stage={selectedClient.stage} />
-                    <ClientTemperatureBadge temperature={selectedClient.temperature} />
+                  <div className="min-w-0 space-y-2">
+                    <div>
+                      <p className="truncate text-2xl">{selectedClient.child.parentName || selectedClient.child.fullName}</p>
+                      <p className="mt-1 text-sm text-[#133C2A]/60">
+                        {selectedClient.child.fullName || 'Ребенок не указан'} • {selectedClient.child.parentPhone || 'Телефон не указан'} • Источник: {sourceLabel(selectedClient.child)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <ClientStatusBadge stage={selectedClient.stage} />
+                      <ClientTemperatureBadge temperature={selectedClient.temperature} />
+                      <Badge variant="outline" className="rounded-full border-[#133C2A]/12 bg-[#fbf7e8]/70 text-[#133C2A]/70">
+                        Следующий шаг: {selectedClient.nextAction.dueLabel}
+                      </Badge>
+                    </div>
                   </div>
                 </DialogTitle>
               </DialogHeader>
@@ -947,6 +1458,16 @@ export function ClientsManagement({
                       <div>
                         <p className="text-xs text-[#133C2A]/60">Последнее событие</p>
                         <p className="text-[#133C2A]">{selectedClient.timeline[0] ? formatRuDateTime(selectedClient.timeline[0].occurredAt) : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#133C2A]/60">Почему этот статус</p>
+                        <p className="text-[#133C2A]">{stageReason(selectedClient.stage)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#133C2A]/60">Что важно сейчас</p>
+                        <p className="text-[#133C2A]">
+                          {selectedClient.child.profile?.internalComment || (selectedClient.temperature === 'problem' ? 'Нужна ручная проверка проблемной карточки.' : 'Критичных заметок пока нет.')}
+                        </p>
                       </div>
                       <div className="md:col-span-2">
                         <ClientNextAction nextAction={selectedClient.nextAction} />
@@ -970,8 +1491,18 @@ export function ClientsManagement({
                         <CreditCard className="mr-2 h-4 w-4" />
                         Выставить счет
                       </Button>
+                      {selectedClient.latestOpenPayment ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl border-[#133C2A]/15"
+                          onClick={() => void remindAboutPayment(selectedClient.latestOpenPayment as AdminPaymentRecord)}
+                          disabled={isReminderPaymentId === selectedClient.latestOpenPayment.id}
+                        >
+                          Напомнить об оплате
+                        </Button>
+                      ) : null}
                       <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
-                        Поставить задачу
+                        Открыть задачи
                       </Button>
                       <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" disabled>
                         Связь со статусом и ответственным появится после backend-расширения
@@ -998,13 +1529,15 @@ export function ClientsManagement({
 
                 <TabsContent value="overview" className="space-y-4">
                   <Card className="border-[#133C2A]/10">
-                    <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">Статус клиента</p><p className="text-[#133C2A]">{clientStageLabel[selectedClient.stage]}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Температура</p><p className="text-[#133C2A]">{selectedClient.temperature}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Ребенок</p><p className="text-[#133C2A]">{selectedClient.child.fullName}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Группа</p><p className="text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Абонемент</p><p className="text-[#133C2A]">{selectedClient.child.subscriptionName || 'Не выбран'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Статус оплаты</p><p className="text-[#133C2A]">{paymentStatusLabel(selectedClient.latestOpenPayment?.status || selectedClient.child.paymentStatus)}</p></div>
+                    <CardContent className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Статус клиента</p><p className="mt-1 text-[#133C2A]">{clientStageLabel[selectedClient.stage]}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Температура</p><p className="mt-1 text-[#133C2A]">{clientTemperatureLabel[selectedClient.temperature]}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Ребенок</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.fullName}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Группа</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Абонемент</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.subscriptionName || 'Не выбран'}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Статус оплаты</p><p className="mt-1 text-[#133C2A]">{paymentStatusLabel(selectedClient.latestOpenPayment?.status || selectedClient.child.paymentStatus)}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Почему этот статус</p><p className="mt-1 text-[#133C2A]">{stageReason(selectedClient.stage)}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Следующий шаг</p><p className="mt-1 text-[#133C2A]">{selectedClient.nextAction.title}</p><p className="mt-1 text-xs text-[#133C2A]/48">{selectedClient.nextAction.dueLabel}</p></div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -1251,6 +1784,7 @@ export function ClientsManagement({
           ) : null}
         </DialogContent>
       </Dialog>
+      )}
 
       <AddStudentDialog
         isOpen={isAddDialogOpen}

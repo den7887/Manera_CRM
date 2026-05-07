@@ -159,9 +159,9 @@ export function OwnerHome({
       Icon: BarChart3,
     },
     {
-      title: 'Клиенты',
+      title: 'Клиенты и заявки',
       value: `${totalStudents} учеников`,
-      note: 'Карточки детей, родители, группы',
+      note: 'Воронка, дети, родители, пробные',
       action: 'Открыть',
       page: 'clients',
       Icon: Users,
