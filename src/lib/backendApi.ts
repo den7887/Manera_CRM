@@ -1032,6 +1032,16 @@ export async function updateAdminPaymentStatus(
   });
 }
 
+export async function changeAdminPaymentDueDate(
+  paymentId: string,
+  payload: { due_date: string; comment?: string },
+): Promise<{ ok: boolean; payment: AdminPaymentRecord; idempotent?: boolean }> {
+  return request(`/api/admin/payments/${paymentId}/change-due-date`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function loadParentAccess(): Promise<ParentAccessInfo> {
   return request('/api/parent/access');
 }

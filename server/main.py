@@ -99,6 +99,11 @@ class PaymentStatusUpdatePayload(BaseModel):
     comment: str | None = Field(default=None, max_length=1000)
 
 
+class PaymentDueDatePayload(BaseModel):
+    due_date: str = Field(min_length=8, max_length=30)
+    comment: str | None = Field(default=None, max_length=1000)
+
+
 class ProviderWebhookPayload(BaseModel):
     payment_id: str = Field(min_length=2, max_length=120)
     status: Literal["paid", "failed"]
@@ -2950,6 +2955,57 @@ def admin_update_payment_status(
         actor_user_id=str(current_user.get("id") or ""),
         actor_role=current_user.get("role"),
         metadata={"comment": payload.comment},
+    )
+    _write_store(store)
+    return {"ok": True, "payment": _serialize_admin_payment(store, payment)}
+
+
+@app.post("/api/admin/payments/{payment_id}/change-due-date")
+def admin_change_payment_due_date(
+    payment_id: str,
+    payload: PaymentDueDatePayload,
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> dict[str, Any]:
+    store = _read_store()
+    payment = _find_payment_by_id(store, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    _ensure_legacy_payment_shape(store, payment)
+    _refresh_payment_overdue_status(payment)
+    previous_due_date = str(payment.get("dueDate") or "")
+    next_due_date = _normalize_iso_date(payload.due_date)
+    if previous_due_date == next_due_date:
+        return {"ok": True, "payment": _serialize_admin_payment(store, payment), "idempotent": True}
+
+    previous_status = str(payment.get("status") or "pending")
+    now = _utc_now_iso()
+    payment["dueDate"] = next_due_date
+    payment["updatedAt"] = now
+
+    if _is_outstanding_status(previous_status):
+        payment["nextReminderAt"] = _next_reminder_iso(next_due_date)
+        due_dt = _parse_datetime_safe(next_due_date)
+        now_dt = datetime.now(timezone.utc)
+        if due_dt and due_dt >= now_dt and previous_status == "overdue":
+            payment["status"] = "unpaid" if str(payment.get("paymentMethod") or "") == "cash" else "pending"
+            payment["statusUpdatedAt"] = now
+
+    if payload.comment and payload.comment.strip():
+        payment["invoiceComment"] = payload.comment.strip()
+
+    _sync_client_status_by_payment(store, payment)
+    _recalculate_parent_access_from_clients(store, str(payment.get("parentUserId") or ""))
+    _append_payment_journal(
+        store,
+        payment=payment,
+        event_type="payment.due_date_changed",
+        source="admin",
+        previous_status=previous_status,
+        new_status=str(payment.get("status") or previous_status),
+        actor_user_id=str(current_user.get("id") or ""),
+        actor_role=current_user.get("role"),
+        metadata={"previousDueDate": previous_due_date, "dueDate": next_due_date, "comment": payload.comment},
     )
     _write_store(store)
     return {"ok": True, "payment": _serialize_admin_payment(store, payment)}

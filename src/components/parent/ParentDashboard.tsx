@@ -41,6 +41,7 @@ interface ParentDashboardProps {
   notifications?: Notification[];
   accessInfo?: ParentAccessInfo | null;
   onPayOnline: (paymentId: string) => Promise<void>;
+  onConfirmManualPayment: (paymentId: string) => Promise<void>;
   onMarkNotificationRead: (notificationId: string) => Promise<void> | void;
   onMarkAllNotificationsRead: () => Promise<void> | void;
 }
@@ -130,6 +131,7 @@ export function ParentDashboard({
   notifications = [],
   accessInfo,
   onPayOnline,
+  onConfirmManualPayment,
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
 }: ParentDashboardProps) {
@@ -229,7 +231,15 @@ export function ParentDashboard({
       case 'schedule':
         return <ParentSchedule events={events} children={children} />;
       case 'payments':
-        return <ParentPayments payments={payments} children={children} onPayOnline={onPayOnline} accessInfo={accessInfo} />;
+        return (
+          <ParentPayments
+            payments={payments}
+            children={children}
+            onPayOnline={onPayOnline}
+            onConfirmManualPayment={onConfirmManualPayment}
+            accessInfo={accessInfo}
+          />
+        );
       case 'events':
         return <ParentEvents events={newsEvents} userId={user.id} />;
       case 'documents':

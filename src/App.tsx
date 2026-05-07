@@ -9,6 +9,7 @@ import { UserRole, Task, Notification, News, Document, Payment, Child, User, Eve
 import { mockUsers } from './data/mockData';
 import { createNewsNotification, createEventNotification, createEventUpdateNotification } from './utils/notifications';
 import {
+  confirmManualPayment,
   createProviderPayment,
   clearAuth,
   createDocument as createDocumentApi,
@@ -603,6 +604,11 @@ export default function App() {
     window.location.href = provider.payment_url;
   };
 
+  const handleParentManualPayment = async (paymentId: string) => {
+    await confirmManualPayment(paymentId);
+    await syncParentState();
+  };
+
   const handleParentNotificationRead = async (notificationId: string) => {
     setNotifications((prev) =>
       prev.map((item) => (item.id === notificationId ? { ...item, read: true, readAt: new Date() } : item)),
@@ -670,6 +676,7 @@ export default function App() {
             notifications={notifications}
             accessInfo={parentAccess}
             onPayOnline={handleParentOnlinePayment}
+            onConfirmManualPayment={handleParentManualPayment}
             onMarkNotificationRead={handleParentNotificationRead}
             onMarkAllNotificationsRead={handleParentMarkAllNotificationsRead}
           />

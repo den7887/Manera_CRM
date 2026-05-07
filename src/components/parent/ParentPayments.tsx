@@ -11,6 +11,7 @@ interface ParentPaymentsProps {
   children: Child[];
   accessInfo?: ParentAccessInfo | null;
   onPayOnline: (paymentId: string) => Promise<void>;
+  onConfirmManualPayment: (paymentId: string) => Promise<void>;
 }
 
 const paymentStatusLabels: Record<string, string> = {
@@ -24,7 +25,7 @@ const paymentStatusLabels: Record<string, string> = {
   unpaid: 'Не оплачено',
 };
 
-export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaymentsProps) {
+export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmManualPayment }: ParentPaymentsProps) {
   const [subscriptions, setSubscriptions] = useState<ParentSubscriptionDto[]>([]);
 
   useEffect(() => {
@@ -70,9 +71,20 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
                   Оплатить
                 </Button>
               ) : (
-                <Badge variant="outline" className="w-fit rounded-full border-[#D4AF37]/35 text-[#B8941F]">
-                  Оплата через администратора
-                </Badge>
+                <div className="flex flex-col items-start gap-2">
+                  <Badge variant="outline" className="w-fit rounded-full border-[#D4AF37]/35 text-[#B8941F]">
+                    Оплата через администратора
+                  </Badge>
+                  {primaryDuePayment?.status !== 'waiting_confirmation' ? (
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl border-[#133C2A]/20"
+                      onClick={() => void onConfirmManualPayment(primaryDuePayment.id)}
+                    >
+                      Я оплатил
+                    </Button>
+                  ) : null}
+                </div>
               )}
             </div>
           ) : (
@@ -156,6 +168,16 @@ export function ParentPayments({ payments, accessInfo, onPayOnline }: ParentPaym
                       >
                         <CreditCard className="w-4 h-4 mr-2" />
                         Открыть оплату
+                      </Button>
+                    )}
+                    {isDue && payment.paymentMethod !== 'online' && payment.status !== 'waiting_confirmation' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 w-full rounded-lg border-[#133C2A]/20 sm:w-auto"
+                        onClick={() => void onConfirmManualPayment(payment.id)}
+                      >
+                        Я оплатил
                       </Button>
                     )}
                   </div>

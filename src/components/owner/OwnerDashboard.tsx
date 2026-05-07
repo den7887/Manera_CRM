@@ -197,6 +197,7 @@ export function OwnerDashboard({
         <OwnerFinancePanel
           paymentsNavigationContext={paymentsNavigationContext || undefined}
           onPaymentsNavigationContextApplied={() => setPaymentsNavigationContext(null)}
+          onNavigateSection={navigate}
         />
       );
     }
