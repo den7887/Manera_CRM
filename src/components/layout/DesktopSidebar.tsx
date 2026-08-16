@@ -208,6 +208,8 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
                       variant={hasActiveSecondary || isSecondaryOpen ? 'default' : 'outline'}
                       className={hasActiveSecondary || isSecondaryOpen ? 'w-full rounded-2xl bg-[#133C2A]' : 'w-full rounded-2xl border-[#133C2A]/15'}
                       onClick={() => setIsSecondaryOpen((prev) => !prev)}
+                      aria-label="Ещё разделы"
+                      aria-expanded={isSecondaryOpen}
                     >
                       <Menu className="h-5 w-5" />
                     </Button>
@@ -248,6 +250,7 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
           </div>
           <button
             onClick={onLogout}
+            aria-label="Выйти из аккаунта"
             className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 text-[#D14343] transition-smooth hover:bg-[#D14343]/10"
           >
             <LogOut className="h-5 w-5" />

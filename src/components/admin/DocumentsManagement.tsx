@@ -92,7 +92,7 @@ export function DocumentsManagement({
 
   // Фильтрация документов
   const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = (doc.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     
@@ -374,14 +374,14 @@ export function DocumentsManagement({
                     <div className="flex items-start gap-4">
                       {/* File Icon */}
                       <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-2xl flex-shrink-0">
-                        {fileTypeIcons[doc.fileType.toLowerCase()] || '📄'}
+                        {fileTypeIcons[(doc.fileType ?? '').toLowerCase()] || '📄'}
                       </div>
 
                       {/* Document Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1">
-                            <h4 className="text-[#133C2A] mb-1">{doc.name}</h4>
+                            <h4 className="text-[#133C2A] mb-1">{doc.name ?? 'Без названия'}</h4>
                             {doc.description && (
                               <p className="text-sm text-[#133C2A]/60 line-clamp-2">
                                 {doc.description}

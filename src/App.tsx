@@ -353,6 +353,9 @@ export default function App() {
     const allowedRole = savedRole === 'owner' || savedRole === 'parent' ? savedRole : null;
     const initialUrlRoute = readAppStateFromUrl();
     const isStandalonePublicRoute = ['activation', 'payment-session', 'payment-success'].includes(initialUrlRoute.appState);
+    // A guest on /login already renders the login screen correctly (see readAppStateFromUrl
+    // above); the session-bootstrap 401 below must not bounce them off it (see audit F-02).
+    const isLoginRoute = initialUrlRoute.appState === 'login';
     if (allowedRole) {
       setCurrentUserRole(allowedRole);
       if (!isStandalonePublicRoute) {
@@ -390,7 +393,9 @@ export default function App() {
       } catch {
         clearAuth();
         setCurrentUserRole('parent');
-        openLanding();
+        if (!isLoginRoute) {
+          openLanding();
+        }
       }
     };
 

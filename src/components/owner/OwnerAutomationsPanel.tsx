@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Bell,
   Bot,
   CalendarClock,
@@ -1302,6 +1303,17 @@ export function OwnerAutomationsPanel() {
             <Plus className="w-4 h-4 mr-2" />
             Создать сценарий
           </Button>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-amber-900">
+        <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+        <div className="text-sm">
+          <p className="mb-0.5">Сценарии пока не выполняются автоматически</p>
+          <p className="text-amber-900/70">
+            Правила ниже сохраняются, но система ещё не умеет запускать их сама. Статус «Активно» показывает, что правило включено, а не что оно сработало.
+            Напоминания об оплате при этом отправляются отдельным механизмом — раз в час, независимо от этого раздела.
+          </p>
         </div>
       </div>
 

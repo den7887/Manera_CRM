@@ -62,7 +62,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
 
   // Поиск
   const filteredDocuments = availableDocuments.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = (doc.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doc.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesSearch;
@@ -209,12 +209,12 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       {/* File Icon */}
                       <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl flex-shrink-0 md:w-12 md:h-12 md:text-2xl">
-                        {fileTypeIcons[doc.fileType.toLowerCase()] || '📄'}
+                        {fileTypeIcons[(doc.fileType ?? '').toLowerCase()] || '📄'}
                       </div>
 
                       {/* Document Info */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-[#133C2A] mb-1 line-clamp-2">{doc.name}</h4>
+                        <h4 className="text-[#133C2A] mb-1 line-clamp-2">{doc.name ?? 'Без названия'}</h4>
                         {doc.description && (
                           <p className="text-sm text-[#133C2A]/60 mb-2 line-clamp-2">
                             {doc.description}

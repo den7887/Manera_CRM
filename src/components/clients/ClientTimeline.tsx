@@ -11,7 +11,7 @@ export function ClientTimeline({ entries }: { entries: ClientTimelineEntry[] }) 
   if (entries.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[#133C2A]/12 px-4 py-5 text-sm text-[#133C2A]/55">
-        История пока собирается из заявки, оплат и изменений карточки. Для полной ленты нужен backend `client_timeline`.
+        История собирается из заявки, оплат и изменений карточки.
       </div>
     );
   }

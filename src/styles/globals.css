@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+/* Шрифты Manrope/Inter подключены через <link> в index.html — @import здесь не
+   работает: после разворачивания @import 'tailwindcss' он перестаёт быть первой
+   инструкцией в собранном CSS, и браузер отбрасывает его целиком (см. аудит F-01). */
 
 @custom-variant dark (&:is(.dark *));
 

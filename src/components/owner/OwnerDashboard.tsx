@@ -14,6 +14,7 @@ import {
 import { DesktopSidebar } from '../layout/DesktopSidebar';
 import { MobileNav } from '../layout/MobileNav';
 import { FeatureInDevelopment } from '../FeatureInDevelopment';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { OwnerHome } from './OwnerHome';
 import { OwnerProfile } from './OwnerProfile';
 import { OwnerClientsPanel } from './OwnerClientsPanel';
@@ -129,13 +130,17 @@ export function OwnerDashboard({
   monthlyData,
   expenses,
 }: OwnerDashboardProps) {
-  const [currentPage, setCurrentPage] = useState<OwnerPage>('home');
+  // Read the starting page from the URL so a reload or a direct link (e.g. a
+  // bookmark to ?ownerPage=finance) lands where it says, instead of always
+  // resetting to Home (see audit F-02).
+  const [currentPage, setCurrentPage] = useState<OwnerPage>(() => readOwnerPageFromUrl());
   const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<OwnerPaymentsNavigationContext | null>(null);
   const [landingLeads, setLandingLeads] = useState<AdminLandingLeadRecord[]>([]);
   const [chatUnreadMessagesCount, setChatUnreadMessagesCount] = useState(0);
 
   useEffect(() => {
-    writeOwnerPageToUrl('home');
+    writeOwnerPageToUrl(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -296,7 +301,9 @@ export function OwnerDashboard({
 
       <main className="md:pl-24 mobile-safe-bottom md:pb-8">
         <div className="px-3 py-4 md:p-8 space-y-4 md:space-y-6">
-          {renderPage()}
+          <ErrorBoundary key={currentPage}>
+            {renderPage()}
+          </ErrorBoundary>
         </div>
       </main>
 

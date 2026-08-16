@@ -1,4 +1,4 @@
-import { Bell, LogOut, Mail, Phone, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Bell, LogOut, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { User } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -54,10 +54,6 @@ export function ParentProfile({ user, onLogout }: ParentProfileProps) {
             <div className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
               <p className="text-xs text-[#133C2A]/60 flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> Email</p>
               <p className="text-[#133C2A] mt-1">{user.email || 'Не указан'}</p>
-            </div>
-            <div className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
-              <p className="text-xs text-[#133C2A]/60 flex items-center gap-1"><UserIcon className="w-3.5 h-3.5" /> ID</p>
-              <p className="text-[#133C2A] mt-1 text-sm">{user.id}</p>
             </div>
           </CardContent>
         </Card>

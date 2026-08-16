@@ -12,6 +12,7 @@ import { ParentCommunication } from './ParentCommunication';
 import { ParentDocuments } from './ParentDocuments';
 import { MobileNav } from '../layout/MobileNav';
 import { DesktopSidebar } from '../layout/DesktopSidebar';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { accountStatusLabel, isPortalPendingActivation, portalStatusLabel } from '../../lib/portalStatus';
 import {
   AlertCircle,
@@ -387,7 +388,9 @@ export function ParentDashboard({
         </div>
 
         <div className="max-w-6xl mx-auto px-3 md:px-7 py-4 md:py-5 space-y-4">
-          {renderPage()}
+          <ErrorBoundary key={currentPage}>
+            {renderPage()}
+          </ErrorBoundary>
         </div>
       </main>
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+/* Шрифты подключены через <link> в index.html — см. globals.css для причины. */
 
 .landing-v2 {
   color-scheme: light;

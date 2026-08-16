@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 from fastapi import Depends, FastAPI, HTTPException, Request as FastAPIRequest, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from payments import PaymentService
 
 try:
@@ -399,6 +399,30 @@ class CreateCommunicationMessagePayload(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
 
 
+class DocumentCreatePayload(BaseModel):
+    """Minimal validation so a document can never be stored without the fields the
+    frontend unconditionally reads (name, fileType) — see audit finding F-03: a
+    document missing either one white-screens the owner, admin and parent apps
+    on every read, with no error boundary anywhere in the tree."""
+
+    name: str = Field(min_length=1, max_length=300)
+    description: str | None = Field(default=None, max_length=2000)
+    category: str = Field(default="other", max_length=60)
+    fileName: str | None = Field(default=None, max_length=300)
+    fileType: str = Field(default="", max_length=20)
+    fileSize: int | None = Field(default=None, ge=0)
+    fileUrl: str | None = None
+    accessType: str = Field(default="all", max_length=40)
+    assignedEmployees: list[str] = Field(default_factory=list)
+    assignedParents: list[str] = Field(default_factory=list)
+    createdBy: str | None = Field(default=None, max_length=120)
+    createdByName: str | None = Field(default=None, max_length=200)
+    tags: list[str] | None = None
+    checklistItems: list[str] | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -589,6 +613,60 @@ def _find_owner_pricing_plan(store: dict[str, Any], subscription_name: str) -> d
         if normalized in {title, code}:
             return plan
     return None
+
+
+def _ensure_active_subscription_for_payment(store: dict[str, Any], payment: dict[str, Any]) -> None:
+    """Create the subscription record a paid invoice is supposed to produce.
+
+    Before this, flipping a payment to "paid" never wrote anything to
+    `subscriptions` — the parent's "Активные абонементы" view and the owner's
+    subscription counters stayed at zero no matter how many invoices were paid
+    (see audit finding F-05). Idempotent per payment_id so it is safe to call
+    from every "became paid" transition without risking duplicates.
+    """
+    payment_id = str(payment.get("id") or "")
+    parent_id = str(payment.get("parentUserId") or "")
+    if not payment_id or not parent_id:
+        return
+
+    subscriptions = store.setdefault("subscriptions", [])
+    if any(str(item.get("payment_id")) == payment_id for item in subscriptions):
+        return  # already provisioned for this payment
+
+    plan = _find_owner_pricing_plan(store, str(payment.get("subscriptionName") or ""))
+    if plan is None:
+        return  # no matching catalog plan (e.g. a manually-priced one-off invoice)
+
+    # parent_subscriptions() (payments.py) resolves plan_title through the separate
+    # `subscriptionPlans` catalog, not `ownerPricingPlans` — the two are kept in sync
+    # by code (see _sync_subscription_plans_from_owner_pricing) but have different ids.
+    plan_code = str(plan.get("code") or "").strip().lower()
+    synced_plan = next(
+        (item for item in store.get("subscriptionPlans", []) if str(item.get("code") or "").strip().lower() == plan_code),
+        None,
+    )
+    subscription_plan_id = str((synced_plan or plan).get("id") or "")
+
+    now_dt = datetime.now(timezone.utc)
+    duration_days = int(plan.get("durationDays") or 30)
+    total_lessons = plan.get("classesCount") if plan.get("classesTracked") else None
+
+    subscriptions.append(
+        {
+            "id": _new_id("subscription"),
+            "parent_id": parent_id,
+            "client_id": payment.get("clientId"),
+            "payment_id": payment_id,
+            "subscription_plan_id": subscription_plan_id,
+            "status": "active",
+            "starts_at": now_dt.isoformat(),
+            "expires_at": (now_dt + timedelta(days=duration_days)).isoformat(),
+            "total_lessons": total_lessons,
+            "used_lessons": 0,
+            "createdAt": _utc_now_iso(),
+            "updatedAt": _utc_now_iso(),
+        }
+    )
 
 
 def _normalize_group_schedule_value(value: Any) -> str:
@@ -6651,6 +6729,7 @@ def admin_client_cash_payment(
         payment["invoiceComment"] = payload.comment
         payment["updatedAt"] = now
         payment["statusUpdatedAt"] = now
+        _ensure_active_subscription_for_payment(store, payment)
         payment["nextReminderAt"] = None
 
     _sync_client_status_by_payment(store, payment)
@@ -7776,6 +7855,7 @@ def admin_update_payment_status(
         payment["paidAt"] = now
         payment["nextReminderAt"] = None
         payment["confirmedByUserId"] = str(current_user.get("id") or "")
+        _ensure_active_subscription_for_payment(store, payment)
     elif next_status in {"refunded", "cancelled"}:
         payment["nextReminderAt"] = None
         payment["paidAt"] = None
@@ -7883,6 +7963,7 @@ def admin_confirm_cash_payment(
     payment["confirmedByUserId"] = current_user["id"]
     if payload.paid_amount is not None:
         payment["amount"] = payload.paid_amount
+    _ensure_active_subscription_for_payment(store, payment)
 
     _sync_client_status_by_payment(store, payment)
     parent_user = _recalculate_parent_access_from_clients(store, str(payment.get("parentUserId") or ""))
@@ -7949,6 +8030,7 @@ def admin_change_payment_method(
         payment["confirmedByUserId"] = current_user["id"]
         if payload.paid_amount is not None:
             payment["amount"] = payload.paid_amount
+        _ensure_active_subscription_for_payment(store, payment)
     else:
         payment["status"] = next_status
         payment["paidAt"] = None
@@ -8074,6 +8156,7 @@ def _apply_provider_webhook_payload(store: dict[str, Any], payload: ProviderWebh
         payment["paidAt"] = now
         payment["statusUpdatedAt"] = now
         payment["nextReminderAt"] = None
+        _ensure_active_subscription_for_payment(store, payment)
         _sync_client_status_by_payment(store, payment)
         parent_user = _recalculate_parent_access_from_clients(store, str(payment.get("parentUserId") or ""))
         if isinstance(parent_user, dict) and _current_portal_status(parent_user) != "activated":
@@ -9157,8 +9240,8 @@ def list_documents(current_user: dict[str, Any] = Depends(_require_auth)) -> lis
 
 
 @app.post("/api/documents")
-def create_document(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
-    created = _create_entity("documents", payload)
+def create_document(payload: DocumentCreatePayload, _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+    created = _create_entity("documents", payload.model_dump(exclude_none=True))
     store = _read_store()
     target = next((item for item in store.get("documents", []) if str(item.get("id")) == str(created.get("id"))), None)
     if target:

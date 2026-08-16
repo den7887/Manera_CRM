@@ -111,7 +111,7 @@ export function MobileClientActionsSheet({
             Скопировать телефон
           </Button>
           <Button variant="outline" className="h-12 w-full justify-start rounded-2xl border-[#133C2A]/10 text-[#133C2A]/40" disabled>
-            Архив будет подключен после backend-полей CRM
+            Архивирование скоро появится
           </Button>
         </div>
         <DrawerFooter>

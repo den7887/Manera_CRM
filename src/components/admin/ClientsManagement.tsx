@@ -1554,7 +1554,7 @@ export function ClientsManagement({
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h2 className="text-[#133C2A]">Пробные как отдельный процесс</h2>
-                    <p className="mt-1 text-sm text-[#133C2A]/58">Пока статус пробного рассчитывается по заявке, группе, оплате и дате обновления. Для точного сценария нужен backend `trial_lessons`.</p>
+                    <p className="mt-1 text-sm text-[#133C2A]/58">Статус пробного занятия определяется по заявке, группе и оплате.</p>
                   </div>
                   <Badge variant="outline" className="w-fit rounded-full border-[#133C2A]/12 bg-white px-3 py-1 text-[#133C2A]/70">
                     {trialSections.reduce((sum, section) => sum + section.items.length, 0)} карточек
@@ -1732,7 +1732,7 @@ export function ClientsManagement({
               <EmptyState
                 icon={FolderArchive}
                 title="Архив пуст"
-                description="Архивные и ушедшие карточки появятся здесь. Причины архива будут доступны после добавления backend-поля `archive_reason`."
+                description="Архивные и ушедшие карточки появятся здесь."
               />
             </div>
           ) : (
@@ -1773,9 +1773,6 @@ export function ClientsManagement({
               </div>
             </div>
           )}
-          <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-[#fbf7e8]/50 px-4 py-3 text-sm text-[#133C2A]/52">
-            Часть CRM-статусов сейчас рассчитывается по заявке, группе, оплате и дате обновления. Для точной работы нужны backend-поля `crm_status`, `next_action`, `trial_lessons`, `client_timeline`.
-          </div>
         </CardContent>
       </Card>
 
@@ -2256,7 +2253,7 @@ export function ClientsManagement({
                       <div className="space-y-3">
                         {selectedClient.timeline.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-[#133C2A]/12 px-4 py-5 text-sm text-[#133C2A]/55">
-                            История пока собирается из заявки, платежей и изменений профиля. Для полной ленты нужен backend `client_timeline`.
+                            История собирается из заявки, платежей и изменений профиля.
                           </div>
                         ) : (
                           selectedClient.timeline.map((entry) => (
