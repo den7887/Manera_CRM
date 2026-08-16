@@ -57,6 +57,7 @@ ACTIVE_TOKENS: dict[str, str] = {}
 OTP_CODES: dict[str, str] = {}
 NOTIFICORE_OTP_SESSIONS: dict[str, str] = {}
 RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
+_POSTGRES_SCHEMA_READY = False
 SESSION_COOKIE_NAME = "manera_crm_session"
 CSRF_COOKIE_NAME = "manera_crm_csrf"
 CSRF_HEADER_NAME = "x-csrf-token"
@@ -2148,6 +2149,12 @@ def _seed_postgres_normalized_entities_if_needed(conn, payload: dict[str, Any]) 
 
 
 def _ensure_postgres_schema(conn) -> None:
+    # The schema is idempotent but costs ~32 DDL statements, which used to run on
+    # every single request. Once per process is enough.
+    global _POSTGRES_SCHEMA_READY
+    if _POSTGRES_SCHEMA_READY:
+        return
+
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -2391,6 +2398,8 @@ def _ensure_postgres_schema(conn) -> None:
         )
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_crm_owner_pricing_plans_code ON crm_owner_pricing_plans (code)")
     conn.commit()
+    # Only after a clean commit, so a failed run is retried on the next call.
+    _POSTGRES_SCHEMA_READY = True
 
 
 def _read_store_from_postgres() -> tuple[dict[str, Any], bool]:
@@ -7678,11 +7687,17 @@ def admin_send_payment_reminder(
     }
 
 
-@app.post("/api/admin/payments/reminders/run")
-def admin_run_payment_reminders(
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
-) -> dict[str, Any]:
-    store = _read_store()
+def run_due_payment_reminders(
+    store: dict[str, Any],
+    *,
+    actor_user_id: str = "",
+    actor_role: str | None = None,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Refresh overdue statuses and send every reminder that has come due.
+
+    Returns the processed payments and whether the store needs writing back.
+    Shared by the admin endpoint and the scheduled runner.
+    """
     now_dt = datetime.now(timezone.utc)
     processed: list[dict[str, Any]] = []
     changed = False
@@ -7699,14 +7714,26 @@ def admin_run_payment_reminders(
         _send_payment_reminder(
             store,
             payment=payment,
-            actor_user_id=str(current_user.get("id") or ""),
-            actor_role=current_user.get("role"),
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
             source="automation",
             custom_message=None,
         )
         processed.append(_serialize_admin_payment(store, payment))
         changed = True
+    return processed, changed
 
+
+@app.post("/api/admin/payments/reminders/run")
+def admin_run_payment_reminders(
+    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+) -> dict[str, Any]:
+    store = _read_store()
+    processed, changed = run_due_payment_reminders(
+        store,
+        actor_user_id=str(current_user.get("id") or ""),
+        actor_role=current_user.get("role"),
+    )
     if changed:
         _write_store(store)
     return {"ok": True, "processed": len(processed), "payments": processed}

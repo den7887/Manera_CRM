@@ -1,0 +1,8 @@
+[Unit]
+Description=Manera CRM scheduled jobs (payment reminders, overdue statuses)
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/manera-crm/server
+ExecStart=/opt/manera-crm/server/.venv/bin/python run_scheduled_jobs.py

@@ -1,0 +1,7 @@
+[Unit]
+Description=Manera CRM database backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/manera-db-backup.sh
