@@ -9,6 +9,7 @@ import {
 import type { AdminLandingLeadRecord } from '../../lib/backendApi';
 import { Event, FinanceStats, Group, Task, User } from '../../types';
 import { Card, CardContent } from '../ui/card';
+import { NotificationPermissionPrompt } from '../NotificationPermissionPrompt';
 
 interface OwnerHomeProps {
   user: User;
@@ -139,6 +140,7 @@ export function OwnerHome({
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 md:space-y-5">
+      <NotificationPermissionPrompt />
       <section className="overflow-hidden rounded-[1.35rem] border border-[#133C2A]/10 bg-[#123827] text-white shadow-[0_18px_42px_rgba(19,60,42,0.16)] md:rounded-[2rem]">
         <div className="grid gap-3 p-3 md:grid-cols-[1.15fr_0.85fr] md:gap-4 md:p-7">
           <div className="min-w-0">

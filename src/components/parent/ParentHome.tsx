@@ -3,6 +3,7 @@ import { User, Child, Event, Payment, News } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { NotificationPermissionPrompt } from '../NotificationPermissionPrompt';
 
 interface ParentHomeProps {
   user: User;
@@ -38,6 +39,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
 
   return (
     <div className="space-y-4 animate-scale-in">
+      <NotificationPermissionPrompt />
       <Card className="border-none soft-shadow overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" />
         <CardContent className="p-5 md:p-6">
