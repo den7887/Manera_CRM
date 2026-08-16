@@ -80,12 +80,17 @@ def client(tmp_path, monkeypatch):
 
 
 def _auth_headers(client: TestClient, phone: str) -> dict[str, str]:
-    start = client.post("/api/auth/otp/start", json={"phone": phone})
-    assert start.status_code == 200
-    verify = client.post("/api/auth/otp/verify", json={"phone": phone, "code": "400001"})
-    assert verify.status_code == 200
-    token = verify.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    store = main._read_store()
+    user = main._find_user_by_phone(store, phone)
+    assert user is not None
+    token = main._create_auth_session(store, user)
+    main._write_store(store)
+    client.cookies.set(main.SESSION_COOKIE_NAME, token)
+    csrf_response = client.get("/api/auth/csrf")
+    assert csrf_response.status_code == 200
+    csrf_token = client.cookies.get(main.CSRF_COOKIE_NAME)
+    assert csrf_token
+    return {main.CSRF_HEADER_NAME: csrf_token}
 
 
 def test_create_client_assigns_group_and_exposes_child_row(client: TestClient):
@@ -157,3 +162,34 @@ def test_reassign_child_group_recalculates_counts(client: TestClient):
     assert unassigned.status_code == 200
     assert unassigned.json()["child"]["groupId"] is None
 
+
+def test_create_existing_client_with_paid_period_grants_full_access(client: TestClient):
+    headers = _auth_headers(client, main.OWNER_PHONE)
+    created = client.post(
+        "/api/admin/clients",
+        json={
+            "parent_full_name": "Соколова Анна",
+            "child_full_name": "Соколов Илья",
+            "child_birth_date": "2015-09-01",
+            "parent_phone": "+79990001122",
+            "subscription_name": "Хобби",
+            "subscription_amount": 5000,
+            "payment_method": "online",
+            "group_id": "group-2",
+            "mark_as_paid": True,
+            "service_start_date": "2026-05-01",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+
+    payload = created.json()
+    assert payload["client"]["paymentStatus"] == "paid"
+    assert payload["client"]["accessLevel"] == "full"
+    assert payload["client"]["accountStatus"] == "active"
+    assert payload["payment"]["status"] == "paid"
+    assert payload["payment"]["paymentMethod"] == "online"
+    assert payload["payment"]["serviceStartDate"] == "2026-05-01"
+    assert payload["payment"]["paidAt"]
+    assert payload["parent"]["access_level"] == "full"
+    assert payload["parent"]["account_status"] == "active"

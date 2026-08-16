@@ -96,7 +96,7 @@ export const trialStageLabel: Record<TrialWorkspaceStage, string> = {
   waiting_decision: 'После пробного',
   waiting_payment: 'Ждет оплату',
   converted: 'Купил абонемент',
-  at_risk: 'Проблемный',
+  at_risk: 'Нужно разобраться',
   not_trial: 'Нет пробного сценария',
 };
 
@@ -104,7 +104,7 @@ export const clientTemperatureLabel: Record<ClientTemperature, string> = {
   hot: 'Горячий',
   warm: 'Теплый',
   cold: 'Холодный',
-  problem: 'Проблемный',
+  problem: 'Нужен разбор',
 };
 
 export const clientTemperatureClassName: Record<ClientTemperature, string> = {
@@ -140,12 +140,16 @@ export function deriveClientStage(child: AdminChildRecord, payments: AdminPaymen
   const latestPayment = latestRelevantPayment(child, payments);
   const paymentStatus = String(latestPayment?.status || child.paymentStatus || '');
   const parentStatus = String(child.parentAccountStatus || '');
+  const portalStatus = String(child.parentPortalStatus || '');
   const hasLead = Boolean(child.landingLead);
   const inGroup = Boolean(child.groupId);
   const daysSinceUpdate = diffDaysFromNow(child.updatedAt || child.createdAt);
 
   if (parentStatus === 'suspended' || ['cancelled', 'refunded'].includes(paymentStatus)) {
     return 'archived';
+  }
+  if (portalStatus === 'blocked') {
+    return 'risk';
   }
   if (paymentStatus === 'overdue' || paymentStatus === 'failed') {
     return 'risk';

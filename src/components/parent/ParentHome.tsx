@@ -14,6 +14,12 @@ interface ParentHomeProps {
 }
 
 export function ParentHome({ user, children, events, payments, newsEvents, onNavigate }: ParentHomeProps) {
+  const fullNameParts = String(user.name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const greetingName = fullNameParts[1] || fullNameParts[0] || 'друг';
+
   const upcomingEvents = events
     .filter((item) => new Date(item.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -28,6 +34,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
   const primaryChild = children[0];
   const nextEvent = upcomingEvents[0];
   const latestNews = publishedNews[0];
+  const getChildNameByGroupId = (groupId: string) => children.find((item) => item.groupId === groupId)?.name;
 
   return (
     <div className="space-y-4 animate-scale-in">
@@ -36,7 +43,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
         <CardContent className="p-5 md:p-6">
           <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div className="min-w-0">
-              <p className="text-sm text-[#133C2A]/58">Здравствуйте, {user.name.split(' ')[0]}</p>
+              <p className="text-sm text-[#133C2A]/58">Здравствуйте, {greetingName}</p>
               <h2 className="mt-1 text-2xl leading-tight text-[#133C2A]">
                 {primaryChild ? primaryChild.name : 'Ребёнок пока не добавлен'}
               </h2>
@@ -48,6 +55,12 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
                       ? `${new Date(nextEvent.date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}, ${nextEvent.startTime}`
                       : 'Не запланировано'}
                   </p>
+                  {nextEvent ? (
+                    <p className="mt-1 text-xs text-[#133C2A]/60">
+                      {nextEvent.groupName}
+                      {getChildNameByGroupId(nextEvent.groupId) ? ` • ${getChildNameByGroupId(nextEvent.groupId)}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-2xl bg-[#F8F4E3] p-3">
                   <p className="text-xs text-[#133C2A]/50">Осталось занятий</p>
@@ -162,14 +175,19 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
               <p className="text-sm text-[#133C2A]/60 py-4">В расписании пока нет будущих занятий.</p>
             ) : (
               upcomingEvents.map((event) => (
-                  <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
+                  <div key={event.id} className="rounded-2xl border border-[#133C2A]/10 p-3 bg-white">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-[#133C2A] min-w-0">{event.groupName}</p>
-                    <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
-                      {new Date(event.date).toLocaleDateString('ru-RU')}
+                    <div className="min-w-0">
+                      <p className="text-[#133C2A] min-w-0">{event.groupName}</p>
+                      {getChildNameByGroupId(event.groupId) ? (
+                        <p className="mt-1 text-xs text-[#133C2A]/55">{getChildNameByGroupId(event.groupId)}</p>
+                      ) : null}
+                    </div>
+                    <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A] whitespace-nowrap">
+                      {new Date(event.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                     </Badge>
                   </div>
-                  <p className="text-sm text-[#133C2A]/65 mt-1 flex items-center gap-1.5">
+                  <p className="text-sm text-[#133C2A]/65 mt-2 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" />
                     {event.startTime} - {event.endTime} • {event.teacherName}
                   </p>

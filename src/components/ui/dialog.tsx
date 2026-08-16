@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { XIcon } from "lucide-react";
 import { cn } from "./utils";
 
@@ -76,10 +77,15 @@ interface DialogPortalProps {
 
 function DialogPortal({ children }: DialogPortalProps) {
   const { open } = useDialog();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
   
-  if (!open) return null;
+  if (!open || !mounted) return null;
   
-  return <>{children}</>;
+  return createPortal(children, document.body);
 }
 
 interface DialogCloseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
@@ -125,6 +131,8 @@ function DialogContent({
   ...props
 }: DialogContentProps) {
   const { open } = useDialog();
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
   
   React.useEffect(() => {
     if (open) {
@@ -137,21 +145,72 @@ function DialogContent({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const sync = () => setIsMobile(mediaQuery.matches);
+    sync();
+
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
+  React.useEffect(() => {
+    const node = contentRef.current;
+    if (!node) {
+      return;
+    }
+
+    const enforcedProperties = [
+      ["position", "fixed"],
+      ["left", "0"],
+      ["right", "0"],
+      ["top", "auto"],
+      ["bottom", "0"],
+      ["width", "100vw"],
+      ["max-width", "100vw"],
+      ["margin", "0"],
+      ["transform", "translate(0, 0)"],
+      ["border-top-left-radius", "28px"],
+      ["border-top-right-radius", "28px"],
+      ["border-bottom-left-radius", "0"],
+      ["border-bottom-right-radius", "0"],
+      ["max-height", "92dvh"],
+      ["overflow-y", "auto"],
+    ] as const;
+
+    if (isMobile) {
+      enforcedProperties.forEach(([property, value]) => {
+        node.style.setProperty(property, value, "important");
+      });
+      return;
+    }
+
+    enforcedProperties.forEach(([property]) => {
+      node.style.removeProperty(property);
+    });
+  }, [isMobile, open]);
   
   return (
     <DialogPortal>
       <DialogOverlay />
       <div
+        ref={contentRef}
         data-slot="dialog-content"
         className={cn(
-          "bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg animate-in fade-in-0 zoom-in-95 duration-200 sm:max-w-lg",
+          "!fixed !inset-x-0 !bottom-0 !top-auto !left-0 !z-50 !m-0 !grid !w-screen !max-w-none !translate-x-0 !translate-y-0 gap-4 !rounded-t-[28px] !rounded-b-none !border-0 bg-[#FCFBF6] px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl animate-in fade-in-0 slide-in-from-bottom-6 duration-200 !max-h-[92dvh] overflow-y-auto",
+          "sm:!bg-background sm:!top-[50%] sm:!left-[50%] sm:!bottom-auto sm:!inset-x-auto sm:!w-full sm:!max-w-[calc(100%-2rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:!rounded-lg sm:!border sm:!p-6 sm:!shadow-lg sm:zoom-in-95 sm:max-w-lg",
           className,
         )}
         onClick={(e) => e.stopPropagation()}
         {...props}
       >
         {children}
-        <DialogClose className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+        <DialogClose className="ring-offset-background focus:ring-ring absolute top-5 right-5 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 sm:top-4 sm:right-4">
           <XIcon />
           <span className="sr-only">Close</span>
         </DialogClose>

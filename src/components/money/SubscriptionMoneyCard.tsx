@@ -24,7 +24,10 @@ export function SubscriptionMoneyCard({
           <div className="min-w-0">
             <SubscriptionStatusBadge status={subscription.status} />
             <p className="mt-3 text-lg leading-tight text-[#133C2A]">{subscription.childName}</p>
-            <p className="mt-1 text-sm text-[#133C2A]/62">{subscription.planTitle}</p>
+            <p className="mt-1 text-sm text-[#133C2A]/62">
+              {subscription.planTitle}
+              {subscription.parentName ? ` · ${subscription.parentName}` : ''}
+            </p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -46,6 +49,10 @@ export function SubscriptionMoneyCard({
             <p className="mt-1 text-[#133C2A]">{subscription.amount ? formatMoney(subscription.amount) : '—'}</p>
           </div>
           <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
+            <p className="text-[#133C2A]/50">Начало</p>
+            <p className="mt-1 text-[#133C2A]">{formatShortDate(subscription.startsAt)}</p>
+          </div>
+          <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
             <p className="text-[#133C2A]/50">Действует до</p>
             <p className="mt-1 text-[#133C2A]">{formatShortDate(subscription.expiresAt)}</p>
           </div>
@@ -65,6 +72,11 @@ export function SubscriptionMoneyCard({
           </p>
         )}
 
+        <div className="rounded-2xl bg-white p-3 text-sm text-[#133C2A]/62 ring-1 ring-[#133C2A]/8">
+          <p>{subscription.groupName ? `Группа: ${subscription.groupName}` : 'Группа не назначена'}</p>
+          <p className="mt-1">{subscription.teacherName ? `Педагог: ${subscription.teacherName}` : 'Педагог пока не назначен'}</p>
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onOpen(subscription)}>
             Продлить
@@ -77,4 +89,3 @@ export function SubscriptionMoneyCard({
     </Card>
   );
 }
-

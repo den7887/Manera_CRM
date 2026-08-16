@@ -17,6 +17,7 @@ import { ClientStage, ClientTemperature, clientStageLabel } from './clientStatus
 import { ClientStatusBadge } from './ClientStatusBadge';
 import { ClientTemperatureBadge } from './ClientTemperatureBadge';
 import { paymentStatusLabel } from '../payments/PaymentStatusBadge';
+import { portalStatusLabel } from '../../lib/portalStatus';
 
 function childInitials(fullName?: string | null): string {
   const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
@@ -29,6 +30,19 @@ function formatRuDate(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('ru-RU');
+}
+
+function formatRuDateTime(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export function ClientCard({
@@ -71,6 +85,7 @@ export function ClientCard({
   isReminding?: boolean;
   sectionLabel?: string;
 }) {
+  const leadCreatedAt = child.landingLead?.createdAt || child.createdAt;
   const primaryAction =
     stage === 'waiting_payment'
       ? {
@@ -102,7 +117,7 @@ export function ClientCard({
                       {child.fullName || 'Ученик'}
                     </button>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#133C2A]/66">
-                      <span>{child.age ?? '—'} лет</span>
+                      <span>{child.age ? `${child.age} лет` : 'Возраст не указан'}</span>
                       <span>•</span>
                       <span>{child.parentName || 'Родитель не указан'}</span>
                       <span>•</span>
@@ -116,6 +131,9 @@ export function ClientCard({
                           {sectionLabel}
                         </Badge>
                       ) : null}
+                      <Badge variant="outline" className="rounded-full border-[#133C2A]/12 text-[#133C2A]/70">
+                        {portalStatusLabel(child.parentPortalStatus)}
+                      </Badge>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -141,9 +159,9 @@ export function ClientCard({
                         <Users className="mr-2 h-4 w-4" />
                         Открыть задачи
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled>
+                      <DropdownMenuItem onSelect={onOpen}>
                         <Phone className="mr-2 h-4 w-4" />
-                        Связь будет подключена позже
+                        Контакты и профиль
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -168,6 +186,24 @@ export function ClientCard({
                     </p>
                   </div>
                   <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
+                    <p className="text-xs text-[#133C2A]/45">Кабинет</p>
+                    <p className="mt-1 text-[#133C2A]">{portalStatusLabel(child.parentPortalStatus)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
+                    <p className="text-xs text-[#133C2A]/45">Занятия</p>
+                    <p className="mt-1 text-[#133C2A]">
+                      {child.lessonsTracked ? `${child.remainingClasses ?? 0} из ${child.totalClasses ?? 0}` : 'Без учета лимита'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
+                    <p className="text-xs text-[#133C2A]/45">Источник</p>
+                    <p className="mt-1 text-[#133C2A]">{child.profile?.sourceChannel || child.landingLead?.discoverySource || 'Не указан'}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
+                    <p className="text-xs text-[#133C2A]/45">Заявка поступила</p>
+                    <p className="mt-1 text-[#133C2A]">{formatRuDateTime(leadCreatedAt)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
                     <p className="text-xs text-[#133C2A]/45">Последнее обновление</p>
                     <p className="mt-1 text-[#133C2A]">{formatRuDate(child.updatedAt || child.createdAt)}</p>
                   </div>
@@ -181,7 +217,7 @@ export function ClientCard({
               <ClientNextAction nextAction={nextAction} compact />
 
               <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#133C2A]/40">Группа и оплата</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#133C2A]/40">Организация и оплата</p>
                 <Select value={child.groupId || 'none'} onValueChange={(value) => onAssignGroup(value === 'none' ? null : value)} disabled={isAssigning}>
                   <SelectTrigger className="rounded-xl bg-white">
                     <SelectValue placeholder="Без группы" />
@@ -201,6 +237,10 @@ export function ClientCard({
                     {paymentStatusLabel(outstandingPayment?.status || child.paymentStatus)}
                     {outstandingPayment?.amount ? ` • ${Number(outstandingPayment.amount).toLocaleString('ru-RU')} ₽` : ''}
                   </p>
+                </div>
+                <div className="rounded-2xl border border-[#133C2A]/10 bg-white px-3 py-3 text-sm text-[#133C2A]/68">
+                  <p className="text-xs text-[#133C2A]/45">Комментарий</p>
+                  <p className="mt-1 text-[#133C2A]">{child.profile?.internalComment || child.notes || 'Без заметок'}</p>
                 </div>
               </div>
             </div>
@@ -230,10 +270,6 @@ export function ClientCard({
                   {isInvoicing ? 'Создаем...' : 'Выставить счет'}
                 </Button>
               )}
-
-              <div className="mt-auto rounded-2xl border border-dashed border-[#133C2A]/12 px-3 py-3 text-sm text-[#133C2A]/48">
-                Следующий backend-этап: статусы пробного, архивные причины и история контактов.
-              </div>
             </div>
           </div>
         </div>

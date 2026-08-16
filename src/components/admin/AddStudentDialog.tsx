@@ -7,9 +7,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { CalendarIcon, Info, Plus } from 'lucide-react';
+import { CalendarIcon, Copy, ExternalLink, Info, Plus, QrCode } from 'lucide-react';
 import { Group } from '../../types';
-import { confirmCashPayment, createClientByAdmin } from '../../lib/backendApi';
+import { confirmClientCashPaymentWithActivation, createClientByAdmin } from '../../lib/backendApi';
 import { Checkbox } from '../ui/checkbox';
 
 export interface AdminStudentViewModel {
@@ -73,6 +73,18 @@ interface SubmissionData {
   };
   payableAmount: number;
   paymentMethod: 'cash' | 'online';
+  existingClient: boolean;
+  markAsPaid: boolean;
+  serviceStartDate?: Date;
+}
+
+interface CompletionState {
+  mode: 'activation' | 'payment';
+  title: string;
+  description: string;
+  url: string;
+  qrCode?: string | null;
+  expiresAt?: string | null;
 }
 
 export function AddStudentDialog({
@@ -92,6 +104,9 @@ export function AddStudentDialog({
     discountEnabled: false,
     discountedAmount: '',
     paymentMethod: 'cash' as 'cash' | 'online',
+    existingClient: false,
+    markCurrentPeriodPaid: false,
+    serviceStartDate: undefined as Date | undefined,
   });
 
   const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
@@ -104,6 +119,7 @@ export function AddStudentDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cashPaymentDialogOpen, setCashPaymentDialogOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<SubmissionData | null>(null);
+  const [completionState, setCompletionState] = useState<CompletionState | null>(null);
 
   // Функция для расчета возраста
   const calculateAge = (birthDate: Date): number => {
@@ -143,6 +159,28 @@ export function AddStudentDialog({
     return `${y}-${m}-${d}`;
   };
 
+  const formatDateTime = (value?: string | null): string => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const copyToClipboard = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success('Ссылка скопирована');
+    } catch {
+      toast.error('Не удалось скопировать ссылку');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -153,6 +191,9 @@ export function AddStudentDialog({
       discountEnabled: false,
       discountedAmount: '',
       paymentMethod: 'cash',
+      existingClient: false,
+      markCurrentPeriodPaid: false,
+      serviceStartDate: undefined,
     });
     setCalculatedAge(null);
     setIsNewParent(false);
@@ -236,6 +277,9 @@ export function AddStudentDialog({
       subscription: selectedSubscription,
       payableAmount,
       paymentMethod: formData.paymentMethod,
+      existingClient: formData.existingClient,
+      markAsPaid: formData.markCurrentPeriodPaid,
+      serviceStartDate: formData.serviceStartDate,
     };
   };
 
@@ -248,6 +292,9 @@ export function AddStudentDialog({
     let savedViaBackend = false;
     let cashConfirmedOnBackend = false;
     let backendPaymentId: string | undefined;
+    let backendClientId: string | undefined;
+    let createdActivation: CompletionState | null = null;
+    let createdPaymentSession: CompletionState | null = null;
     const paymentCreatedAt = new Date();
 
     try {
@@ -261,16 +308,46 @@ export function AddStudentDialog({
         payment_method: submission.paymentMethod,
         group_id: submission.groupId || undefined,
         notes: undefined,
+        mark_as_paid: submission.markAsPaid,
+        service_start_date: submission.serviceStartDate ? toIsoDate(submission.serviceStartDate) : undefined,
       });
       savedViaBackend = true;
       backendPaymentId = created?.payment?.id;
+      backendClientId = created?.client?.id;
+      if (created?.activation?.activation_url) {
+        createdActivation = {
+          mode: 'activation',
+          title: 'Клиент оплачен. Дайте ему отсканировать QR-код для создания PIN.',
+          description: 'После создания PIN клиент сможет входить в кабинет по телефону и PIN-коду.',
+          url: created.activation.activation_url,
+          qrCode: created.activation.qr_code,
+          expiresAt: created.activation.expires_at,
+        };
+      }
+      if (created?.payment_session?.payment_session_url) {
+        createdPaymentSession = {
+          mode: 'payment',
+          title: 'Ссылка на страницу оплаты создана',
+          description: 'Клиент увидит только страницу оплаты. После успешной онлайн-оплаты система переведёт его на создание PIN.',
+          url: created.payment_session.payment_session_url,
+          expiresAt: created.payment_session.expires_at,
+        };
+      }
 
-      if (options.confirmCashImmediately && backendPaymentId) {
-        await confirmCashPayment(backendPaymentId, {
-          paid_amount: submission.payableAmount,
+      if (!submission.markAsPaid && options.confirmCashImmediately && backendClientId) {
+        const cashResult = await confirmClientCashPaymentWithActivation(backendClientId, {
+          amount: submission.payableAmount,
           comment: 'Оплата наличными внесена при выдаче доступа администратором',
         });
         cashConfirmedOnBackend = true;
+        createdActivation = {
+          mode: 'activation',
+          title: 'Клиент оплачен. Дайте ему отсканировать QR-код для создания PIN.',
+          description: 'После создания PIN клиент сможет входить в кабинет по телефону и PIN-коду.',
+          url: cashResult.activation_url,
+          qrCode: cashResult.qr_code,
+          expiresAt: cashResult.expires_at,
+        };
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Неизвестная ошибка';
@@ -294,10 +371,10 @@ export function AddStudentDialog({
     }
 
     const age = calculateAge(submission.birthDate);
-    const nextPaymentDate = new Date(paymentCreatedAt);
+    const effectivePeriodStart = submission.serviceStartDate ?? paymentCreatedAt;
+    const nextPaymentDate = new Date(effectivePeriodStart);
     nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-    const isCashFlow = submission.paymentMethod === 'cash';
-    const isPaidNow = options.confirmCashImmediately || cashConfirmedOnBackend;
+    const isPaidNow = submission.markAsPaid || options.confirmCashImmediately || cashConfirmedOnBackend;
 
     const student: AdminStudentViewModel = {
       id: `student-${Date.now()}`,
@@ -309,36 +386,40 @@ export function AddStudentDialog({
       parentName: submission.parentName,
       parentEmail: submission.parentEmail,
       parentPhone: submission.parentPhone,
-      status: isCashFlow && isPaidNow ? 'active' : 'inactive',
+      status: isPaidNow ? 'active' : 'inactive',
       attendedClasses: 0,
       totalClasses: submission.subscription.classes,
       missedClasses: 0,
-      startDate: paymentCreatedAt,
+      startDate: effectivePeriodStart,
       subscriptionName: submission.subscription.name,
       subscriptionClasses: submission.subscription.classes,
       remainingClasses: submission.subscription.classes,
-      lastPaymentDate: paymentCreatedAt,
+      lastPaymentDate: effectivePeriodStart,
       lastPaymentAmount: submission.payableAmount,
-      paymentStatus: isCashFlow && isPaidNow ? 'paid' : 'pending',
+      paymentStatus: isPaidNow ? 'paid' : 'pending',
       nextPaymentDate,
-      purchaseDate: paymentCreatedAt,
+      purchaseDate: effectivePeriodStart,
       notes: '',
     };
 
     onStudentCreated?.(student);
 
     if (savedViaBackend) {
-      if (submission.paymentMethod === 'cash') {
+      if (submission.markAsPaid) {
+        toast.success('Клиент добавлен в базу. Дальше нужно выдать ссылку или QR для создания PIN.');
+      } else if (submission.paymentMethod === 'cash') {
         if (isPaidNow) {
-          toast.success('Оплата внесена. Родителю сразу открыт полный доступ в кабинет');
+          toast.success('Оплата внесена. Покажите клиенту QR-код или ссылку для создания PIN.');
         } else {
-          toast.success('Ученик добавлен: доступ родителя откроется после подтверждения наличной оплаты');
+          toast.success('Ученик добавлен: после подтверждения наличной оплаты можно будет выдать QR для активации кабинета');
         }
       } else {
-        toast.success('Ученик добавлен: доступ родителя откроется автоматически после онлайн-оплаты');
+        toast.success('Ученик добавлен: отправьте клиенту ссылку на страницу оплаты');
       }
     } else {
-      if (submission.paymentMethod === 'cash' && isPaidNow) {
+      if (submission.markAsPaid) {
+        toast.success('Клиент добавлен в локальную базу как действующий с уже оплаченным периодом');
+      } else if (submission.paymentMethod === 'cash' && isPaidNow) {
         toast.success('Оплата внесена в демо-режиме, доступ считается открытым');
       } else {
         toast.success('Ученик добавлен в локальный демо-список');
@@ -347,7 +428,13 @@ export function AddStudentDialog({
 
     resetForm();
     setCashPaymentDialogOpen(false);
-    onClose();
+    if (createdActivation) {
+      setCompletionState(createdActivation);
+    } else if (createdPaymentSession) {
+      setCompletionState(createdPaymentSession);
+    } else {
+      onClose();
+    }
     setIsSubmitting(false);
   };
 
@@ -362,7 +449,7 @@ export function AddStudentDialog({
       return;
     }
 
-    if (submission.paymentMethod === 'cash') {
+    if (!submission.markAsPaid && submission.paymentMethod === 'cash') {
       setPendingSubmission(submission);
       setCashPaymentDialogOpen(true);
       return;
@@ -383,14 +470,87 @@ export function AddStudentDialog({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[#133C2A] text-2xl">
-            Добавить нового ученика
+            Добавить ученика в базу
           </DialogTitle>
           <DialogDescription>
-            Заполните информацию о новом ученике студии
+            Можно создать нового ученика или перенести действующего клиента студии с уже оплаченным текущим периодом
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          <div className="rounded-3xl border border-[#133C2A]/10 bg-[#FCFBF6] p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="existing-client"
+                checked={formData.existingClient}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    existingClient: checked === true,
+                    markCurrentPeriodPaid: checked === true,
+                    serviceStartDate: checked === true ? (formData.serviceStartDate ?? new Date()) : undefined,
+                  })
+                }
+              />
+              <div className="space-y-1">
+                <Label htmlFor="existing-client" className="cursor-pointer text-[#133C2A]">
+                  Это действующий клиент студии
+                </Label>
+                <p className="text-sm text-[#133C2A]/62">
+                  Используйте этот режим при переносе уже существующей базы в систему.
+                </p>
+              </div>
+            </div>
+
+            {formData.existingClient && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="mark-current-period-paid"
+                      checked={formData.markCurrentPeriodPaid}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          markCurrentPeriodPaid: checked === true,
+                        })
+                      }
+                    />
+                    <Label htmlFor="mark-current-period-paid" className="cursor-pointer text-[#133C2A]">
+                      Текущий период уже оплачен
+                    </Label>
+                  </div>
+                  <p className="text-sm text-[#133C2A]/62">
+                    Клиент будет создан сразу со статусом оплаты `Оплачено`.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[#133C2A]">Дата начала текущего периода</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left rounded-2xl border-[#133C2A]/20 hover:border-[#D4AF37]"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formatDate(formData.serviceStartDate)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.serviceStartDate}
+                        onSelect={(date) => setFormData({ ...formData, serviceStartDate: date })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ФИО */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-[#133C2A]">
@@ -646,9 +806,9 @@ export function AddStudentDialog({
           <Button
             onClick={handleProvideAccess}
             disabled={isSubmitting}
-            className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#1C8C64] text-white hover:opacity-90"
+            className="rounded-2xl"
           >
-            {isSubmitting ? 'Сохраняем...' : 'Предоставить доступ'}
+            {isSubmitting ? 'Сохраняем...' : formData.paymentMethod === 'cash' ? 'Оплата и доступ в кабинет' : 'Создать оплату'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -680,9 +840,83 @@ export function AddStudentDialog({
                 }
               }}
               disabled={isSubmitting || !pendingSubmission}
-              className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] text-white hover:opacity-90"
+              className="rounded-2xl"
             >
-              {isSubmitting ? 'Сохраняем...' : 'Оплата внесена'}
+              {isSubmitting ? 'Сохраняем...' : 'Оплата получена, создать QR'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(completionState)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCompletionState(null);
+            onClose();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#133C2A]">{completionState?.title}</DialogTitle>
+            <DialogDescription className="text-[#133C2A]/70">
+              {completionState?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          {completionState ? (
+            <div className="space-y-4">
+              {completionState.qrCode ? (
+                <div className="rounded-3xl border border-[#133C2A]/10 bg-[#FCFBF6] p-5 text-center">
+                  <img src={completionState.qrCode} alt="QR-код активации кабинета" className="mx-auto h-56 w-56 rounded-2xl border border-[#133C2A]/10 bg-white p-3" />
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-[#133C2A]/10 bg-[#FCFBF6] p-5">
+                  <div className="flex items-center gap-3 text-[#133C2A]">
+                    <QrCode className="h-5 w-5 text-[#D4AF37]" />
+                    <p className="text-sm">Используйте ссылку ниже, чтобы открыть нужный сценарий на телефоне клиента.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4">
+                <p className="text-xs text-[#133C2A]/55">Ссылка</p>
+                <p className="mt-1 break-all text-sm text-[#133C2A]">{completionState.url}</p>
+              </div>
+
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4">
+                <p className="text-xs text-[#133C2A]/55">Срок действия</p>
+                <p className="mt-1 text-sm text-[#133C2A]">{formatDateTime(completionState.expiresAt)}</p>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl border-[#133C2A]/15"
+              onClick={() => completionState && void copyToClipboard(completionState.url)}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Скопировать ссылку
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-2xl border-[#133C2A]/15"
+              onClick={() => completionState && window.open(completionState.url, '_blank', 'noopener,noreferrer')}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Открыть
+            </Button>
+            <Button
+              className="rounded-2xl"
+              onClick={() => {
+                setCompletionState(null);
+                onClose();
+              }}
+            >
+              Закрыть
             </Button>
           </DialogFooter>
         </DialogContent>

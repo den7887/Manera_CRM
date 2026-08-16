@@ -5,6 +5,7 @@ const eventLabels: Record<string, string> = {
   'payment.invoice_created': 'Счет создан',
   'payment.status_changed': 'Статус изменен',
   'payment.due_date_changed': 'Срок оплаты изменен',
+  'payment.method_changed': 'Способ оплаты изменен',
   'payment.confirmed_cash': 'Оплата подтверждена вручную',
   'payment.confirmed_online': 'Оплата подтверждена эквайрингом',
   'payment.failed_online': 'Онлайн-оплата не прошла',
@@ -22,6 +23,11 @@ function buildDescription(entry: MoneyJournalEntry): string {
   }
   if (entry.eventType === 'payment.due_date_changed' && typeof meta.dueDate === 'string') {
     return `Новый срок оплаты: ${new Date(meta.dueDate).toLocaleDateString('ru-RU')}`;
+  }
+  if (entry.eventType === 'payment.method_changed' && typeof meta.paymentMethod === 'string') {
+    const previous = meta.previousMethod === 'cash' ? 'наличные' : meta.previousMethod === 'online' ? 'онлайн' : meta.previousMethod;
+    const next = meta.paymentMethod === 'cash' ? 'наличные' : meta.paymentMethod === 'online' ? 'онлайн' : meta.paymentMethod;
+    return previous ? `${previous} → ${next}` : `Новый способ: ${next}`;
   }
   if (entry.eventType === 'payment.reminder_sent' && typeof meta.reminderCount === 'number') {
     return `Напоминание №${meta.reminderCount}`;

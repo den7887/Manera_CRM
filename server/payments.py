@@ -17,8 +17,25 @@ PAYMENT_STATUS_VALUES = {
 }
 
 SUBSCRIPTION_STATUS_VALUES = {"active", "expired", "cancelled"}
-PAYMENT_METHOD = "sbp_manual"
-PAYMENT_PROVIDER = "manual_sbp"
+DEFAULT_PAYMENT_METHOD = "sbp_manual"
+DEFAULT_PAYMENT_PROVIDER = "manual_sbp"
+ONLINE_PAYMENT_METHODS = {
+    "online",
+    "card",
+    "payment_link",
+    "sbp_online",
+    "internet_acquiring",
+    "acquiring",
+}
+ONLINE_PAYMENT_PROVIDERS = {
+    "internet_acquiring",
+    "mock_acquiring",
+    "stripe",
+    "yookassa",
+    "cloudpayments",
+    "tbank",
+    "selfwork",
+}
 
 PLAN_PRESETS = [
     {
@@ -55,6 +72,24 @@ def to_iso_with_offset(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat()
 
 
+def get_payment_method() -> str:
+    return os.getenv("PAYMENT_METHOD", DEFAULT_PAYMENT_METHOD).strip() or DEFAULT_PAYMENT_METHOD
+
+
+def get_payment_provider_name() -> str:
+    return os.getenv("PAYMENT_PROVIDER", DEFAULT_PAYMENT_PROVIDER).strip() or DEFAULT_PAYMENT_PROVIDER
+
+
+def is_online_payment_method(method: Any) -> bool:
+    return str(method or "").strip().lower() in ONLINE_PAYMENT_METHODS
+
+
+def requires_provider_confirmation(payment: dict[str, Any]) -> bool:
+    method = str(payment.get("method") or "").strip().lower()
+    provider = str(payment.get("provider") or "").strip().lower()
+    return method in ONLINE_PAYMENT_METHODS or provider in ONLINE_PAYMENT_PROVIDERS
+
+
 class PaymentProvider(Protocol):
     name: str
 
@@ -73,7 +108,7 @@ class PaymentProvider(Protocol):
 
 @dataclass
 class ManualSbpPaymentProvider:
-    name: str = PAYMENT_PROVIDER
+    name: str = DEFAULT_PAYMENT_PROVIDER
 
     def create_payment(self, payment: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
         del plan
@@ -186,6 +221,14 @@ class PaymentService:
         return None
 
     @staticmethod
+    def find_payment_by_id(store: dict[str, Any], payment_id: str) -> dict[str, Any] | None:
+        return next((item for item in store.get("payments", []) if str(item.get("id")) == payment_id), None)
+
+    @staticmethod
+    def _find_parent_user(store: dict[str, Any], parent_id: str) -> dict[str, Any] | None:
+        return next((item for item in store.get("users", []) if str(item.get("id")) == parent_id), None)
+
+    @staticmethod
     def _plan_total_lessons(plan_code: str) -> int | None:
         normalized = plan_code.strip().lower()
         if normalized == "hobby":
@@ -213,6 +256,74 @@ class PaymentService:
             for item in store.get("subscriptionPlans", [])
             if bool(item.get("is_active", False))
         ]
+
+    def _activate_payment(
+        self,
+        *,
+        store: dict[str, Any],
+        payment: dict[str, Any],
+        parent_user: dict[str, Any],
+        now: datetime,
+        now_iso: str,
+        confirmed_by: str,
+    ) -> dict[str, Any] | None:
+        parent_id = str(parent_user.get("id"))
+        payment["status"] = "paid"
+        payment["paid_at"] = now_iso
+        payment["updated_at"] = now_iso
+        payment["confirmed_by"] = confirmed_by
+        if confirmed_by == "provider":
+            payment["provider_confirmed_at"] = now_iso
+
+        existing_subscription = next(
+            (item for item in store.get("subscriptions", []) if str(item.get("payment_id")) == str(payment.get("id"))),
+            None,
+        )
+        created_subscription: dict[str, Any] | None = existing_subscription
+        plan = next(
+            (item for item in store.get("subscriptionPlans", []) if str(item.get("id")) == str(payment.get("subscription_plan_id"))),
+            None,
+        )
+        if plan is None:
+            raise LookupError("Subscription plan not found for payment")
+
+        already_active_same_plan = next(
+            (
+                item
+                for item in store.get("subscriptions", [])
+                if str(item.get("parent_id")) == parent_id
+                and str(item.get("subscription_plan_id")) == str(payment.get("subscription_plan_id"))
+                and str(item.get("status")) == "active"
+                and (str(item.get("child_id")) if item.get("child_id") else None)
+                == (str(payment.get("child_id")) if payment.get("child_id") else None)
+            ),
+            None,
+        )
+
+        if existing_subscription is None and already_active_same_plan is None:
+            expires_at = now + timedelta(days=int(plan.get("duration_days", 30)))
+            created_subscription = {
+                "id": new_id("sub"),
+                "parent_id": parent_id,
+                "child_id": payment.get("child_id"),
+                "subscription_plan_id": payment.get("subscription_plan_id"),
+                "payment_id": payment["id"],
+                "status": "active",
+                "starts_at": now_iso,
+                "expires_at": to_iso_with_offset(expires_at),
+                "total_lessons": self._plan_total_lessons(str(plan.get("code", ""))),
+                "used_lessons": 0,
+                "created_at": now_iso,
+                "updated_at": now_iso,
+            }
+            store.setdefault("subscriptions", []).insert(0, created_subscription)
+        elif existing_subscription is None:
+            created_subscription = already_active_same_plan
+
+        parent_user["access_level"] = "full"
+        parent_user["account_status"] = "active"
+        parent_user["updated_at"] = now_iso
+        return created_subscription
 
     def create_payment(
         self,
@@ -246,14 +357,15 @@ class PaymentService:
             "subscription_plan_id": str(plan.get("id")),
             "amount": float(plan.get("price", 0)),
             "status": "pending",
-            "method": PAYMENT_METHOD,
-            "provider": self.provider.name,
+            "method": get_payment_method(),
+            "provider": get_payment_provider_name(),
             "payment_reference": reference,
             "payment_comment": f"Манера / {reference}",
             "payment_url": None,
             "qr_payload": None,
             "user_confirmed_at": None,
             "provider_confirmed_at": None,
+            "provider_payment_id": None,
             "paid_at": None,
             "confirmed_by": None,
             "created_at": now_iso,
@@ -287,7 +399,7 @@ class PaymentService:
         payment_id: str,
     ) -> dict[str, Any]:
         parent_id = str(parent_user.get("id"))
-        payment = next((item for item in store.get("payments", []) if str(item.get("id")) == payment_id), None)
+        payment = self.find_payment_by_id(store, payment_id)
         if payment is None:
             raise LookupError("Payment not found")
         if str(payment.get("parent_id")) != parent_id:
@@ -303,6 +415,9 @@ class PaymentService:
 
         if current_status not in {"pending", "waiting_confirmation"}:
             raise ValueError("Payment cannot be confirmed in current status")
+
+        if requires_provider_confirmation(payment):
+            raise ValueError("Online payment is confirmed automatically by the payment provider")
 
         now = datetime.now(timezone.utc)
         now_iso = to_iso_with_offset(now)
@@ -320,56 +435,98 @@ class PaymentService:
 
         created_subscription: dict[str, Any] | None = existing_subscription
         if auto_activate:
-            payment["status"] = "paid"
-            payment["paid_at"] = now_iso
-
-            plan = next(
-                (item for item in store.get("subscriptionPlans", []) if str(item.get("id")) == str(payment.get("subscription_plan_id"))),
-                None,
+            created_subscription = self._activate_payment(
+                store=store,
+                payment=payment,
+                parent_user=parent_user,
+                now=now,
+                now_iso=now_iso,
+                confirmed_by="user",
             )
-            if plan is None:
-                raise LookupError("Subscription plan not found for payment")
-
-            already_active_same_plan = next(
-                (
-                    item
-                    for item in store.get("subscriptions", [])
-                    if str(item.get("parent_id")) == parent_id
-                    and str(item.get("subscription_plan_id")) == str(payment.get("subscription_plan_id"))
-                    and str(item.get("status")) == "active"
-                    and (str(item.get("child_id")) if item.get("child_id") else None)
-                    == (str(payment.get("child_id")) if payment.get("child_id") else None)
-                ),
-                None,
-            )
-
-            if existing_subscription is None and already_active_same_plan is None:
-                expires_at = now + timedelta(days=int(plan.get("duration_days", 30)))
-                created_subscription = {
-                    "id": new_id("sub"),
-                    "parent_id": parent_id,
-                    "child_id": payment.get("child_id"),
-                    "subscription_plan_id": payment.get("subscription_plan_id"),
-                    "payment_id": payment["id"],
-                    "status": "active",
-                    "starts_at": now_iso,
-                    "expires_at": to_iso_with_offset(expires_at),
-                    "total_lessons": self._plan_total_lessons(str(plan.get("code", ""))),
-                    "used_lessons": 0,
-                    "created_at": now_iso,
-                    "updated_at": now_iso,
-                }
-                store.setdefault("subscriptions", []).insert(0, created_subscription)
-            elif existing_subscription is None:
-                created_subscription = already_active_same_plan
-
-            parent_user["access_level"] = "full"
-            parent_user["account_status"] = "active"
-            parent_user["updated_at"] = now_iso
         else:
             payment["status"] = "waiting_confirmation"
 
         return {"payment": payment, "subscription": created_subscription}
+
+    def register_provider_payment(
+        self,
+        *,
+        store: dict[str, Any],
+        payment_id: str,
+        payment_url: str | None,
+        provider_payment_id: str | None,
+        provider_name: str | None = None,
+    ) -> dict[str, Any]:
+        payment = self.find_payment_by_id(store, payment_id)
+        if payment is None:
+            raise LookupError("Payment not found")
+        payment["method"] = "online"
+        payment["provider"] = provider_name or payment.get("provider") or get_payment_provider_name()
+        payment["payment_url"] = payment_url or payment.get("payment_url")
+        payment["qr_payload"] = None
+        if provider_payment_id:
+            payment["provider_payment_id"] = provider_payment_id
+        payment["updated_at"] = utc_now_iso()
+        return payment
+
+    def confirm_provider_paid(
+        self,
+        *,
+        store: dict[str, Any],
+        payment_id: str,
+        provider_payment_id: str | None = None,
+    ) -> dict[str, Any]:
+        payment = self.find_payment_by_id(store, payment_id)
+        if payment is None:
+            raise LookupError("Payment not found")
+        current_status = str(payment.get("status", "pending"))
+        parent_user = self._find_parent_user(store, str(payment.get("parent_id") or ""))
+        if parent_user is None:
+            raise LookupError("Parent user not found for payment")
+        if current_status == "paid":
+            existing_subscription = next(
+                (item for item in store.get("subscriptions", []) if str(item.get("payment_id")) == payment_id),
+                None,
+            )
+            return {"payment": payment, "subscription": existing_subscription, "parent_user": parent_user, "idempotent": True}
+        if current_status in {"cancelled", "expired"}:
+            raise ValueError("Payment cannot be marked as paid in current status")
+
+        now = datetime.now(timezone.utc)
+        now_iso = to_iso_with_offset(now)
+        if provider_payment_id:
+            payment["provider_payment_id"] = provider_payment_id
+        created_subscription = self._activate_payment(
+            store=store,
+            payment=payment,
+            parent_user=parent_user,
+            now=now,
+            now_iso=now_iso,
+            confirmed_by="provider",
+        )
+        return {"payment": payment, "subscription": created_subscription, "parent_user": parent_user}
+
+    def confirm_provider_failed(
+        self,
+        *,
+        store: dict[str, Any],
+        payment_id: str,
+        provider_payment_id: str | None = None,
+    ) -> dict[str, Any]:
+        payment = self.find_payment_by_id(store, payment_id)
+        if payment is None:
+            raise LookupError("Payment not found")
+        current_status = str(payment.get("status", "pending"))
+        if current_status == "paid":
+            raise ValueError("Paid payment cannot be marked as failed")
+        parent_user = self._find_parent_user(store, str(payment.get("parent_id") or ""))
+        now_iso = utc_now_iso()
+        payment["status"] = "failed"
+        payment["updated_at"] = now_iso
+        payment["confirmed_by"] = "provider"
+        if provider_payment_id:
+            payment["provider_payment_id"] = provider_payment_id
+        return {"payment": payment, "parent_user": parent_user}
 
     def parent_payments(self, *, store: dict[str, Any], parent_user: dict[str, Any]) -> list[dict[str, Any]]:
         parent_id = str(parent_user.get("id"))

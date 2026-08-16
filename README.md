@@ -22,54 +22,13 @@
 3. Запустите сервер:
    `uvicorn main:app --reload --host 0.0.0.0 --port 8000`
 
-## Тестовый вход
+## Вход
 
-- Демо OTP-коды:
-  - `111111` → parent
-  - `444444` → owner
+- Основной вход клиента и владельца: телефон + 6-значный PIN.
+- Старый OTP-вход в рабочем проекте отключен.
 - Вход для `teacher` и `admin` отключен на backend.
-- Можно включить единый тест-код через переменные окружения backend:
-  - `TEST_MODE=true`
-  - `TEST_OTP=400001`
-
-## Реальный OTP через Notificore (2FA)
-
-Для включения реальной отправки и проверки OTP через Notificore:
-
-- Отключите тестовый режим:
-  - `TEST_MODE=false`
-- Включите интеграцию Notificore:
-  - `NOTIFICORE_OTP_ENABLED=true`
-- Укажите ключ API и параметры 2FA:
-  - `NOTIFICORE_API_KEY=live_xxx`
-  - `NOTIFICORE_TEMPLATE_ID=123`
-  - `NOTIFICORE_SENDER=SENDER`
-
-Дополнительные (необязательно):
-
-- `NOTIFICORE_ONE_API_URL=http://one-api.notificore.ru`
-- `NOTIFICORE_CHANNEL=SMS`
-- `NOTIFICORE_SENDER_ALT=SENDERALT` (fallback sender для Viber-сценариев)
-- `NOTIFICORE_CODE_DIGITS=6`
-- `NOTIFICORE_CODE_LIFETIME_SEC=300`
-- `NOTIFICORE_CODE_MAX_TRIES=3`
-- (опционально для frontend) `VITE_OTP_LENGTH=6`
 
 Шаблон переменных: `server/.env.example`
-
-Примечание:
-
-- При `NOTIFICORE_OTP_ENABLED=true` backend использует:
-  - `POST /api/auth/login` (получение bearer),
-  - `POST /api/2fa/authentications/otp` (отправка OTP),
-  - `POST /api/2fa/authentications/otp/{id}/verify` (проверка OTP).
-
-Быстрый запуск одной командой (PowerShell):
-
-```powershell
-cd server
-.\run_notificore_otp.ps1 -ApiKey "live_xxx" -TemplateId "123" -Sender "SENDER"
-```
 
 ## Новый контур оплат и доступа (MVP)
 
@@ -91,6 +50,34 @@ cd server
 - `GET /api/payments/journal` — журнал оплат (admin/owner).
 - `GET /api/parent/access` — проверка уровня доступа родителя.
 - `GET /api/payments/my` — оплаты текущего родителя.
+
+## Selfwork эквайринг
+
+Текущий online flow теперь умеет работать через Selfwork.
+
+Нужные backend-переменные:
+
+- `PAYMENT_METHOD=online`
+- `PAYMENT_PROVIDER=selfwork`
+- `SELFWORK_API_KEY=...`
+- `SELFWORK_MERCHANT_ID=0209088`
+- `SELFWORK_INIT_URL=https://pro.selfwork.ru/merchant/v1/init`
+- `SELFWORK_STATUS_URL=https://pro.selfwork.ru/merchant/v1/status`
+
+Как это работает:
+
+- backend создаёт локальный relay URL;
+- parent UI переводит пользователя на локальную form-page;
+- form-page отправляет серверный `POST` в hosted payment page Selfwork;
+- после возврата в приложение frontend вызывает `POST /api/payments/provider/status-sync`;
+- backend проверяет итоговый статус в Selfwork `status` и подтверждает оплату в CRM.
+
+Важно:
+
+- секретный ключ должен храниться только в env;
+- redirect URL в кабинете Selfwork должен вести обратно в приложение, например:
+  - `https://maneradancestudio.ru/?payment=success`
+  - `https://maneradancestudio.ru/?payment=fail`
 
 ## Временный MVP оплат через СБП
 

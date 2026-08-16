@@ -67,7 +67,7 @@ const adminPrimaryMenu: SidebarItem[] = [
 const adminSecondaryMenu: SidebarItem[] = [
   { id: 'groups', label: 'Группы', icon: GraduationCap, group: 'Справочники' },
   { id: 'attendance-management', label: 'Посещаемость', icon: ClipboardCheck, group: 'Справочники' },
-  { id: 'pricing', label: 'Абонементы', icon: Tag, group: 'Справочники' },
+  { id: 'pricing', label: 'Прайс', icon: Tag, group: 'Справочники' },
   { id: 'events-management', label: 'Новости и события', icon: Sparkles, group: 'Работа' },
   { id: 'documents-management', label: 'Документы', icon: FileText, group: 'Работа' },
   { id: 'tasks-management', label: 'Задачи', icon: CheckSquare, group: 'Команда' },
@@ -88,7 +88,7 @@ const ownerSecondaryMenu: SidebarItem[] = [
   { id: 'tasks', label: 'Задачи', icon: CheckSquare, group: 'Работа' },
   { id: 'communication', label: 'Сообщения', icon: MessageSquare, group: 'Работа' },
   { id: 'documents', label: 'Документы', icon: FileText, group: 'Контроль' },
-  { id: 'pricing', label: 'Абонементы', icon: Tag, group: 'Контроль' },
+  { id: 'pricing', label: 'Прайс', icon: Tag, group: 'Контроль' },
   { id: 'content', label: 'Новости и события', icon: Sparkles, group: 'Настройка' },
   { id: 'automations', label: 'Автодействия', icon: CheckSquare, group: 'Настройка' },
   { id: 'landing-settings', label: 'Сайт', icon: Globe, group: 'Настройка' },

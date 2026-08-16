@@ -19,20 +19,32 @@ import {
 const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
 const runtimeApiBaseUrl =
   typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        : window.location.origin)
     : 'http://localhost:8000';
 const API_BASE_URL = configuredApiBaseUrl || runtimeApiBaseUrl;
-const TOKEN_STORAGE_KEY = 'manera_crm_token';
 const ROLE_STORAGE_KEY = 'manera_crm_role';
+const CSRF_COOKIE_KEY = 'manera_crm_csrf';
+const CSRF_HEADER_KEY = 'X-CSRF-Token';
+const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 type RequestOptions = RequestInit & { skipAuth?: boolean };
 
 interface AuthVerifyResponse {
-  access_token: string;
   role: UserRole;
   access_level?: 'payment_only' | 'full';
   account_status?: 'invited' | 'payment_pending' | 'active' | 'suspended';
 }
+
+export type PortalStatus =
+  | 'not_created'
+  | 'awaiting_payment'
+  | 'paid_cash_waiting_activation'
+  | 'paid_online_waiting_activation'
+  | 'activation_link_created'
+  | 'activated'
+  | 'blocked';
 
 export interface AdminCreateClientInput {
   parent_full_name: string;
@@ -44,12 +56,19 @@ export interface AdminCreateClientInput {
   payment_method: 'cash' | 'online';
   group_id?: string | null;
   notes?: string;
+  mark_as_paid?: boolean;
+  service_start_date?: string | null;
 }
 
 export interface ParentAccessInfo {
   parentUserId: string;
   accessLevel: 'payment_only' | 'full';
   accountStatus: 'invited' | 'payment_pending' | 'active' | 'suspended';
+  portalStatus?: PortalStatus;
+  portalActivatedAt?: string | null;
+  portalBlockedAt?: string | null;
+  lastLoginAt?: string | null;
+  pinStatus?: 'not_set' | 'set' | 'locked' | 'disabled';
   canUseDashboard: boolean;
   pendingPaymentsCount: number;
   pendingPayments: any[];
@@ -58,6 +77,59 @@ export interface ParentAccessInfo {
 export interface BackendUser extends User {
   accessLevel?: 'payment_only' | 'full';
   accountStatus?: 'invited' | 'payment_pending' | 'active' | 'suspended';
+  portalStatus?: PortalStatus;
+  portalActivatedAt?: string | null;
+  portalBlockedAt?: string | null;
+  lastLoginAt?: string | null;
+}
+
+export interface ActivationInfoResponse {
+  valid: boolean;
+  message?: string;
+  phone_masked?: string;
+  user_name?: string;
+  purpose?: 'initial_activation' | 'reset_pin' | 'after_cash_payment' | 'after_online_payment';
+  payment_status?: string;
+  expires_at?: string;
+}
+
+export interface ActivationActionResponse {
+  success?: boolean;
+  message?: string;
+  user: {
+    id: string;
+    role: UserRole;
+    full_name: string;
+  };
+}
+
+export interface ActivationLinkResponse {
+  activation_url: string;
+  qr_code: string;
+  expires_at: string;
+}
+
+export interface PublicPaymentStartResponse {
+  payment_session_url: string;
+  payment_id: string;
+  expires_at: string;
+}
+
+export interface PublicPaymentSessionResponse {
+  valid: boolean;
+  message?: string;
+  amount?: number;
+  service_name?: string;
+  payment_status?: string;
+  phone_masked?: string;
+  payment_url?: string;
+  expires_at?: string;
+}
+
+export interface PublicPaymentSuccessResponse {
+  status: 'paid' | 'pending' | 'failed' | 'invalid';
+  message?: string;
+  activation_url?: string;
 }
 
 export interface SubscriptionPlanDto {
@@ -118,6 +190,11 @@ export interface AdminClientRecord {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
+  portalStatus?: PortalStatus;
+  portalActivatedAt?: string | null;
+  portalBlockedAt?: string | null;
+  parentLastLoginAt?: string | null;
+  pinStatus?: 'not_set' | 'set' | 'locked' | 'disabled';
   payment?: any;
 }
 
@@ -133,6 +210,10 @@ export interface AdminChildRecord {
   parentPhone?: string | null;
   parentAccessLevel?: 'payment_only' | 'full' | null;
   parentAccountStatus?: 'invited' | 'payment_pending' | 'active' | 'suspended' | null;
+  parentPortalStatus?: PortalStatus | null;
+  parentPortalActivatedAt?: string | null;
+  parentPortalBlockedAt?: string | null;
+  parentLastLoginAt?: string | null;
   clientId?: string | null;
   subscriptionName?: string | null;
   subscriptionCode?: string | null;
@@ -179,6 +260,27 @@ export interface AdminChildRecord {
   } | null;
 }
 
+export interface AdminLandingLeadRecord {
+  id: string;
+  parentFullName?: string | null;
+  phone?: string | null;
+  childFullName?: string | null;
+  childBirthDate?: string | null;
+  medicalRestrictions?: string | null;
+  previousActivities?: string | null;
+  discoverySource?: string | null;
+  preferredSchedule?: string | null;
+  comment?: string | null;
+  consent?: boolean;
+  status?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  parentUserId?: string | null;
+  parentName?: string | null;
+  parentAccessLevel?: 'payment_only' | 'full' | null;
+  parentAccountStatus?: 'invited' | 'payment_pending' | 'active' | 'suspended' | null;
+}
+
 export interface AdminPaymentRecord {
   id: string;
   clientId: string;
@@ -195,6 +297,7 @@ export interface AdminPaymentRecord {
   paidAt?: string | null;
   invoiceNumber?: string | null;
   dueDate?: string | null;
+  serviceStartDate?: string | null;
   reminderCount?: number;
   lastReminderAt?: string | null;
   nextReminderAt?: string | null;
@@ -294,8 +397,13 @@ export interface CommunicationMessageRecord {
   createdAt: Date;
 }
 
-function readStoredToken(): string | null {
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return match ? decodeURIComponent(match[1] || '') : null;
 }
 
 function toDate(value: unknown): Date {
@@ -317,19 +425,23 @@ function toOptionalDate(value: unknown): Date | undefined {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { skipAuth = false, headers, ...rest } = options;
-  const token = readStoredToken();
+  const method = String(rest.method || 'GET').toUpperCase();
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(headers as Record<string, string> | undefined),
   };
 
-  if (!skipAuth && token) {
-    requestHeaders.Authorization = `Bearer ${token}`;
+  if (!SAFE_HTTP_METHODS.has(method)) {
+    const csrfToken = readCookie(CSRF_COOKIE_KEY) || await ensureCsrfToken();
+    if (csrfToken) {
+      requestHeaders[CSRF_HEADER_KEY] = csrfToken;
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
+    credentials: 'include',
     headers: requestHeaders,
   });
 
@@ -376,6 +488,10 @@ function mapUser(user: any): BackendUser {
     avatar: user.avatar || undefined,
     accessLevel: user.access_level || user.accessLevel || undefined,
     accountStatus: user.account_status || user.accountStatus || undefined,
+    portalStatus: user.portal_status || user.portalStatus || undefined,
+    portalActivatedAt: user.portal_activated_at || user.portalActivatedAt || null,
+    portalBlockedAt: user.portal_blocked_at || user.portalBlockedAt || null,
+    lastLoginAt: user.last_login_at || user.lastLoginAt || null,
   };
 }
 
@@ -545,16 +661,39 @@ export function getStoredRole(): UserRole | null {
 }
 
 export function clearAuth(): void {
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(ROLE_STORAGE_KEY);
 }
 
-export async function startOtp(phone: string): Promise<void> {
-  await request('/api/auth/otp/start', {
-    method: 'POST',
-    body: JSON.stringify({ phone }),
-    skipAuth: true,
-  });
+function storeAuthRole(data: AuthVerifyResponse) {
+  const role = normalizeRole(data.role);
+  window.localStorage.setItem(ROLE_STORAGE_KEY, role);
+  return role;
+}
+
+let csrfBootstrapPromise: Promise<string | null> | null = null;
+
+async function ensureCsrfToken(): Promise<string | null> {
+  const existingToken = readCookie(CSRF_COOKIE_KEY);
+  if (existingToken) {
+    return existingToken;
+  }
+  if (!csrfBootstrapPromise) {
+    csrfBootstrapPromise = fetch(`${API_BASE_URL}/api/auth/csrf`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+        const payload = (await response.json().catch(() => null)) as { csrf_token?: string } | null;
+        return readCookie(CSRF_COOKIE_KEY) || payload?.csrf_token || null;
+      })
+      .finally(() => {
+        csrfBootstrapPromise = null;
+      });
+  }
+  return csrfBootstrapPromise;
 }
 
 export async function createLandingLead(payload: {
@@ -568,6 +707,16 @@ export async function createLandingLead(payload: {
   preferred_schedule?: string;
   comment?: string;
   consent: boolean;
+  website?: string;
+  session_id?: string;
+  source?: {
+    src?: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    utm_content?: string;
+    utm_term?: string;
+  };
 }): Promise<{ ok: boolean; lead: any }> {
   return request('/api/landing/leads', {
     method: 'POST',
@@ -576,17 +725,28 @@ export async function createLandingLead(payload: {
   });
 }
 
-export async function verifyOtp(phone: string, code: string): Promise<UserRole> {
-  const data = await request<AuthVerifyResponse>('/api/auth/otp/verify', {
+export async function loginWithPin(phone: string, pin: string): Promise<UserRole> {
+  const data = await request<AuthVerifyResponse>('/api/auth/login-pin', {
     method: 'POST',
-    body: JSON.stringify({ phone, code }),
+    body: JSON.stringify({ phone, pin }),
     skipAuth: true,
   });
+  return storeAuthRole(data);
+}
 
-  const role = normalizeRole(data.role);
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
-  window.localStorage.setItem(ROLE_STORAGE_KEY, role);
-  return role;
+export async function loadActivationInfo(token: string): Promise<ActivationInfoResponse> {
+  return request<ActivationInfoResponse>(`/api/auth/activation/${encodeURIComponent(token)}`, {
+    skipAuth: true,
+  });
+}
+
+export async function setActivationPin(token: string, pin: string, pinRepeat: string): Promise<UserRole> {
+  const data = await request<AuthVerifyResponse>(`/api/auth/activation/${encodeURIComponent(token)}/set-pin`, {
+    method: 'POST',
+    body: JSON.stringify({ pin, pin_repeat: pinRepeat }),
+    skipAuth: true,
+  });
+  return storeAuthRole(data);
 }
 
 export async function logout(): Promise<void> {
@@ -880,6 +1040,58 @@ export async function createClientByAdmin(payload: AdminCreateClientInput): Prom
   });
 }
 
+export async function createClientActivationLink(
+  clientId: string,
+  payload: { purpose: 'initial_activation' | 'reset_pin' | 'after_cash_payment' | 'after_online_payment' },
+): Promise<ActivationLinkResponse> {
+  return request(`/api/admin/clients/${clientId}/activation-link`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetClientPin(clientId: string): Promise<ActivationLinkResponse> {
+  return request(`/api/admin/clients/${clientId}/reset-pin`, {
+    method: 'POST',
+  });
+}
+
+export async function suspendClientPortal(clientId: string): Promise<{
+  ok: boolean;
+  portal_status: PortalStatus;
+  portal_activated_at?: string | null;
+  portal_blocked_at?: string | null;
+  account_status?: string;
+  access_level?: string;
+}> {
+  return request(`/api/admin/clients/${clientId}/suspend-portal`, {
+    method: 'POST',
+  });
+}
+
+export async function resumeClientPortal(clientId: string): Promise<{
+  ok: boolean;
+  portal_status: PortalStatus;
+  portal_activated_at?: string | null;
+  portal_blocked_at?: string | null;
+  account_status?: string;
+  access_level?: string;
+}> {
+  return request(`/api/admin/clients/${clientId}/resume-portal`, {
+    method: 'POST',
+  });
+}
+
+export async function confirmClientCashPaymentWithActivation(
+  clientId: string,
+  payload: { amount?: number; service_type?: string; abonement_id?: string; comment?: string } = {},
+): Promise<ActivationLinkResponse & { payment: AdminPaymentRecord }> {
+  return request(`/api/admin/clients/${clientId}/cash-payment`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function loadAdminPayments(
   statusFilter?: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'overdue' | 'cancelled' | 'expired',
   methodFilter?: 'cash' | 'online',
@@ -912,6 +1124,10 @@ export async function loadAdminChildren(params?: {
   }
   const suffix = query.toString();
   return request<AdminChildRecord[]>(`/api/admin/children${suffix ? `?${suffix}` : ''}`);
+}
+
+export async function loadAdminLandingLeads(): Promise<AdminLandingLeadRecord[]> {
+  return request<AdminLandingLeadRecord[]>('/api/admin/landing-leads');
 }
 
 export async function loadAdminChild(childId: string): Promise<AdminChildRecord> {
@@ -961,6 +1177,21 @@ export async function confirmCashPayment(
   });
 }
 
+export async function changeAdminPaymentMethod(
+  paymentId: string,
+  payload: {
+    payment_method: 'cash' | 'online';
+    confirm_cash_immediately?: boolean;
+    comment?: string;
+    paid_amount?: number;
+  },
+): Promise<{ ok: boolean; payment: AdminPaymentRecord; idempotent?: boolean }> {
+  return request(`/api/admin/payments/${paymentId}/change-method`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function sendProviderPaymentWebhook(payload: {
   payment_id: string;
   status: 'paid' | 'failed';
@@ -985,20 +1216,85 @@ export async function createProviderPayment(payload: {
   });
 }
 
+export async function syncProviderPaymentStatus(payload: {
+  payment_id: string;
+}): Promise<{
+  ok: boolean;
+  payment_id: string;
+  provider_payment_id?: string;
+  provider_status: string;
+  synced: boolean;
+  result?: any;
+  raw?: any;
+}> {
+  return request('/api/payments/provider/status-sync', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function startPublicPaymentSession(payload: {
+  phone: string;
+  product_id?: string;
+  child_name?: string;
+  parent_name?: string;
+}): Promise<PublicPaymentStartResponse> {
+  return request('/api/public/payment/start', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    skipAuth: true,
+  });
+}
+
+export async function loadPublicPaymentSession(token: string): Promise<PublicPaymentSessionResponse> {
+  return request(`/api/public/payment/session/${encodeURIComponent(token)}`, {
+    skipAuth: true,
+  });
+}
+
+export async function createPublicPaymentProvider(token: string): Promise<{ ok: boolean; payment_url?: string; status?: string }> {
+  return request(`/api/public/payment/session/${encodeURIComponent(token)}/provider`, {
+    method: 'POST',
+    skipAuth: true,
+  });
+}
+
+export async function loadPublicPaymentSuccess(token: string): Promise<PublicPaymentSuccessResponse> {
+  return request(`/api/public/payment/success/${encodeURIComponent(token)}`, {
+    skipAuth: true,
+  });
+}
+
 export async function loadPaymentJournal(): Promise<any[]> {
   return request('/api/payments/journal');
 }
 
 export async function createAdminInvoice(payload: {
-  client_id: string;
+  client_id?: string;
+  parent_user_id?: string;
+  parent_phone?: string;
+  parent_full_name?: string;
+  child_full_name?: string;
+  subscription_name?: string;
   amount?: number;
   payment_method: 'cash' | 'online';
   due_date?: string;
+  starts_at?: string;
   comment?: string;
 }): Promise<{ ok: boolean; payment: AdminPaymentRecord }> {
   return request('/api/admin/payments/invoices', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function startPinActivationByPhone(payload: {
+  phone: string;
+}): Promise<{ activation_url: string; expires_at: string }> {
+  return request('/api/auth/start-pin-activation', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    skipAuth: true,
   });
 }
 
@@ -1226,6 +1522,20 @@ export async function updateOwnerLandingSettings(payload: {
 
 export async function loadOwnerPricing(): Promise<OwnerPricingPlanDto[]> {
   return request<OwnerPricingPlanDto[]>('/api/owner/pricing');
+}
+
+export async function createOwnerPricingPlan(payload: {
+  title: string;
+  price: number;
+  classes_count?: number | null;
+  classes_tracked: boolean;
+  duration_days: number;
+  is_active: boolean;
+}): Promise<OwnerPricingPlanDto> {
+  return request<OwnerPricingPlanDto>('/api/owner/pricing', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function updateOwnerPricingPlan(

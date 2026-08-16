@@ -10,9 +10,11 @@ interface ParentNotificationsProps {
   notifications: Notification[];
   onMarkRead: (id: string) => Promise<void> | void;
   onMarkAllRead: () => Promise<void> | void;
+  onOpenPayments: () => void;
+  onPayOnline: (paymentId: string) => Promise<void>;
 }
 
-export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }: ParentNotificationsProps) {
+export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead, onOpenPayments, onPayOnline }: ParentNotificationsProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const parentNotifications = useMemo(
     () => notifications.filter((item) => item.forRoles.includes('parent')),
@@ -32,6 +34,20 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
     high: 'border-[#D14343]/30 bg-[#D14343]/8 text-[#D14343]',
     medium: 'border-[#D4AF37]/35 bg-[#D4AF37]/10 text-[#B8941F]',
     low: 'border-[#133C2A]/20 bg-[#133C2A]/8 text-[#133C2A]',
+  };
+
+  const handleOpenPayments = async (notification: Notification) => {
+    if (!notification.read) {
+      await onMarkRead(notification.id);
+    }
+    onOpenPayments();
+  };
+
+  const handlePayOnline = async (notification: Notification, paymentId: string) => {
+    if (!notification.read) {
+      await onMarkRead(notification.id);
+    }
+    await onPayOnline(paymentId);
   };
 
   return (
@@ -66,10 +82,20 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
         <div className="space-y-2">
           {filtered.map((item) => {
             const Icon = iconByType[item.type] || Bell;
+            const paymentId = String(item.metadata?.paymentId || '');
+            const paymentMethod = String(item.metadata?.paymentMethod || '').toLowerCase();
+            const paymentStatus = String(item.metadata?.status || '').toLowerCase();
+            const canPayOnline =
+              item.type === 'payment' &&
+              Boolean(paymentId) &&
+              paymentMethod === 'online' &&
+              ['pending', 'unpaid', 'overdue', 'failed'].includes(paymentStatus);
+            const canOpenPayments =
+              item.type === 'payment' &&
+              (paymentMethod === 'cash' || paymentStatus === 'waiting_confirmation' || !canPayOnline);
             return (
-              <button
+              <div
                 key={item.id}
-                onClick={() => void onMarkRead(item.id)}
                 className={`w-full text-left rounded-xl border p-3 bg-white hover:bg-[#133C2A]/[0.03] transition ${
                   item.read ? 'border-[#133C2A]/10' : 'border-[#D4AF37]/35'
                 }`}
@@ -93,9 +119,40 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead }
                       </Badge>
                       {!item.read && <Badge className="rounded-full bg-[#D4AF37] text-white">Новое</Badge>}
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {!item.read ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl border-[#133C2A]/20"
+                          onClick={() => void onMarkRead(item.id)}
+                        >
+                          Прочитать
+                        </Button>
+                      ) : null}
+                      {canPayOnline ? (
+                        <Button
+                          size="sm"
+                          className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+                          onClick={() => void handlePayOnline(item, paymentId)}
+                        >
+                          Оплатить
+                        </Button>
+                      ) : null}
+                      {canOpenPayments ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl border-[#133C2A]/20"
+                          onClick={() => void handleOpenPayments(item)}
+                        >
+                          Открыть оплаты
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

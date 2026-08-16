@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Copy, Edit, Plus, RefreshCw, Search, Shuffle, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { Calendar, Copy, Edit, Plus, RefreshCw, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Group } from '../../types';
 import {
   AdminChildRecord,
+  assignAdminChildGroup,
   createOwnerGroup,
   deleteOwnerGroup,
   loadAdminChildren,
-  loadOwnerEmployees,
   loadOwnerGroups,
   updateOwnerGroup,
 } from '../../lib/backendApi';
@@ -17,82 +17,162 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Progress } from '../ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Switch } from '../ui/switch';
 
 const initialForm = {
   name: '',
   ageRange: '',
-  teacherId: '',
-  teacherName: '',
-  schedule: '',
-  time: '',
+  scheduleDays: [] as string[],
+  startTime: '',
+  endTime: '',
   color: '#133C2A',
-  maxCapacity: '12',
 };
 
-type OccupancyFilter = 'all' | 'needs_students' | 'balanced' | 'full' | 'overflow';
-type SortBy = 'name' | 'occupancy_desc' | 'occupancy_asc' | 'students_desc';
+type SortBy = 'name' | 'students_desc';
+type WeekdayId = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-interface TeacherReplacement {
-  id: string;
-  groupId: string;
-  groupName: string;
-  previousTeacherId: string;
-  previousTeacherName: string;
-  replacementTeacherId: string;
-  replacementTeacherName: string;
-  reason: string;
-  startsAt: string;
-  endsAt?: string | null;
-  status: 'active' | 'completed';
-  createdAt: string;
+const weekDays: Array<{ id: WeekdayId; label: string }> = [
+  { id: 'monday', label: 'Пн' },
+  { id: 'tuesday', label: 'Вт' },
+  { id: 'wednesday', label: 'Ср' },
+  { id: 'thursday', label: 'Чт' },
+  { id: 'friday', label: 'Пт' },
+  { id: 'saturday', label: 'Сб' },
+  { id: 'sunday', label: 'Вс' },
+];
+
+const weekdayMap = new Map<string, string>([
+  ['пн', 'Пн'],
+  ['понедельник', 'Пн'],
+  ['mon', 'Пн'],
+  ['monday', 'Пн'],
+  ['вт', 'Вт'],
+  ['вторник', 'Вт'],
+  ['tue', 'Вт'],
+  ['tues', 'Вт'],
+  ['tuesday', 'Вт'],
+  ['ср', 'Ср'],
+  ['среда', 'Ср'],
+  ['wed', 'Ср'],
+  ['wednesday', 'Ср'],
+  ['чт', 'Чт'],
+  ['четверг', 'Чт'],
+  ['thu', 'Чт'],
+  ['thur', 'Чт'],
+  ['thurs', 'Чт'],
+  ['thursday', 'Чт'],
+  ['пт', 'Пт'],
+  ['пятница', 'Пт'],
+  ['fri', 'Пт'],
+  ['friday', 'Пт'],
+  ['сб', 'Сб'],
+  ['суббота', 'Сб'],
+  ['sat', 'Сб'],
+  ['saturday', 'Сб'],
+  ['вс', 'Вс'],
+  ['воскресенье', 'Вс'],
+  ['sun', 'Вс'],
+  ['sunday', 'Вс'],
+]);
+
+function formatSchedule(value?: string | null): string {
+  if (!value?.trim()) return 'Расписание не задано';
+
+  const parts = value
+    .split(/[,/;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return 'Расписание не задано';
+
+  return parts
+    .map((part) => {
+      const match = part.match(/^([^\d]+?)(\s+\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})?)?$/i);
+      if (!match) return part;
+      const weekdayRaw = match[1].trim().toLowerCase().replace(/\.+$/g, '');
+      const timeRaw = match[2]?.trim() || '';
+      const weekday = weekdayMap.get(weekdayRaw) || match[1].trim();
+      return [weekday, timeRaw].filter(Boolean).join(' ');
+    })
+    .join(', ');
 }
 
-const GROUP_REPLACEMENTS_KEY = 'manera_owner_group_replacements_v1';
-
-function loadStoredReplacements(): TeacherReplacement[] {
-  try {
-    const raw = window.localStorage.getItem(GROUP_REPLACEMENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => item && typeof item === 'object');
-  } catch {
+function normalizeScheduleDays(raw: unknown): WeekdayId[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((item): item is WeekdayId => typeof item === 'string' && weekDays.some((day) => day.id === item));
+  }
+  if (typeof raw !== 'string') {
     return [];
   }
+
+  const text = raw.toLowerCase();
+  const map: Array<[string, WeekdayId]> = [
+    ['пн', 'monday'],
+    ['пон', 'monday'],
+    ['mon', 'monday'],
+    ['monday', 'monday'],
+    ['вт', 'tuesday'],
+    ['вто', 'tuesday'],
+    ['tue', 'tuesday'],
+    ['tuesday', 'tuesday'],
+    ['ср', 'wednesday'],
+    ['сре', 'wednesday'],
+    ['wed', 'wednesday'],
+    ['wednesday', 'wednesday'],
+    ['чт', 'thursday'],
+    ['чет', 'thursday'],
+    ['thu', 'thursday'],
+    ['thursday', 'thursday'],
+    ['пт', 'friday'],
+    ['пят', 'friday'],
+    ['fri', 'friday'],
+    ['friday', 'friday'],
+    ['сб', 'saturday'],
+    ['суб', 'saturday'],
+    ['sat', 'saturday'],
+    ['saturday', 'saturday'],
+    ['вс', 'sunday'],
+    ['воск', 'sunday'],
+    ['sun', 'sunday'],
+    ['sunday', 'sunday'],
+  ];
+
+  return map
+    .filter(([key]) => text.includes(key))
+    .map(([, value]) => value)
+    .filter((value, index, array) => array.indexOf(value) === index);
 }
 
-function saveStoredReplacements(items: TeacherReplacement[]) {
-  window.localStorage.setItem(GROUP_REPLACEMENTS_KEY, JSON.stringify(items));
+function parseTimeRange(raw: unknown): { startTime: string; endTime: string } {
+  const text = String(raw || '').trim();
+  const match = text.match(/(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})/);
+  if (!match) {
+    return { startTime: '', endTime: '' };
+  }
+  return {
+    startTime: match[1].padStart(5, '0'),
+    endTime: match[2].padStart(5, '0'),
+  };
 }
 
-function toDateValue(value?: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toISOString().slice(0, 10);
+function buildScheduleValue(days: WeekdayId[]): string {
+  return weekDays
+    .filter((day) => days.includes(day.id))
+    .map((day) => day.id)
+    .join(', ');
 }
 
-function occupancyPercent(group: Group): number {
-  const maxCapacity = Math.max(1, Number((group as any).maxCapacity || 12));
-  const students = Math.max(0, Number(group.studentCount || 0));
-  return Math.round((students / maxCapacity) * 100);
+function buildTimeRange(startTime: string, endTime: string): string {
+  if (!startTime || !endTime) return '';
+  return `${startTime}-${endTime}`;
 }
 
-function occupancyLabel(percent: number): string {
-  if (percent > 100) return 'Переполнена';
-  if (percent >= 90) return 'Почти полная';
-  if (percent >= 45) return 'Сбалансирована';
-  return 'Нужен набор';
-}
-
-function occupancyBadgeClass(percent: number): string {
-  if (percent > 100) return 'border-red-200 text-red-700 bg-red-50';
-  if (percent >= 90) return 'border-[#D4AF37]/40 text-[#B8941F] bg-[#FFF9E8]';
-  if (percent >= 45) return 'border-green-200 text-green-700 bg-green-50';
-  return 'border-blue-200 text-blue-700 bg-blue-50';
+function formatGroupTiming(group: Group): string {
+  const schedule = formatSchedule(group.schedule);
+  const time = String((group as any).time || '').trim();
+  if (!time) return schedule;
+  if (schedule === 'Расписание не задано') return time;
+  return `${schedule} • ${time}`;
 }
 
 function validateTimeRange(value: string): boolean {
@@ -103,31 +183,21 @@ function validateTimeRange(value: string): boolean {
 export function OwnerGroupsPanel() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [children, setChildren] = useState<AdminChildRecord[]>([]);
-  const [teacherOptions, setTeacherOptions] = useState<Array<{ id: string; name: string }>>([]);
-  const [replacements, setReplacements] = useState<TeacherReplacement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
   const [search, setSearch] = useState('');
-  const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('occupancy_desc');
+  const [sortBy, setSortBy] = useState<SortBy>('students_desc');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [substitutionGroupId, setSubstitutionGroupId] = useState<string | null>(null);
-  const [isSubstitutionDialogOpen, setIsSubstitutionDialogOpen] = useState(false);
   const [selectedRosterGroupId, setSelectedRosterGroupId] = useState<string | null>(null);
   const [isRosterDialogOpen, setIsRosterDialogOpen] = useState(false);
-  const [replacementTeacherId, setReplacementTeacherId] = useState<string>('');
-  const [replacementReason, setReplacementReason] = useState('');
-  const [replacementStartsAt, setReplacementStartsAt] = useState(() => new Date().toISOString().slice(0, 10));
-  const [replacementEndsAt, setReplacementEndsAt] = useState('');
-  const [replacementMakeCurrent, setReplacementMakeCurrent] = useState(false);
-  const [isApplyingReplacement, setIsApplyingReplacement] = useState(false);
-  const [completingReplacementId, setCompletingReplacementId] = useState<string | null>(null);
+  const [selectedChildToAddId, setSelectedChildToAddId] = useState<string>('');
+  const [isAssigningChild, setIsAssigningChild] = useState(false);
 
   const refresh = async (silent = false) => {
     if (silent) {
@@ -136,23 +206,12 @@ export function OwnerGroupsPanel() {
       setIsLoading(true);
     }
     try {
-      const [list, employees, childList] = await Promise.all([
+      const [list, childList] = await Promise.all([
         loadOwnerGroups(),
-        loadOwnerEmployees(),
         loadAdminChildren(),
       ]);
-      setTeacherOptions(
-        employees
-          .filter((item) => item.role === 'teacher' && item.status === 'active')
-          .map((item) => ({ id: item.id, name: item.name })),
-      );
       setGroups(list);
       setChildren(childList);
-      const persisted = loadStoredReplacements().filter((item) => list.some((group) => group.id === item.groupId));
-      if (persisted.length !== loadStoredReplacements().length) {
-        saveStoredReplacements(persisted);
-      }
-      setReplacements(persisted);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить группы');
     } finally {
@@ -172,39 +231,8 @@ export function OwnerGroupsPanel() {
     () => ({
       groups: groups.length,
       students: groups.reduce((sum, group) => sum + Number(group.studentCount || 0), 0),
-      capacity: groups.reduce((sum, group) => sum + Number((group as any).maxCapacity || 12), 0),
-      highLoad: groups.filter((group) => occupancyPercent(group) >= 90).length,
-      withoutTeacher: groups.filter((group) => !(group.teacherId || group.teacherName)).length,
-      substitutionsActive: replacements.filter((item) => item.status === 'active').length,
     }),
-    [groups, replacements],
-  );
-  const averageUtilization = totals.capacity > 0 ? Math.round((totals.students / totals.capacity) * 100) : 0;
-
-  const activeReplacementByGroupId = useMemo(() => {
-    const map = new Map<string, TeacherReplacement>();
-    replacements
-      .filter((item) => item.status === 'active')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .forEach((item) => {
-        if (!map.has(item.groupId)) {
-          map.set(item.groupId, item);
-        }
-      });
-    return map;
-  }, [replacements]);
-
-  const recentReplacements = useMemo(
-    () =>
-      [...replacements]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 8),
-    [replacements],
-  );
-
-  const substitutionGroup = useMemo(
-    () => groups.find((item) => item.id === substitutionGroupId) || null,
-    [groups, substitutionGroupId],
+    [groups],
   );
 
   const rosterGroup = useMemo(
@@ -219,27 +247,27 @@ export function OwnerGroupsPanel() {
     [children, selectedRosterGroupId],
   );
 
+  const availableChildrenForGroup = useMemo(
+    () =>
+      children
+        .filter((child) => String(child.groupId || '') !== String(selectedRosterGroupId || ''))
+        .sort((a, b) => String(a.fullName || '').localeCompare(String(b.fullName || ''), 'ru')),
+    [children, selectedRosterGroupId],
+  );
+
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
     const list = groups.filter((group) => {
       const text = [
         group.name,
         group.ageRange,
-        group.teacherName,
         typeof group.schedule === 'string' ? group.schedule : '',
         String((group as any).time || ''),
       ]
         .join(' ')
         .toLowerCase();
       const matchesSearch = !query || text.includes(query);
-      const percent = occupancyPercent(group);
-      const matchesOccupancy =
-        occupancyFilter === 'all' ||
-        (occupancyFilter === 'needs_students' && percent < 45) ||
-        (occupancyFilter === 'balanced' && percent >= 45 && percent < 90) ||
-        (occupancyFilter === 'full' && percent >= 90 && percent <= 100) ||
-        (occupancyFilter === 'overflow' && percent > 100);
-      return matchesSearch && matchesOccupancy;
+      return matchesSearch;
     });
 
     return [...list].sort((a, b) => {
@@ -249,12 +277,9 @@ export function OwnerGroupsPanel() {
       if (sortBy === 'students_desc') {
         return Number(b.studentCount || 0) - Number(a.studentCount || 0);
       }
-      if (sortBy === 'occupancy_asc') {
-        return occupancyPercent(a) - occupancyPercent(b);
-      }
-      return occupancyPercent(b) - occupancyPercent(a);
+      return 0;
     });
-  }, [groups, search, occupancyFilter, sortBy]);
+  }, [groups, search, sortBy]);
 
   const openCreate = () => {
     setEditingGroupId(null);
@@ -267,12 +292,9 @@ export function OwnerGroupsPanel() {
     setForm({
       name: group.name || '',
       ageRange: group.ageRange || '',
-      teacherId: group.teacherId || '',
-      teacherName: group.teacherName || '',
-      schedule: typeof group.schedule === 'string' ? group.schedule : '',
-      time: String((group as any).time || ''),
+      scheduleDays: normalizeScheduleDays(group.schedule),
+      ...parseTimeRange((group as any).time || ''),
       color: group.color || '#133C2A',
-      maxCapacity: String((group as any).maxCapacity || 12),
     });
     setIsDialogOpen(true);
   };
@@ -282,11 +304,17 @@ export function OwnerGroupsPanel() {
       toast.error('Заполните название и возрастной диапазон');
       return;
     }
-    if (!validateTimeRange(form.time)) {
-      toast.error('Время должно быть в формате 18:00-19:00');
+    if (form.scheduleDays.length === 0) {
+      toast.error('Выберите хотя бы один день недели');
       return;
     }
-    const maxCapacity = Number(form.maxCapacity);
+    const timeRange = buildTimeRange(form.startTime, form.endTime);
+    if (!form.startTime || !form.endTime || !validateTimeRange(timeRange)) {
+      toast.error('Укажите время начала и окончания занятий');
+      return;
+    }
+    const currentGroup = groups.find((group) => group.id === editingGroupId) || null;
+    const maxCapacity = Number((currentGroup as any)?.maxCapacity || 12);
     if (!Number.isFinite(maxCapacity) || maxCapacity < 1 || maxCapacity > 200) {
       toast.error('Максимальная вместимость должна быть от 1 до 200');
       return;
@@ -294,14 +322,10 @@ export function OwnerGroupsPanel() {
     const payload = {
       name: form.name.trim(),
       age_range: form.ageRange.trim(),
-      teacher_id: form.teacherId || null,
-      teacher_name:
-        (form.teacherId
-          ? teacherOptions.find((item) => item.id === form.teacherId)?.name
-          : form.teacherName
-        )?.trim() || null,
-      schedule: form.schedule.trim(),
-      time: form.time.trim(),
+      teacher_id: null,
+      teacher_name: null,
+      schedule: buildScheduleValue(form.scheduleDays),
+      time: timeRange,
       color: form.color,
       max_capacity: maxCapacity,
     };
@@ -326,13 +350,14 @@ export function OwnerGroupsPanel() {
   const duplicateGroup = async (group: Group) => {
     setDuplicatingId(group.id);
     try {
+      const parsedTime = parseTimeRange((group as any).time || '');
       const payload = {
         name: `${group.name} (копия)`,
         age_range: group.ageRange || '',
-        teacher_id: group.teacherId || null,
-        teacher_name: group.teacherName || null,
-        schedule: typeof group.schedule === 'string' ? group.schedule : '',
-        time: String((group as any).time || ''),
+        teacher_id: null,
+        teacher_name: null,
+        schedule: buildScheduleValue(normalizeScheduleDays(group.schedule)),
+        time: buildTimeRange(parsedTime.startTime, parsedTime.endTime),
         color: group.color || '#133C2A',
         max_capacity: Number((group as any).maxCapacity || 12),
       };
@@ -362,105 +387,41 @@ export function OwnerGroupsPanel() {
     }
   };
 
-  const openSubstitutionDialog = (group: Group) => {
-    setSubstitutionGroupId(group.id);
-    setReplacementTeacherId('');
-    setReplacementReason('');
-    setReplacementStartsAt(new Date().toISOString().slice(0, 10));
-    setReplacementEndsAt('');
-    setReplacementMakeCurrent(false);
-    setIsSubstitutionDialogOpen(true);
-  };
-
   const openRosterDialog = (group: Group) => {
     setSelectedRosterGroupId(group.id);
+    setSelectedChildToAddId('');
     setIsRosterDialogOpen(true);
   };
 
-  const applySubstitution = async () => {
-    if (!substitutionGroup) {
-      toast.error('Группа не найдена');
+  const addChildToSelectedGroup = async () => {
+    if (!selectedRosterGroupId) {
       return;
     }
-    if (!replacementTeacherId) {
-      toast.error('Выберите преподавателя замены');
-      return;
-    }
-    if (!replacementReason.trim()) {
-      toast.error('Укажите причину замены');
-      return;
-    }
-    const replacementTeacher = teacherOptions.find((item) => item.id === replacementTeacherId);
-    if (!replacementTeacher) {
-      toast.error('Преподаватель замены не найден');
+    if (!selectedChildToAddId) {
+      toast.error('Выберите ученика');
       return;
     }
 
-    setIsApplyingReplacement(true);
+    setIsAssigningChild(true);
     try {
-      if (replacementMakeCurrent) {
-        await updateOwnerGroup(substitutionGroup.id, {
-          name: substitutionGroup.name,
-          age_range: substitutionGroup.ageRange,
-          teacher_id: replacementTeacher.id,
-          teacher_name: replacementTeacher.name,
-          schedule: substitutionGroup.schedule || '',
-          time: String((substitutionGroup as any).time || ''),
-          color: substitutionGroup.color || '#133C2A',
-          max_capacity: Number((substitutionGroup as any).maxCapacity || 12),
-        });
-      }
-
-      const nextReplacement: TeacherReplacement = {
-        id: `repl-${Date.now()}`,
-        groupId: substitutionGroup.id,
-        groupName: substitutionGroup.name,
-        previousTeacherId: substitutionGroup.teacherId || '',
-        previousTeacherName: substitutionGroup.teacherName || 'Не назначен',
-        replacementTeacherId: replacementTeacher.id,
-        replacementTeacherName: replacementTeacher.name,
-        reason: replacementReason.trim(),
-        startsAt: replacementStartsAt,
-        endsAt: replacementEndsAt || null,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      };
-
-      setReplacements((prev) => {
-        const withClosed = prev.map((item) =>
-          item.groupId === substitutionGroup.id && item.status === 'active'
-            ? { ...item, status: 'completed' as const }
-            : item,
-        );
-        const next = [nextReplacement, ...withClosed];
-        saveStoredReplacements(next);
-        return next;
-      });
-
-      toast.success(replacementMakeCurrent ? 'Замена применена и преподаватель обновлен' : 'Временная замена добавлена');
-      setIsSubstitutionDialogOpen(false);
+      await assignAdminChildGroup(selectedChildToAddId, { group_id: selectedRosterGroupId });
+      toast.success('Ученик добавлен в группу');
+      setSelectedChildToAddId('');
       await refresh(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось применить замену');
+      toast.error(error instanceof Error ? error.message : 'Не удалось добавить ученика в группу');
     } finally {
-      setIsApplyingReplacement(false);
+      setIsAssigningChild(false);
     }
   };
 
-  const completeReplacement = async (replacementId: string) => {
-    setCompletingReplacementId(replacementId);
-    try {
-      setReplacements((prev) => {
-        const next = prev.map((item) =>
-          item.id === replacementId ? { ...item, status: 'completed' as const } : item,
-        );
-        saveStoredReplacements(next);
-        return next;
-      });
-      toast.success('Замена завершена');
-    } finally {
-      setCompletingReplacementId(null);
-    }
+  const toggleScheduleDay = (dayId: WeekdayId) => {
+    setForm((prev) => ({
+      ...prev,
+      scheduleDays: prev.scheduleDays.includes(dayId)
+        ? prev.scheduleDays.filter((value) => value !== dayId)
+        : [...prev.scheduleDays, dayId],
+    }));
   };
 
   return (
@@ -468,7 +429,7 @@ export function OwnerGroupsPanel() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Группы</h1>
-          <p className="text-[#133C2A]/60">Реестр групп студии</p>
+          <p className="text-[#133C2A]/60">Расписание и состав групп</p>
         </div>
         <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
           <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
@@ -482,16 +443,13 @@ export function OwnerGroupsPanel() {
         </div>
       </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <section>
         <Card className="overflow-hidden border-none bg-[#123827] text-white shadow-[0_22px_55px_rgba(19,60,42,0.16)]">
           <CardContent className="p-5 md:p-6">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-sm text-white/60">Состояние групп</p>
-                <p className="mt-2 text-4xl leading-none md:text-5xl">{averageUtilization}%</p>
-                <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/68">
-                  Средняя заполненность. Ниже сразу видно, где нужен набор, где группа почти полная, а где нет преподавателя.
-                </p>
+                <p className="text-sm text-white/60">Группы студии</p>
+                <p className="mt-2 text-3xl leading-none md:text-4xl">Все группы в одном месте</p>
               </div>
               <Button className="rounded-2xl bg-white text-[#133C2A] hover:bg-white/90" onClick={openCreate}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -499,72 +457,15 @@ export function OwnerGroupsPanel() {
               </Button>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-4">
-              <button type="button" onClick={() => setOccupancyFilter('all')} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Групп</span>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
+                <span className="block text-xs text-white/50">Количество групп</span>
                 <span className="mt-1 block text-2xl">{totals.groups}</span>
-              </button>
-              <button type="button" onClick={() => setSortBy('students_desc')} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Учеников</span>
-                <span className="mt-1 block text-2xl">{totals.students}/{totals.capacity}</span>
-              </button>
-              <button type="button" onClick={() => setOccupancyFilter('full')} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Почти полные</span>
-                <span className="mt-1 block text-2xl">{totals.highLoad}</span>
-              </button>
-              <button type="button" onClick={() => setOccupancyFilter('all')} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Без преподавателя</span>
-                <span className="mt-1 block text-2xl text-red-200">{totals.withoutTeacher}</span>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none bg-white/92 shadow-[0_12px_35px_rgba(19,60,42,0.07)]">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-lg text-[#133C2A]">Замены</p>
-                <p className="text-sm text-[#133C2A]/58">Активные подмены преподавателей.</p>
               </div>
-              <Badge variant="outline" className="rounded-full">
-                {totals.substitutionsActive}
-              </Badge>
-            </div>
-            <div className="mt-4 space-y-2">
-              {recentReplacements.length === 0 ? (
-                <div className="rounded-2xl bg-[#F8F4E3]/80 p-4 text-sm text-[#133C2A]/62">
-                  Активных замен нет.
-                </div>
-              ) : (
-                recentReplacements.slice(0, 3).map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-[#133C2A]">{item.groupName}</p>
-                        <p className="mt-1 text-xs text-[#133C2A]/58">
-                          {item.previousTeacherName} → {item.replacementTeacherName}
-                        </p>
-                        <p className="mt-1 text-xs text-[#133C2A]/58">
-                          {toDateValue(item.startsAt)}
-                          {item.endsAt ? ` — ${toDateValue(item.endsAt)}` : ''}
-                        </p>
-                      </div>
-                      {item.status === 'active' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-xl bg-white"
-                          onClick={() => void completeReplacement(item.id)}
-                          disabled={completingReplacementId === item.id}
-                        >
-                          Завершить
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
+                <span className="block text-xs text-white/50">Количество учеников</span>
+                <span className="mt-1 block text-2xl">{totals.students}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -581,7 +482,7 @@ export function OwnerGroupsPanel() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск по группе, преподавателю, расписанию"
+                placeholder="Поиск по названию или расписанию"
                 className="pl-9 rounded-xl"
               />
             </div>
@@ -592,29 +493,15 @@ export function OwnerGroupsPanel() {
               onClick={() => setIsFiltersOpen((prev) => !prev)}
             >
               <SlidersHorizontal className="w-4 h-4 mr-2" />
-              Фильтры и сортировка
+              Поиск и сортировка
             </Button>
-            <div className={`${isFiltersOpen ? 'grid' : 'hidden'} gap-3 md:grid md:grid-cols-[1fr_220px_220px]`}>
+            <div className={`${isFiltersOpen ? 'grid' : 'hidden'} gap-3 md:grid md:grid-cols-[1fr_220px]`}>
               <div className="hidden md:block" />
-              <Select value={occupancyFilter} onValueChange={(value: OccupancyFilter) => setOccupancyFilter(value)}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все статусы</SelectItem>
-                  <SelectItem value="needs_students">Нужен набор</SelectItem>
-                  <SelectItem value="balanced">Сбалансированы</SelectItem>
-                  <SelectItem value="full">Почти полные</SelectItem>
-                  <SelectItem value="overflow">Переполнены</SelectItem>
-                </SelectContent>
-              </Select>
               <Select value={sortBy} onValueChange={(value: SortBy) => setSortBy(value)}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="occupancy_desc">Сначала заполненные</SelectItem>
-                  <SelectItem value="occupancy_asc">Сначала пустые</SelectItem>
                   <SelectItem value="students_desc">По числу учеников</SelectItem>
                   <SelectItem value="name">По названию</SelectItem>
                 </SelectContent>
@@ -628,9 +515,6 @@ export function OwnerGroupsPanel() {
             <p className="text-[#133C2A]/60">Пока нет групп</p>
           ) : (
             filteredGroups.map((group) => {
-              const maxCapacity = Number((group as any).maxCapacity || 12);
-              const percent = occupancyPercent(group);
-              const activeReplacement = activeReplacementByGroupId.get(group.id);
               return (
                 <div
                   key={group.id}
@@ -646,14 +530,22 @@ export function OwnerGroupsPanel() {
                   className="cursor-pointer rounded-2xl border border-[#133C2A]/10 p-3 transition-smooth hover:border-[#D4AF37]/35 hover:bg-[#FFF9E8]/45 md:p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[#133C2A]">{group.name}</p>
-                        <Badge variant="outline" className={`rounded-xl ${occupancyBadgeClass(percent)}`}>
-                          {occupancyLabel(percent)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[#133C2A] truncate">{group.name}</p>
+                          <p className="text-sm text-[#133C2A]/60 mt-1">{group.ageRange || 'Возраст не указан'}</p>
+                        </div>
+                        <Badge variant="outline" className="rounded-full whitespace-nowrap">
+                          {group.studentCount} учеников
                         </Badge>
                       </div>
-                      <p className="text-sm text-[#133C2A]/60 mt-1">{group.ageRange}</p>
+                      <div className="mt-3 space-y-2 text-sm text-[#133C2A]/72">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 shrink-0" />
+                          <span>{formatGroupTiming(group)}</span>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex flex-wrap justify-end gap-1.5">
                       <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); openEdit(group); }} className="rounded-xl" title="Редактировать">
@@ -672,15 +564,6 @@ export function OwnerGroupsPanel() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={(event) => { event.stopPropagation(); openSubstitutionDialog(group); }}
-                        className="rounded-xl"
-                        title="Замена преподавателя"
-                      >
-                        <Shuffle className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
                         onClick={(event) => { event.stopPropagation(); void remove(group.id); }}
                         className="rounded-xl"
                         title="Удалить"
@@ -689,38 +572,6 @@ export function OwnerGroupsPanel() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-                  <div className="mt-3 grid gap-2 text-sm text-[#133C2A]/70 sm:flex sm:flex-wrap sm:gap-4">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      {group.studentCount}/{maxCapacity}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {group.schedule || 'Расписание не задано'}
-                    </span>
-                    {group.teacherName ? (
-                      <span>
-                        {activeReplacement ? `${activeReplacement.replacementTeacherName} (замена)` : group.teacherName}
-                      </span>
-                    ) : null}
-                  </div>
-                  {activeReplacement && (
-                    <div className="mt-2 rounded-xl border border-[#D4AF37]/30 bg-[#FFF9E8] px-3 py-2 text-xs text-[#8B6B00]">
-                      Замена: {activeReplacement.previousTeacherName} → {activeReplacement.replacementTeacherName}
-                      {' • '}
-                      {toDateValue(activeReplacement.startsAt)}
-                      {activeReplacement.endsAt ? ` — ${toDateValue(activeReplacement.endsAt)}` : ''}
-                      {' • '}
-                      {activeReplacement.reason}
-                    </div>
-                  )}
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-[#133C2A]/60 mb-1">
-                      <span>Заполненность</span>
-                      <span>{percent}%</span>
-                    </div>
-                    <Progress value={percent} max={100} className="h-2 bg-[#133C2A]/10 [&>div]:bg-[#D4AF37]" />
                   </div>
                   <p className="mt-2 text-xs text-[#133C2A]/45">Нажмите на группу, чтобы открыть состав</p>
                 </div>
@@ -733,27 +584,59 @@ export function OwnerGroupsPanel() {
       <Dialog open={isRosterDialogOpen} onOpenChange={setIsRosterDialogOpen}>
         <DialogContent className="rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-[#133C2A]">Состав группы</DialogTitle>
+            <DialogTitle className="text-[#133C2A]">{rosterGroup ? rosterGroup.name : 'Состав группы'}</DialogTitle>
           </DialogHeader>
           {rosterGroup ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-3">
-                <div className="flex items-start justify-between gap-3">
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div>
-                    <p className="text-[#133C2A]">{rosterGroup.name}</p>
-                    <p className="mt-1 text-sm text-[#133C2A]/60">{rosterGroup.ageRange || 'Возраст не указан'}</p>
-                    <p className="mt-1 text-sm text-[#133C2A]/60">
-                      {rosterGroup.teacherName || 'Преподаватель не назначен'} · {rosterGroup.schedule || 'расписание не задано'}
-                    </p>
+                    <p className="text-xs text-[#133C2A]/50">Возраст</p>
+                    <p className="mt-1 text-sm text-[#133C2A]">{rosterGroup.ageRange || 'Не указан'}</p>
                   </div>
-                  <Badge variant="outline" className={`rounded-full ${occupancyBadgeClass(occupancyPercent(rosterGroup))}`}>
-                    {rosterChildren.length}/{Number((rosterGroup as any).maxCapacity || 12)}
-                  </Badge>
+                  <div>
+                    <p className="text-xs text-[#133C2A]/50">Учеников</p>
+                    <p className="mt-1 text-sm text-[#133C2A]">{rosterChildren.length}</p>
+                  </div>
                 </div>
-                <Progress value={occupancyPercent(rosterGroup)} max={100} className="mt-3 h-2 bg-[#133C2A]/10 [&>div]:bg-[#D4AF37]" />
+                <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-sm text-[#133C2A]/72">
+                  {formatGroupTiming(rosterGroup)}
+                </div>
               </div>
 
               <div className="space-y-2">
+                <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-3">
+                  <p className="text-sm text-[#133C2A]">Добавить ученика в группу</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Select value={selectedChildToAddId} onValueChange={setSelectedChildToAddId}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Выберите ученика" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableChildrenForGroup.length === 0 ? (
+                          <SelectItem value="__none__" disabled>
+                            Нет доступных учеников
+                          </SelectItem>
+                        ) : (
+                          availableChildrenForGroup.map((child) => (
+                            <SelectItem key={child.id} value={child.id}>
+                              {child.fullName || 'Ученик'}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      onClick={() => void addChildToSelectedGroup()}
+                      disabled={isAssigningChild || !selectedChildToAddId || availableChildrenForGroup.length === 0}
+                      className="rounded-xl bg-[#133C2A] hover:bg-[#0F3021]"
+                    >
+                      {isAssigningChild ? 'Добавляем...' : 'Добавить'}
+                    </Button>
+                  </div>
+                </div>
+
                 {rosterChildren.length === 0 ? (
                   <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4 text-sm text-[#133C2A]/60">
                     В группе пока нет учеников.
@@ -761,22 +644,17 @@ export function OwnerGroupsPanel() {
                 ) : (
                   rosterChildren.map((child) => (
                     <div key={child.id} className="rounded-2xl border border-[#133C2A]/10 bg-white p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-[#133C2A]">{child.fullName || 'Ученик'}</p>
-                          <p className="mt-1 text-xs text-[#133C2A]/58">
-                            {child.age ? `${child.age} лет` : 'возраст не указан'} · {child.parentName || 'родитель не указан'}
-                          </p>
-                          {child.parentPhone ? (
-                            <p className="mt-1 text-xs text-[#133C2A]/58">{child.parentPhone}</p>
-                          ) : null}
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <Badge variant="outline" className="rounded-full">
-                            {child.remainingClasses ?? 0}/{child.totalClasses ?? 0}
-                          </Badge>
-                          <p className="mt-1 text-[11px] text-[#133C2A]/45">занятий</p>
-                        </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[#133C2A]">{child.fullName || 'Ученик'}</p>
+                        <p className="mt-1 text-xs text-[#133C2A]/58">
+                          {child.age ? `${child.age} лет` : 'Возраст не указан'}
+                        </p>
+                        <p className="mt-1 text-xs text-[#133C2A]/58">
+                          {child.parentName || 'Родитель не указан'}
+                        </p>
+                        {child.parentPhone ? (
+                          <p className="mt-1 text-xs text-[#133C2A]/58">{child.parentPhone}</p>
+                        ) : null}
                       </div>
                     </div>
                   ))
@@ -784,70 +662,6 @@ export function OwnerGroupsPanel() {
               </div>
             </div>
           ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isSubstitutionDialogOpen} onOpenChange={setIsSubstitutionDialogOpen}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-[#133C2A]">Замена преподавателя</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-xl border border-[#133C2A]/10 px-3 py-2 text-sm text-[#133C2A]/80">
-              Группа: {substitutionGroup?.name || '—'}
-              <div className="text-xs text-[#133C2A]/60 mt-1">
-                Текущий преподаватель: {substitutionGroup?.teacherName || 'Не назначен'}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Преподаватель на замену</Label>
-              <Select value={replacementTeacherId} onValueChange={setReplacementTeacherId}>
-                <SelectTrigger><SelectValue placeholder="Выберите преподавателя" /></SelectTrigger>
-                <SelectContent>
-                  {teacherOptions.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Причина</Label>
-              <Input
-                value={replacementReason}
-                onChange={(e) => setReplacementReason(e.target.value)}
-                placeholder="Отпуск, болезнь, участие в мероприятии..."
-              />
-            </div>
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Начало замены</Label>
-                <Input type="date" value={replacementStartsAt} onChange={(e) => setReplacementStartsAt(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Окончание (опционально)</Label>
-                <Input type="date" value={replacementEndsAt} onChange={(e) => setReplacementEndsAt(e.target.value)} />
-              </div>
-            </div>
-            <div className="rounded-xl border border-[#133C2A]/10 p-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[#133C2A]">Обновить преподавателя группы</p>
-                <p className="text-sm text-[#133C2A]/60">Если включено, замена сразу становится текущим преподавателем группы</p>
-              </div>
-              <Switch checked={replacementMakeCurrent} onCheckedChange={setReplacementMakeCurrent} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSubstitutionDialogOpen(false)} className="rounded-2xl">
-              Отмена
-            </Button>
-            <Button
-              onClick={() => void applySubstitution()}
-              className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]"
-              disabled={isApplyingReplacement}
-            >
-              {isApplyingReplacement ? 'Применяем...' : 'Применить замену'}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -866,46 +680,43 @@ export function OwnerGroupsPanel() {
               <Input value={form.ageRange} onChange={(e) => setForm((prev) => ({ ...prev, ageRange: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Преподаватель</Label>
-              <Select
-                value={form.teacherId || 'manual'}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    teacherId: value === 'manual' ? '' : value,
-                    teacherName: value === 'manual' ? prev.teacherName : '',
-                  }))
-                }
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Ввести вручную</SelectItem>
-                  {teacherOptions.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Имя преподавателя (вручную)</Label>
-              <Input
-                value={form.teacherName}
-                onChange={(e) => setForm((prev) => ({ ...prev, teacherName: e.target.value }))}
-                disabled={Boolean(form.teacherId)}
-                placeholder={form.teacherId ? 'Выбран преподаватель из списка' : 'Введите имя'}
-              />
-            </div>
-            <div className="space-y-1">
               <Label>Расписание</Label>
-              <Input value={form.schedule} onChange={(e) => setForm((prev) => ({ ...prev, schedule: e.target.value }))} placeholder="ПН, СР, ПТ" />
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {weekDays.map((day) => {
+                  const isActive = form.scheduleDays.includes(day.id);
+                  return (
+                    <Button
+                      key={day.id}
+                      type="button"
+                      variant={isActive ? 'default' : 'outline'}
+                      className="rounded-xl px-0"
+                      onClick={() => toggleScheduleDay(day.id)}
+                    >
+                      {day.label}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label>Время</Label>
-              <Input value={form.time} onChange={(e) => setForm((prev) => ({ ...prev, time: e.target.value }))} placeholder="18:00-19:00" />
-            </div>
-            <div className="space-y-1">
-              <Label>Макс. мест</Label>
-              <Input type="number" value={form.maxCapacity} onChange={(e) => setForm((prev) => ({ ...prev, maxCapacity: e.target.value }))} />
+            <div className="space-y-1 md:col-span-2">
+              <Label>Время занятия</Label>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <Input
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                />
+                <span className="text-sm text-[#133C2A]/50">—</span>
+                <Input
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
+              <p className="text-xs text-[#133C2A]/50">
+                Выбранное расписание: {form.scheduleDays.length > 0 ? formatSchedule(buildScheduleValue(form.scheduleDays)) : 'дни не выбраны'}
+                {form.startTime && form.endTime ? ` • ${form.startTime}-${form.endTime}` : ''}
+              </p>
             </div>
             <div className="space-y-1">
               <Label>Цвет</Label>

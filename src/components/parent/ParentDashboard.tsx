@@ -12,6 +12,7 @@ import { ParentCommunication } from './ParentCommunication';
 import { ParentDocuments } from './ParentDocuments';
 import { MobileNav } from '../layout/MobileNav';
 import { DesktopSidebar } from '../layout/DesktopSidebar';
+import { accountStatusLabel, isPortalPendingActivation, portalStatusLabel } from '../../lib/portalStatus';
 import {
   AlertCircle,
   Bell,
@@ -153,11 +154,13 @@ export function ParentDashboard({
       ['pending', 'waiting_confirmation', 'overdue', 'unpaid', 'failed'].includes(item.status),
     );
     const pendingAmount = pendingPayments.reduce((sum, item) => sum + item.amount, 0);
+    const pendingPaymentsCount = pendingPayments.length;
     const unreadNotifications = notifications.filter((item) => !item.read).length;
     const childrenNeedingRenewal = children.filter((item) => item.totalClasses > 0 && item.remainingClasses <= 2).length;
     return {
       upcomingClasses,
       pendingAmount,
+      pendingPaymentsCount,
       unreadNotifications,
       childrenCount: children.length,
       childrenNeedingRenewal,
@@ -172,9 +175,19 @@ export function ParentDashboard({
             <LockKeyhole className="w-5 h-5 text-[#D4AF37]" />
           </div>
           <div>
-            <h2 className="text-xl text-[#133C2A]">Доступ ограничен до оплаты</h2>
+            <h2 className="text-xl text-[#133C2A]">
+              {isPortalPendingActivation(accessInfo?.portalStatus)
+                ? 'Сначала завершите активацию кабинета'
+                : accessInfo?.portalStatus === 'blocked'
+                  ? 'Доступ в кабинет приостановлен'
+                : 'Доступ ограничен до оплаты'}
+            </h2>
             <p className="text-[#133C2A]/70 text-sm mt-1">
-              После подтверждения оплаты кабинет откроется автоматически.
+              {isPortalPendingActivation(accessInfo?.portalStatus)
+                ? 'После создания PIN-кода кабинет станет доступен для входа по телефону и PIN.'
+                : accessInfo?.portalStatus === 'blocked'
+                  ? 'Доступ был приостановлен администратором. Обратитесь в студию для возобновления.'
+                : 'После подтверждения оплаты кабинет откроется автоматически.'}
             </p>
           </div>
         </div>
@@ -182,20 +195,32 @@ export function ParentDashboard({
         <div className="grid md:grid-cols-2 gap-3">
           <div className="rounded-xl border border-[#133C2A]/10 bg-[#F8F4E3] p-4">
             <p className="text-xs text-[#133C2A]/60">Статус аккаунта</p>
-            <p className="text-[#133C2A] mt-1">{accessInfo?.accountStatus || 'payment_pending'}</p>
+            <p className="text-[#133C2A] mt-1">{accountStatusLabel(accessInfo?.accountStatus)}</p>
           </div>
           <div className="rounded-xl border border-[#133C2A]/10 bg-[#F8F4E3] p-4">
-            <p className="text-xs text-[#133C2A]/60">Неоплаченных счетов</p>
-            <p className="text-[#133C2A] mt-1">{accessInfo?.pendingPaymentsCount ?? 0}</p>
+            <p className="text-xs text-[#133C2A]/60">
+              {isPortalPendingActivation(accessInfo?.portalStatus) || accessInfo?.portalStatus === 'blocked'
+                ? 'Статус кабинета'
+                : 'Неоплаченных счетов'}
+            </p>
+            <p className="text-[#133C2A] mt-1">
+              {isPortalPendingActivation(accessInfo?.portalStatus) || accessInfo?.portalStatus === 'blocked'
+                ? portalStatusLabel(accessInfo?.portalStatus)
+                : accessInfo?.pendingPaymentsCount ?? 0}
+            </p>
           </div>
         </div>
 
         <div className="flex gap-2 flex-wrap">
           <Button
-            onClick={() => navigate('payments')}
+            onClick={() => navigate(accessInfo?.portalStatus === 'blocked' ? 'profile' : 'payments')}
             className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
           >
-            Перейти к оплате
+            {isPortalPendingActivation(accessInfo?.portalStatus)
+              ? 'Открыть оплаты'
+              : accessInfo?.portalStatus === 'blocked'
+                ? 'Открыть профиль'
+              : 'Перейти к оплате'}
           </Button>
           <Button
             variant="outline"
@@ -210,7 +235,7 @@ export function ParentDashboard({
   );
 
   const renderPage = () => {
-    if (isAccessRestricted && !['payments', 'profile'].includes(currentPage)) {
+    if (isAccessRestricted && !['payments', 'profile', 'notifications'].includes(currentPage)) {
       return renderRestricted();
     }
 
@@ -250,6 +275,8 @@ export function ParentDashboard({
             notifications={notifications}
             onMarkRead={onMarkNotificationRead}
             onMarkAllRead={onMarkAllNotificationsRead}
+            onOpenPayments={() => navigate('payments')}
+            onPayOnline={onPayOnline}
           />
         );
       case 'communication':
@@ -291,7 +318,7 @@ export function ParentDashboard({
 
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#D4AF37] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-[#133C2A] flex items-center justify-center shrink-0">
                   <PageIcon className="w-[18px] h-[18px] md:w-5 md:h-5 text-white" />
                 </div>
                 <div className="min-w-0">
@@ -307,9 +334,9 @@ export function ParentDashboard({
                 <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
                   Занятий: {quickStats.upcomingClasses}
                 </Badge>
-                {quickStats.unreadNotifications > 0 && (
+                {quickStats.pendingPaymentsCount > 0 && (
                   <Badge className="rounded-full bg-[#D14343] text-white">
-                    Новых: {quickStats.unreadNotifications}
+                    Новых счета: {quickStats.pendingPaymentsCount}
                   </Badge>
                 )}
                 {quickStats.childrenNeedingRenewal > 0 && (
@@ -327,9 +354,9 @@ export function ParentDashboard({
               <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
                 Занятий: {quickStats.upcomingClasses}
               </Badge>
-              {quickStats.unreadNotifications > 0 && (
+              {quickStats.pendingPaymentsCount > 0 && (
                 <Badge className="rounded-full bg-[#D14343] text-white">
-                  Новых: {quickStats.unreadNotifications}
+                  Новых счета: {quickStats.pendingPaymentsCount}
                 </Badge>
               )}
               {quickStats.childrenNeedingRenewal > 0 && (

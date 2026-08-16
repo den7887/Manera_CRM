@@ -32,14 +32,10 @@ export function MoneyFiltersSheet({
               <SelectTrigger className="rounded-2xl"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="unpaid">Ждет оплату</SelectItem>
-                <SelectItem value="pending">Нужно проверить</SelectItem>
-                <SelectItem value="overdue">Просрочено</SelectItem>
                 <SelectItem value="paid">Оплачено</SelectItem>
-                <SelectItem value="failed">Ошибка</SelectItem>
-                <SelectItem value="cancelled">Отменено</SelectItem>
-                <SelectItem value="refunded">Возврат</SelectItem>
-                <SelectItem value="expired">Ссылка истекла</SelectItem>
+                <SelectItem value="unpaid">Не оплачено</SelectItem>
+                <SelectItem value="overdue">Просрочено</SelectItem>
+                <SelectItem value="cancelled">Отменен</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -76,7 +72,7 @@ export function MoneyFiltersSheet({
           </div>
         </div>
         <DrawerFooter>
-          <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onOpenChange(false)}>
+          <Button className="rounded-2xl" onClick={() => onOpenChange(false)}>
             Применить
           </Button>
           <Button variant="outline" className="rounded-2xl" onClick={onReset}>
@@ -87,4 +83,3 @@ export function MoneyFiltersSheet({
     </Drawer>
   );
 }
-

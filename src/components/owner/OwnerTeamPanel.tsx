@@ -900,23 +900,24 @@ export function OwnerTeamPanel() {
                   const someSelected = selectedCount > 0 && selectedCount < section.actions.length;
                   return (
                     <AccordionItem key={section.key} value={section.key}>
-                      <AccordionTrigger className="py-3 hover:no-underline">
-                        <div className="flex items-start gap-3 w-full">
-                          <Checkbox
-                            checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                            onClick={(event) => event.stopPropagation()}
-                            onCheckedChange={(checked) => toggleSection(section, checked === true)}
-                            className="mt-1"
-                          />
-                          <div className="text-left">
-                            <p className="text-[#133C2A]">{section.title}</p>
-                            <p className="text-xs text-[#133C2A]/60">{section.description}</p>
+                      <div className="flex items-start gap-3 py-3">
+                        <Checkbox
+                          checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                          onCheckedChange={(checked) => toggleSection(section, checked === true)}
+                          className="mt-1"
+                        />
+                        <AccordionTrigger className="flex-1 py-0 hover:no-underline">
+                          <div className="flex items-start gap-3 w-full">
+                            <div className="text-left">
+                              <p className="text-[#133C2A]">{section.title}</p>
+                              <p className="text-xs text-[#133C2A]/60">{section.description}</p>
+                            </div>
+                            <Badge variant="outline" className="ml-auto rounded-xl">
+                              {selectedCount}/{section.actions.length}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className="ml-auto rounded-xl">
-                            {selectedCount}/{section.actions.length}
-                          </Badge>
-                        </div>
-                      </AccordionTrigger>
+                        </AccordionTrigger>
+                      </div>
                       <AccordionContent>
                         <div className="grid md:grid-cols-2 gap-2 pt-2">
                           {section.actions.map((action) => (

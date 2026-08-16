@@ -1,0 +1,14 @@
+[Unit]
+Description=Manera CRM API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/manera-crm/server
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/manera-crm/server/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

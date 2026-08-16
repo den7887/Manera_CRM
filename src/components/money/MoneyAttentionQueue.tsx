@@ -35,10 +35,12 @@ export function MoneyAttentionQueue({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[#133C2A]">{title}</p>
+              <p className="text-base text-[#133C2A]">{title}</p>
               <p className="mt-1 text-sm text-[#133C2A]/58">{description}</p>
             </div>
-            <p className="text-2xl leading-none text-[#133C2A]">{count}</p>
+            <div className="rounded-2xl bg-[#F8F4E3] px-3 py-2 text-right">
+              <p className="text-2xl leading-none text-[#133C2A]">{count}</p>
+            </div>
           </div>
           <Button variant="outline" className="mt-4 rounded-2xl border-[#133C2A]/15" onClick={onOpen}>
             Открыть
@@ -49,4 +51,3 @@ export function MoneyAttentionQueue({
     </Card>
   );
 }
-

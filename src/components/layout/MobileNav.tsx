@@ -47,6 +47,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
     { id: 'events', label: 'События', icon: Sparkles, group: 'Профиль' },
     { id: 'documents', label: 'Документы', icon: FileText, group: 'Профиль' },
     { id: 'notifications', label: 'Уведомления', icon: Bell, group: 'Профиль' },
+    { id: 'profile', label: 'Профиль', icon: Settings, group: 'Профиль' },
   ];
 
   const teacherMenuItems = [
@@ -59,7 +60,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
     { id: 'communication', label: 'Сообщения', icon: MessageSquare, group: 'Работа' },
     { id: 'groups', label: 'Группы', icon: GraduationCap, group: 'Справочники' },
     { id: 'attendance-management', label: 'Посещаемость', icon: ClipboardCheck, group: 'Справочники' },
-    { id: 'pricing', label: 'Абонементы', icon: Tag, group: 'Справочники' },
+    { id: 'pricing', label: 'Прайс', icon: Tag, group: 'Справочники' },
     { id: 'events-management', label: 'Новости и события', icon: Sparkles, group: 'Справочники' },
     { id: 'documents-management', label: 'Документы', icon: FileText, group: 'Справочники' },
     { id: 'tasks-management', label: 'Задачи', icon: CheckSquare, group: 'Команда' },
@@ -73,7 +74,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
     { id: 'tasks', label: 'Задачи', icon: CheckSquare, group: 'Работа' },
     { id: 'communication', label: 'Сообщения', icon: MessageSquare, group: 'Работа' },
     { id: 'documents', label: 'Документы', icon: FileText, group: 'Контроль' },
-    { id: 'pricing', label: 'Абонементы', icon: Tag, group: 'Настройка' },
+    { id: 'pricing', label: 'Прайс', icon: Tag, group: 'Настройка' },
     { id: 'content', label: 'Новости и события', icon: Sparkles, group: 'Настройка' },
     { id: 'automations', label: 'Автодействия', icon: CheckSquare, group: 'Настройка' },
     { id: 'landing-settings', label: 'Сайт', icon: Globe, group: 'Настройка' },

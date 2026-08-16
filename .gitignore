@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+.codex/
 .pytest_cache/
 .run-logs/
 __pycache__/
@@ -12,3 +13,6 @@ yarn-error.log*
 backend-dev*.log
 frontend-dev*.log
 .env
+
+# Local import of the previous Next.js app (1.3 GB working copy, not part of this project)
+_import_manera_form/

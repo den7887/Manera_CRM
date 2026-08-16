@@ -6,6 +6,7 @@ import {
   AdminPaymentRecord,
   OwnerPricingPlanDto,
   changeAdminPaymentDueDate,
+  changeAdminPaymentMethod,
   confirmCashPayment,
   createAdminInvoice,
   createOwnerExpense,
@@ -26,29 +27,27 @@ import { Expense, FinanceStats, Group, MonthlyData } from '../../types';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { CreateInvoiceSheet } from './CreateInvoiceSheet';
+import { MoneyExpenses } from './MoneyExpenses';
 import { MobileMoneyWorkspace } from './MobileMoneyWorkspace';
 import { MoneyFiltersSheet } from './MoneyFiltersSheet';
 import { MoneyOverview } from './MoneyOverview';
 import { MoneyPayments } from './MoneyPayments';
-import { MoneySettings } from './MoneySettings';
-import { MoneySubscriptions } from './MoneySubscriptions';
 import { PaymentDetailsSheet } from './PaymentDetailsSheet';
 import {
   MoneyInvoiceDraft,
   MoneyJournalEntry,
   MoneyOverviewSummary,
   MoneyPaymentFiltersState,
-  MoneySubscriptionFilter,
   MoneySubscriptionRecord,
   MoneyTab,
   derivePaymentType,
+  moneyInvoiceTargetLabels,
   deriveSubscriptionRecord,
   formatMoney,
+  getDisplayPaymentStatus,
   isOutstandingPayment,
   normalizePaymentSearch,
-  normalizeSubscriptionSearch,
   paymentQueueMatches,
-  subscriptionQueueMatches,
 } from './moneyTypes';
 import { OwnerPaymentsNavigationContext } from '../owner/paymentsNavigation';
 
@@ -62,9 +61,17 @@ const defaultPaymentFilters: MoneyPaymentFiltersState = {
 
 const defaultInvoiceDraft: MoneyInvoiceDraft = {
   clientId: '',
+  parentUserId: '',
+  parentPhone: '',
+  parentFullName: '',
+  childFullName: '',
+  paymentType: 'subscription',
+  planCode: '',
   paymentMethod: 'online',
   amount: '',
-  dueDate: '',
+  dueDate: addDays(new Date(), 3).toISOString().slice(0, 10),
+  startsAt: new Date().toISOString().slice(0, 10),
+  useCustomStartsAt: false,
   comment: '',
 };
 
@@ -105,6 +112,15 @@ function mapContextQueue(status?: OwnerPaymentsNavigationContext['statusFilter']
   return 'all';
 }
 
+function mapContextStatus(status?: OwnerPaymentsNavigationContext['statusFilter']): MoneyPaymentFiltersState['status'] {
+  if (status === 'paid') return 'paid';
+  if (status === 'overdue') return 'overdue';
+  if (status === 'pending' || status === 'unpaid' || status === 'failed' || status === 'cancelled' || status === 'refunded') {
+    return 'unpaid';
+  }
+  return 'all';
+}
+
 export function MoneyWorkspace({
   paymentsNavigationContext,
   onPaymentsNavigationContextApplied,
@@ -128,7 +144,6 @@ export function MoneyWorkspace({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paymentFilters, setPaymentFilters] = useState<MoneyPaymentFiltersState>(defaultPaymentFilters);
-  const [subscriptionFilter, setSubscriptionFilter] = useState<MoneySubscriptionFilter>('active');
   const [selectedPayment, setSelectedPayment] = useState<AdminPaymentRecord | null>(null);
   const [isPaymentDetailsOpen, setIsPaymentDetailsOpen] = useState(false);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
@@ -200,7 +215,7 @@ export function MoneyWorkspace({
     setPaymentFilters((prev) => ({
       ...prev,
       queue: mapContextQueue(paymentsNavigationContext.statusFilter),
-      status: paymentsNavigationContext.statusFilter || prev.status,
+      status: mapContextStatus(paymentsNavigationContext.statusFilter),
       method: paymentsNavigationContext.methodFilter || prev.method,
       search: paymentsNavigationContext.searchQuery || prev.search,
     }));
@@ -210,6 +225,20 @@ export function MoneyWorkspace({
     }
     onPaymentsNavigationContextApplied?.();
   }, [paymentsNavigationContext, appliedContextId, onPaymentsNavigationContextApplied]);
+
+  useEffect(() => {
+    if (!invoiceDraft.clientId) return;
+    const linkedClient = clients.find((item) => item.id === invoiceDraft.clientId);
+    if (!linkedClient) return;
+    if (invoiceDraft.parentUserId === linkedClient.parentUserId && invoiceDraft.parentPhone) return;
+    setInvoiceDraft((prev) => ({
+      ...prev,
+      parentUserId: linkedClient.parentUserId || prev.parentUserId,
+      parentPhone: linkedClient.parentPhone || prev.parentPhone,
+      parentFullName: linkedClient.parentName || prev.parentFullName,
+      childFullName: '',
+    }));
+  }, [invoiceDraft.clientId, invoiceDraft.parentPhone, invoiceDraft.parentUserId, clients]);
 
   const subscriptions = useMemo<MoneySubscriptionRecord[]>(
     () =>
@@ -235,20 +264,12 @@ export function MoneyWorkspace({
     const query = paymentFilters.search.trim().toLowerCase();
     return payments
       .filter((payment) => paymentQueueMatches(payment, paymentFilters.queue))
-      .filter((payment) => paymentFilters.status === 'all' || payment.status === paymentFilters.status)
+      .filter((payment) => paymentFilters.status === 'all' || getDisplayPaymentStatus(payment.status) === paymentFilters.status)
       .filter((payment) => paymentFilters.method === 'all' || payment.paymentMethod === paymentFilters.method)
       .filter((payment) => paymentFilters.type === 'all' || derivePaymentType(payment) === paymentFilters.type)
       .filter((payment) => !query || normalizePaymentSearch(payment).includes(query))
       .sort((left, right) => new Date(right.updatedAt || right.createdAt).getTime() - new Date(left.updatedAt || left.createdAt).getTime());
   }, [payments, paymentFilters]);
-
-  const visibleSubscriptions = useMemo(() => {
-    const query = paymentFilters.search.trim().toLowerCase();
-    return subscriptions
-      .filter((subscription) => subscriptionQueueMatches(subscription, subscriptionFilter))
-      .filter((subscription) => !query || normalizeSubscriptionSearch(subscription).includes(query))
-      .sort((left, right) => left.childName.localeCompare(right.childName));
-  }, [subscriptions, subscriptionFilter, paymentFilters.search]);
 
   const recentEvents = useMemo(() => journal.slice(0, 5), [journal]);
   const selectedPaymentEvents = useMemo(
@@ -266,25 +287,39 @@ export function MoneyWorkspace({
     setPaymentFilters((prev) => ({ ...prev, queue, ...extra }));
   };
 
-  const openSubscriptionsQueue = (filter: MoneySubscriptionFilter) => {
-    setActiveTab('subscriptions');
-    setSubscriptionFilter(filter);
+  const openSubscriptionsQueue = () => {
+    onNavigateSection?.('pricing');
   };
 
   const submitInvoice = async () => {
-    if (!invoiceDraft.clientId) {
-      toast.error('Выберите клиента для счета');
+    const hasClientReference = Boolean(invoiceDraft.clientId);
+    if (!hasClientReference && !invoiceDraft.parentPhone.trim()) {
+      toast.error('Укажите телефон родителя для создания профиля');
+      return;
+    }
+    if (!hasClientReference && !invoiceDraft.childFullName.trim()) {
+      toast.error('Укажите имя ребенка');
       return;
     }
     setIsInvoiceSubmitting(true);
     try {
       const parsedAmount = invoiceDraft.amount.trim() ? Number(invoiceDraft.amount) : undefined;
+      const selectedPlan = pricingPlans.find((plan) => plan.code === invoiceDraft.planCode);
+      const composedComment = [moneyInvoiceTargetLabels[invoiceDraft.paymentType], selectedPlan?.title, invoiceDraft.comment.trim() || null]
+        .filter(Boolean)
+        .join(' · ');
       await createAdminInvoice({
-        client_id: invoiceDraft.clientId,
+        client_id: hasClientReference ? invoiceDraft.clientId : undefined,
+        parent_user_id: invoiceDraft.parentUserId || undefined,
+        parent_phone: hasClientReference ? undefined : invoiceDraft.parentPhone.trim(),
+        parent_full_name: hasClientReference ? undefined : (invoiceDraft.parentFullName.trim() || undefined),
+        child_full_name: hasClientReference ? undefined : invoiceDraft.childFullName.trim(),
+        subscription_name: selectedPlan?.title || moneyInvoiceTargetLabels[invoiceDraft.paymentType],
         payment_method: invoiceDraft.paymentMethod,
         amount: parsedAmount,
         due_date: invoiceDraft.dueDate || undefined,
-        comment: invoiceDraft.comment.trim() || undefined,
+        starts_at: invoiceDraft.useCustomStartsAt ? invoiceDraft.startsAt || undefined : undefined,
+        comment: composedComment || undefined,
       });
       toast.success('Счет создан');
       setIsCreateInvoiceOpen(false);
@@ -339,6 +374,32 @@ export function MoneyWorkspace({
     }
   };
 
+  const changePaymentMethod = async (
+    payment: AdminPaymentRecord,
+    nextMethod: 'cash' | 'online',
+    options?: { confirmCashImmediately?: boolean },
+  ) => {
+    try {
+      await changeAdminPaymentMethod(payment.id, {
+        payment_method: nextMethod,
+        confirm_cash_immediately: options?.confirmCashImmediately || false,
+        paid_amount: nextMethod === 'cash' && options?.confirmCashImmediately ? Number(payment.amount || 0) : undefined,
+        comment:
+          nextMethod === 'cash' && options?.confirmCashImmediately
+            ? 'Переведено в наличные и подтверждено из раздела Деньги'
+            : `Способ оплаты изменен на ${nextMethod === 'cash' ? 'наличные' : 'онлайн'} из раздела Деньги`,
+      });
+      toast.success(
+        nextMethod === 'cash' && options?.confirmCashImmediately
+          ? 'Платеж переведен в наличные и подтвержден'
+          : `Способ оплаты изменен на ${nextMethod === 'cash' ? 'наличные' : 'онлайн'}`,
+      );
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось изменить способ оплаты');
+    }
+  };
+
   const changeDueDate = async (payment: AdminPaymentRecord) => {
     if (editingDuePaymentId === payment.id) return;
     const nextDueDate = window.prompt('Новый срок оплаты (YYYY-MM-DD)', payment.dueDate ? payment.dueDate.slice(0, 10) : '');
@@ -359,7 +420,7 @@ export function MoneyWorkspace({
     const amount = Number(expenseForm.amount);
     if (!expenseForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
       toast.error('Заполните описание и корректную сумму');
-      return;
+      return false;
     }
     setIsAddingExpense(true);
     try {
@@ -381,8 +442,10 @@ export function MoneyWorkspace({
         notes: '',
       }));
       await refresh(true);
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось добавить расход');
+      return false;
     } finally {
       setIsAddingExpense(false);
     }
@@ -398,37 +461,28 @@ export function MoneyWorkspace({
     }
   };
 
-  const openSubscription = (subscription: MoneySubscriptionRecord) => {
-    if (subscription.latestPayment) {
-      openPayment(subscription.latestPayment);
-      return;
-    }
-    if (subscription.clientId) {
-      setInvoiceDraft((prev) => ({ ...prev, clientId: subscription.clientId || '' }));
-      setIsCreateInvoiceOpen(true);
-    }
-  };
-
   const content = (
     <>
       {activeTab === 'overview' ? (
         <MoneyOverview
-          summary={overviewSummary}
-          recentEvents={recentEvents}
-          trialUnpaidCount={trialUnpaidCount}
-          subscriptionWithoutPaymentCount={subscriptionWithoutPaymentCount}
-          onOpenReview={() => openPaymentQueue('review')}
+          stats={stats}
+          monthlyData={monthlyData}
+          payments={payments}
+          activeSubscriptionsCount={subscriptions.filter((item) => item.status === 'active' || item.status === 'not_started').length}
+          endingSoonCount={subscriptions.filter((item) => item.status === 'ending_soon').length}
+          onCreateInvoice={() => setIsCreateInvoiceOpen(true)}
+          onOpenExpenses={() => setActiveTab('expenses')}
           onOpenWaiting={() => openPaymentQueue('waiting')}
           onOpenOverdue={() => openPaymentQueue('overdue')}
-          onOpenEndingSoon={() => openSubscriptionsQueue('ending_soon')}
-          onOpenTrialUnpaid={() => openPaymentQueue('trial', { type: 'trial' })}
-          onOpenSubscriptionIssues={() => openSubscriptionsQueue('payment_required')}
+          onOpenEndingSoon={() => openSubscriptionsQueue()}
+          onOpenSubscriptions={() => openSubscriptionsQueue()}
         />
       ) : null}
 
       {activeTab === 'payments' ? (
         <MoneyPayments
           payments={visiblePayments}
+          summary={overviewSummary}
           filters={paymentFilters}
           onChangeFilters={setPaymentFilters}
           onOpenFilters={() => setIsFiltersOpen(true)}
@@ -442,34 +496,15 @@ export function MoneyWorkspace({
           onConfirm={confirmPayment}
           onCancel={cancelPayment}
           onMarkCash={markCashPaid}
+          onChangeMethod={changePaymentMethod}
           onChangeDueDate={changeDueDate}
           activeContextLabel={activeContextLabel}
         />
       ) : null}
 
-      {activeTab === 'subscriptions' ? (
-        <MoneySubscriptions
-          subscriptions={visibleSubscriptions}
-          filter={subscriptionFilter}
-          onChangeFilter={setSubscriptionFilter}
-          onCreateInvoice={() => setIsCreateInvoiceOpen(true)}
-          onOpenSubscription={openSubscription}
-          onOpenPayments={(subscription) => {
-            if (subscription.latestPayment) {
-              openPayment(subscription.latestPayment);
-            } else if (subscription.clientId) {
-              setInvoiceDraft((prev) => ({ ...prev, clientId: subscription.clientId || '' }));
-              setIsCreateInvoiceOpen(true);
-            }
-          }}
-        />
-      ) : null}
-
-      {activeTab === 'settings' ? (
-        <MoneySettings
-          pricingPlans={pricingPlans}
+      {activeTab === 'expenses' ? (
+        <MoneyExpenses
           expenses={expenses}
-          onOpenPricing={() => onNavigateSection?.('pricing')}
           onAddExpense={() => void addExpense()}
           onDeleteExpense={(expenseId) => void removeExpense(expenseId)}
           isRefreshingExpenses={isRefreshing || isAddingExpense}
@@ -493,16 +528,14 @@ export function MoneyWorkspace({
         </MobileMoneyWorkspace>
       ) : (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MoneyTab)} className="space-y-5">
-          <TabsList className="grid w-full grid-cols-4 rounded-2xl border border-[#133C2A]/10 bg-white/90 p-1 md:w-[680px]">
+          <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-[#133C2A]/10 bg-white/90 p-1 md:w-[520px]">
             <TabsTrigger value="overview" className="rounded-xl">Обзор</TabsTrigger>
             <TabsTrigger value="payments" className="rounded-xl">Оплаты</TabsTrigger>
-            <TabsTrigger value="subscriptions" className="rounded-xl">Абонементы</TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-xl">Еще / настройки</TabsTrigger>
+            <TabsTrigger value="expenses" className="rounded-xl">Расходы</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">{activeTab === 'overview' ? content : null}</TabsContent>
           <TabsContent value="payments">{activeTab === 'payments' ? content : null}</TabsContent>
-          <TabsContent value="subscriptions">{activeTab === 'subscriptions' ? content : null}</TabsContent>
-          <TabsContent value="settings">{activeTab === 'settings' ? content : null}</TabsContent>
+          <TabsContent value="expenses">{activeTab === 'expenses' ? content : null}</TabsContent>
         </Tabs>
       )}
 
@@ -518,6 +551,7 @@ export function MoneyWorkspace({
         open={isCreateInvoiceOpen}
         onOpenChange={setIsCreateInvoiceOpen}
         clients={clients}
+        pricingPlans={pricingPlans}
         draft={invoiceDraft}
         onChange={setInvoiceDraft}
         onSubmit={() => void submitInvoice()}

@@ -1,20 +1,19 @@
 import { AdminChildRecord, AdminClientRecord, AdminPaymentRecord, OwnerPricingPlanDto } from '../../lib/backendApi';
 import { Group } from '../../types';
 
-export type MoneyTab = 'overview' | 'payments' | 'subscriptions' | 'settings';
+export type MoneyTab = 'overview' | 'payments' | 'expenses' | 'pricing';
 export type MoneyPaymentQueue = 'all' | 'review' | 'waiting' | 'overdue' | 'paid' | 'trial' | 'cash' | 'online' | 'problem';
 export type MoneyPaymentStatusFilter =
   | 'all'
   | 'unpaid'
-  | 'pending'
   | 'paid'
-  | 'failed'
-  | 'refunded'
   | 'overdue'
   | 'cancelled'
-  | 'expired';
+;
+export type MoneyDisplayPaymentStatus = 'paid' | 'unpaid' | 'overdue' | 'cancelled';
 export type MoneyPaymentMethodFilter = 'all' | 'cash' | 'online';
 export type MoneyPaymentType = 'trial' | 'subscription' | 'renewal' | 'event' | 'individual' | 'custom' | 'debt';
+export type MoneyInvoiceTargetType = 'trial' | 'subscription' | 'renewal' | 'individual' | 'event' | 'custom';
 export type MoneySubscriptionFilter = 'active' | 'ending_soon' | 'expired' | 'frozen' | 'payment_required' | 'all';
 export type MoneySubscriptionStatus =
   | 'not_started'
@@ -89,10 +88,26 @@ export interface MoneyPaymentFiltersState {
 
 export interface MoneyInvoiceDraft {
   clientId: string;
+  parentUserId: string;
+  parentPhone: string;
+  parentFullName: string;
+  childFullName: string;
+  paymentType: MoneyInvoiceTargetType;
+  planCode: string;
   paymentMethod: 'cash' | 'online';
   amount: string;
   dueDate: string;
+  startsAt: string;
+  useCustomStartsAt: boolean;
   comment: string;
+}
+
+export interface MoneyPricingDraft {
+  title: string;
+  basePrice: string;
+  isActive: boolean;
+  hasDiscount: boolean;
+  discountPrice: string;
 }
 
 export interface MoneyWorkspaceData {
@@ -104,17 +119,11 @@ export interface MoneyWorkspaceData {
   journal: MoneyJournalEntry[];
 }
 
-export const moneyPaymentStatusLabels: Record<string, string> = {
-  draft: 'Черновик',
-  unpaid: 'Ждет оплату',
-  pending: 'Нужно проверить',
-  waiting_confirmation: 'Нужно проверить',
+export const moneyPaymentStatusLabels: Record<MoneyDisplayPaymentStatus, string> = {
+  unpaid: 'Не оплачено',
   paid: 'Оплачено',
   overdue: 'Просрочено',
-  failed: 'Ошибка оплаты',
-  cancelled: 'Отменено',
-  refunded: 'Возврат',
-  expired: 'Ссылка истекла',
+  cancelled: 'Отменен',
 };
 
 export const moneySubscriptionStatusLabels: Record<MoneySubscriptionStatus, string> = {
@@ -138,6 +147,15 @@ export const moneyPaymentTypeLabels: Record<MoneyPaymentType, string> = {
   debt: 'Долг',
 };
 
+export const moneyInvoiceTargetLabels: Record<MoneyInvoiceTargetType, string> = {
+  trial: 'Пробное',
+  subscription: 'Абонемент',
+  renewal: 'Продление',
+  individual: 'Индивидуальное',
+  event: 'Мероприятие',
+  custom: 'Другое',
+};
+
 export const moneyQueueLabels: Record<MoneyPaymentQueue, string> = {
   all: 'Все',
   review: 'Проверить',
@@ -147,7 +165,7 @@ export const moneyQueueLabels: Record<MoneyPaymentQueue, string> = {
   trial: 'Пробные',
   cash: 'Наличные',
   online: 'Онлайн',
-  problem: 'Ошибки',
+  problem: 'С ошибкой',
 };
 
 export function formatMoney(value: number): string {
@@ -172,8 +190,22 @@ export function isOutstandingPayment(status?: string | null): boolean {
   return ['unpaid', 'pending', 'overdue', 'failed'].includes(String(status || ''));
 }
 
+export function getDisplayPaymentStatus(status?: string | null): MoneyDisplayPaymentStatus {
+  const normalized = String(status || '');
+  if (normalized === 'paid') return 'paid';
+  if (normalized === 'cancelled') return 'cancelled';
+  if (normalized === 'overdue') return 'overdue';
+  return 'unpaid';
+}
+
 export function getPaymentStatusLabel(status?: string | null): string {
-  return moneyPaymentStatusLabels[String(status || '')] || String(status || 'Не задано');
+  return moneyPaymentStatusLabels[getDisplayPaymentStatus(status)];
+}
+
+export function getPaymentMethodLabel(method?: string | null): string {
+  if (method === 'cash') return 'Наличные';
+  if (method === 'online') return 'Онлайн';
+  return 'Не задан';
 }
 
 export function getSubscriptionStatusLabel(status: MoneySubscriptionStatus): string {
@@ -223,7 +255,7 @@ export function deriveSubscriptionRecord(
 
   const group = groups.find((entry) => String(entry.id) === String(child.groupId || ''));
   const plan = findPricingPlan(child, pricingPlans);
-  const startsAt = child.latestPayment?.paidAt || child.updatedAt || child.createdAt || null;
+  const startsAt = child.latestPayment?.serviceStartDate || child.latestPayment?.paidAt || child.updatedAt || child.createdAt || null;
   const durationDays = typeof plan?.duration_days === 'number' ? plan.duration_days : 30;
 
   let expiresAt: string | null = null;
@@ -258,6 +290,11 @@ export function deriveSubscriptionRecord(
   let status: MoneySubscriptionStatus = 'active';
   if (['unpaid', 'pending', 'failed', 'overdue', 'cancelled'].includes(String(child.paymentStatus || ''))) {
     status = 'payment_required';
+  } else if (startsAt) {
+    const startsAtDate = new Date(startsAt);
+    if (!Number.isNaN(startsAtDate.getTime()) && startsAtDate.getTime() > now.getTime()) {
+      status = 'not_started';
+    }
   } else if (expiresAt) {
     const expiresAtDate = new Date(expiresAt);
     if (!Number.isNaN(expiresAtDate.getTime()) && expiresAtDate.getTime() < now.getTime()) {

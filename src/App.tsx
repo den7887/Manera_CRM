@@ -1,12 +1,17 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { Landing } from './components/Landing';
-import { Login } from './components/auth/Login';
-import { OTPVerification } from './components/auth/OTPVerification';
+import { MobileOnlyGate } from './components/MobileOnlyGate';
+import { PinLogin } from './components/auth/PinLogin';
+import { ActivationPinPage } from './components/auth/ActivationPinPage';
 import { ParentDashboard } from './components/parent/ParentDashboard';
 import { OwnerDashboard } from './components/owner/OwnerDashboard';
+import { PublicPaymentSessionPage } from './components/payments/PublicPaymentSessionPage';
+import { PublicPaymentSuccessPage } from './components/payments/PublicPaymentSuccessPage';
 import { Toaster } from './components/ui/sonner';
+import { useMediaQuery } from './hooks/useMediaQuery';
+import { publicSiteConfig } from './lib/publicSiteConfig';
+import './styles/landing-v2.css';
 import { UserRole, Task, Notification, News, Document, Payment, Child, User, Event, Group, Employee, FinanceStats, MonthlyData, Expense } from './types';
-import { mockUsers } from './data/mockData';
 import { createNewsNotification, createEventNotification, createEventUpdateNotification } from './utils/notifications';
 import {
   confirmManualPayment,
@@ -39,13 +44,37 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   sendProviderPaymentWebhook,
-  startOtp,
+  syncProviderPaymentStatus,
+  startPinActivationByPhone,
   updateDocument as updateDocumentApi,
   updateNews as updateNewsApi,
-  verifyOtp,
+  loginWithPin,
 } from './lib/backendApi';
 
-type AppState = 'landing' | 'login' | 'otp' | 'dashboard';
+type AppState = 'landing' | 'login' | 'dashboard' | 'activation' | 'payment-session' | 'payment-success';
+
+function readAppStateFromUrl(): { appState: AppState; token: string | null } {
+  if (typeof window === 'undefined') {
+    return { appState: 'landing', token: null };
+  }
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const activationMatch = path.match(/^\/activate\/([^/]+)$/);
+  if (activationMatch) {
+    return { appState: 'activation', token: decodeURIComponent(activationMatch[1] || '') };
+  }
+  const paymentSessionMatch = path.match(/^\/pay\/session\/([^/]+)$/);
+  if (paymentSessionMatch) {
+    return { appState: 'payment-session', token: decodeURIComponent(paymentSessionMatch[1] || '') };
+  }
+  const paymentSuccessMatch = path.match(/^\/pay\/success\/([^/]+)$/);
+  if (paymentSuccessMatch) {
+    return { appState: 'payment-success', token: decodeURIComponent(paymentSuccessMatch[1] || '') };
+  }
+  if (path === '/login') {
+    return { appState: 'login', token: null };
+  }
+  return { appState: 'landing', token: null };
+}
 
 function parseWeekdays(scheduleValue: string): number[] {
   const aliases: Record<number, string[]> = {
@@ -148,6 +177,8 @@ function buildOwnerEvents(groups: Group[], employees: Employee[]): Event[] {
 }
 
 export default function App() {
+  const initialRoute = readAppStateFromUrl();
+  const isDesktopWide = useMediaQuery('(min-width: 1024px)');
   const emptyOwnerStats: FinanceStats = {
     totalIncome: 0,
     totalExpenses: 0,
@@ -157,8 +188,8 @@ export default function App() {
     trialConversion: 0,
   };
 
-  const [appState, setAppState] = useState<AppState>('landing');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [appState, setAppState] = useState<AppState>(initialRoute.appState);
+  const [routeToken, setRouteToken] = useState<string | null>(initialRoute.token);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('parent');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -177,22 +208,15 @@ export default function App() {
   const [ownerExpenses, setOwnerExpenses] = useState<Expense[]>([]);
   const [ownerAutomationCount, setOwnerAutomationCount] = useState(0);
   const parentSyncInFlightRef = useRef(false);
-  const isRealDashboardRole = appState === 'dashboard' && (currentUserRole === 'parent' || currentUserRole === 'owner');
-  const shouldUseMocks = !isRealDashboardRole;
   const isBackendParentSession = currentUserRole === 'parent' && (backendUser !== null || parentAccess !== null);
   const isBackendOwnerSession = currentUserRole === 'owner' && backendUser !== null;
 
-  const fallbackUser = mockUsers.find(u => u.role === currentUserRole) || mockUsers[0];
-  const currentUser: User = backendUser ?? (
-    shouldUseMocks
-      ? fallbackUser
-      : {
-          id: `session-${currentUserRole}`,
-          name: currentUserRole === 'owner' ? 'Владелец' : 'Родитель',
-          phone: '',
-          role: currentUserRole,
-        }
-  );
+  const currentUser: User = backendUser ?? {
+    id: `session-${currentUserRole}`,
+    name: currentUserRole === 'owner' ? 'Владелец' : 'Пользователь',
+    phone: '',
+    role: currentUserRole,
+  };
   const userChildren = currentUserRole === 'parent'
     ? (isBackendParentSession ? parentChildren : [])
     : [];
@@ -206,6 +230,16 @@ export default function App() {
     () => buildOwnerEvents(ownerGroups, ownerEmployees),
     [ownerGroups, ownerEmployees],
   );
+
+  const navigateToState = (nextState: AppState, path: string, token: string | null = null) => {
+    window.history.replaceState(null, '', path);
+    setRouteToken(token);
+    setAppState(nextState);
+  };
+
+  const openLanding = () => navigateToState('landing', '/');
+  const openLogin = () => navigateToState('login', '/login');
+  const openDashboard = () => navigateToState('dashboard', '/');
 
   const syncParentState = async () => {
     if (parentSyncInFlightRef.current) {
@@ -316,24 +350,25 @@ export default function App() {
 
   useEffect(() => {
     const savedRole = getStoredRole();
-    const savedToken = window.localStorage.getItem('manera_crm_token');
     const allowedRole = savedRole === 'owner' || savedRole === 'parent' ? savedRole : null;
+    const initialUrlRoute = readAppStateFromUrl();
+    const isStandalonePublicRoute = ['activation', 'payment-session', 'payment-success'].includes(initialUrlRoute.appState);
     if (allowedRole) {
       setCurrentUserRole(allowedRole);
-      setAppState('dashboard');
+      if (!isStandalonePublicRoute) {
+        setAppState('dashboard');
+      }
     } else if (savedRole) {
       clearAuth();
       setCurrentUserRole('parent');
-      setAppState('landing');
+      if (!isStandalonePublicRoute) {
+        setAppState(initialUrlRoute.appState);
+      }
     }
     if (savedRole && !allowedRole) {
       return;
     }
-    if (!savedToken) {
-      if (savedRole) {
-        clearAuth();
-      }
-      setAppState('landing');
+    if (isStandalonePublicRoute) {
       return;
     }
 
@@ -344,22 +379,64 @@ export default function App() {
         if (serverRole !== 'owner' && serverRole !== 'parent') {
           clearAuth();
           setCurrentUserRole('parent');
-          setAppState('landing');
+          openLanding();
           return;
         }
         if (allowedRole !== serverRole) {
           setCurrentUserRole(serverRole);
         }
         await syncServerState(serverRole);
+        openDashboard();
       } catch {
         clearAuth();
         setCurrentUserRole('parent');
-        setAppState('landing');
+        openLanding();
       }
     };
 
-    bootstrap();
+    void bootstrap();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get('payment');
+    const paymentId = window.localStorage.getItem('manera_pending_provider_payment_id');
+    if (!paymentResult || !paymentId) {
+      return;
+    }
+
+    let active = true;
+    const finish = () => {
+      window.localStorage.removeItem('manera_pending_provider_payment_id');
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete('payment');
+      window.history.replaceState({}, '', nextUrl.toString());
+    };
+
+    const sync = async () => {
+      try {
+        const result = await syncProviderPaymentStatus({ payment_id: paymentId });
+        if (!active) {
+          return;
+        }
+        if (result.synced && currentUserRole === 'parent' && appState === 'dashboard') {
+          await syncParentState();
+        }
+      } catch {
+        // Если status-sync еще не настроен полностью, не блокируем возврат в приложение.
+      } finally {
+        if (active) {
+          finish();
+        }
+      }
+    };
+
+    void sync();
+
+    return () => {
+      active = false;
+    };
+  }, [appState, currentUserRole]);
 
   useEffect(() => {
     if (appState !== 'dashboard' || currentUserRole !== 'parent') {
@@ -392,14 +469,8 @@ export default function App() {
     };
   }, [appState, currentUserRole]);
 
-  const handleLogin = async (phone: string) => {
-    await startOtp(phone);
-    setPhoneNumber(phone);
-    setAppState('otp');
-  };
-
-  const handleVerify = async (otp: string) => {
-    const role = await verifyOtp(phoneNumber, otp);
+  const handlePinLogin = async (phone: string, pin: string) => {
+    const role = await loginWithPin(phone, pin);
     if (role !== 'owner' && role !== 'parent') {
       throw new Error('Вход для этой роли отключен');
     }
@@ -411,14 +482,35 @@ export default function App() {
     }
 
     setCurrentUserRole(role);
-    setAppState('dashboard');
+    openDashboard();
+  };
+
+  const handleStartPinActivation = async (phone: string) => {
+    const response = await startPinActivationByPhone({ phone });
+    const activationUrl = String(response.activation_url || '').trim();
+    if (!activationUrl) {
+      throw new Error('Ссылка активации не получена. Обратитесь к администратору студии.');
+    }
+    window.location.href = activationUrl;
+  };
+
+  const handleActivationComplete = async () => {
+    try {
+      const user = await loadCurrentUser();
+      setCurrentUserRole(user.role);
+      await syncServerState(user.role);
+    } catch {
+      setCurrentUserRole('parent');
+      await syncServerState('parent');
+    }
+    openDashboard();
   };
 
   const handleLogout = () => {
     void logoutApi();
     clearAuth();
-    setAppState('landing');
-    setPhoneNumber('');
+    openLanding();
+    setRouteToken(null);
     setBackendUser(null);
     setParentAccess(null);
     setParentPayments([]);
@@ -432,11 +524,6 @@ export default function App() {
     setOwnerMonthlyData([]);
     setOwnerExpenses([]);
     setOwnerAutomationCount(0);
-  };
-
-  const handleGuestBrowse = () => {
-    // For demo, just show landing page with scroll to pricing
-    window.scrollTo({ top: 600, behavior: 'smooth' });
   };
 
   // Функция для добавления задачи
@@ -591,7 +678,7 @@ export default function App() {
       await sendProviderPaymentWebhook({
         payment_id: paymentId,
         status: 'paid',
-        provider_payment_id: provider.provider_payment_id || `demo-${Date.now()}`,
+        provider_payment_id: provider.provider_payment_id || `provider-${Date.now()}`,
         raw_payload: {
           source: 'parent-cabinet',
           mode: 'auto-confirm',
@@ -601,6 +688,7 @@ export default function App() {
       return;
     }
 
+    window.localStorage.setItem('manera_pending_provider_payment_id', paymentId);
     window.location.href = provider.payment_url;
   };
 
@@ -631,55 +719,110 @@ export default function App() {
     }
   };
 
+  const appOrigin = typeof window === 'undefined' ? publicSiteConfig.siteUrl : window.location.origin;
+  const activationTargetUrl = typeof window === 'undefined' ? publicSiteConfig.siteUrl : window.location.href;
+  const parentCabinetDesktopBlocked =
+    isDesktopWide &&
+    (
+      appState === 'login' ||
+      appState === 'activation' ||
+      (appState === 'dashboard' && currentUserRole === 'parent')
+    );
+
+  const parentCabinetGate = (() => {
+    if (!parentCabinetDesktopBlocked) {
+      return null;
+    }
+    if (appState === 'activation') {
+      return (
+        <MobileOnlyGate
+          targetUrl={activationTargetUrl}
+          title="Активация кабинета доступна только с телефона"
+          description="Откройте ссылку активации на мобильном устройстве и создайте PIN-код там."
+        />
+      );
+    }
+    if (appState === 'dashboard' && currentUserRole === 'parent') {
+      return (
+        <MobileOnlyGate
+          targetUrl={`${appOrigin}/login`}
+          title="Личный кабинет доступен только в мобильной версии"
+          description="Откройте страницу входа на телефоне и войдите по номеру телефона и PIN-коду."
+        />
+      );
+    }
+    return (
+      <MobileOnlyGate
+        targetUrl={`${appOrigin}/login`}
+        title="Вход в личный кабинет доступен только с телефона"
+        description="Откройте страницу входа на мобильном устройстве и авторизуйтесь там."
+      />
+    );
+  })();
+
   return (
     <div className="min-h-screen">
       {appState === 'landing' && (
         <Landing 
-          onLogin={() => setAppState('login')} 
-          onGuestBrowse={handleGuestBrowse}
+          onLogin={openLogin} 
           onAddTask={addTask}
           onAddNotification={addNotification}
         />
       )}
 
       {appState === 'login' && (
-        <Login
-          onBack={() => setAppState('landing')}
-          onLogin={handleLogin}
-        />
+        parentCabinetGate ?? (
+          <PinLogin
+            onBack={openLanding}
+            onLogin={handlePinLogin}
+            onStartActivation={handleStartPinActivation}
+          />
+        )
       )}
 
-      {appState === 'otp' && (
-        <OTPVerification
-          phone={phoneNumber}
-          onVerify={handleVerify}
-          onBack={() => setAppState('login')}
-        />
+      {appState === 'activation' && routeToken && (
+        parentCabinetGate ?? (
+          <ActivationPinPage
+            token={routeToken}
+            onActivated={handleActivationComplete}
+            onGoLogin={openLogin}
+          />
+        )
+      )}
+
+      {appState === 'payment-session' && routeToken && (
+        <PublicPaymentSessionPage token={routeToken} />
+      )}
+
+      {appState === 'payment-success' && routeToken && (
+        <PublicPaymentSuccessPage token={routeToken} />
       )}
 
       {appState === 'dashboard' && currentUserRole === 'parent' && (
-        isParentStateLoading ? (
-          <div className="min-h-screen bg-gradient-to-br from-[#F8F4E3] via-[#F8F4E3] to-[#133C2A]/5 flex items-center justify-center p-6">
-            <div className="rounded-3xl bg-white/90 border border-[#133C2A]/10 shadow-lg px-8 py-6 text-center">
-              <div className="text-[#133C2A] text-lg">Проверяем доступ к кабинету...</div>
+        parentCabinetGate ?? (
+          isParentStateLoading ? (
+            <div className="min-h-screen bg-gradient-to-br from-[#F8F4E3] via-[#F8F4E3] to-[#133C2A]/5 flex items-center justify-center p-6">
+              <div className="rounded-3xl bg-white/90 border border-[#133C2A]/10 shadow-lg px-8 py-6 text-center">
+                <div className="text-[#133C2A] text-lg">Проверяем доступ к кабинету...</div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <ParentDashboard
-            user={currentUser}
-            children={userChildren}
-            events={userEvents}
-            payments={userPayments}
-            newsEvents={newsEvents}
-            documents={documents}
-            onLogout={handleLogout}
-            notifications={notifications}
-            accessInfo={parentAccess}
-            onPayOnline={handleParentOnlinePayment}
-            onConfirmManualPayment={handleParentManualPayment}
-            onMarkNotificationRead={handleParentNotificationRead}
-            onMarkAllNotificationsRead={handleParentMarkAllNotificationsRead}
-          />
+          ) : (
+            <ParentDashboard
+              user={currentUser}
+              children={userChildren}
+              events={userEvents}
+              payments={userPayments}
+              newsEvents={newsEvents}
+              documents={documents}
+              onLogout={handleLogout}
+              notifications={notifications}
+              accessInfo={parentAccess}
+              onPayOnline={handleParentOnlinePayment}
+              onConfirmManualPayment={handleParentManualPayment}
+              onMarkNotificationRead={handleParentNotificationRead}
+              onMarkAllNotificationsRead={handleParentMarkAllNotificationsRead}
+            />
+          )
         )
       )}
 

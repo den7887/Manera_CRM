@@ -75,12 +75,17 @@ def client(tmp_path, monkeypatch):
 
 
 def _auth_headers(client: TestClient, phone: str) -> dict[str, str]:
-    start = client.post("/api/auth/otp/start", json={"phone": phone})
-    assert start.status_code == 200
-    verify = client.post("/api/auth/otp/verify", json={"phone": phone, "code": "400001"})
-    assert verify.status_code == 200
-    token = verify.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    store = main._read_store()
+    user = main._find_user_by_phone(store, phone)
+    assert user is not None
+    token = main._create_auth_session(store, user)
+    main._write_store(store)
+    client.cookies.set(main.SESSION_COOKIE_NAME, token)
+    csrf_response = client.get("/api/auth/csrf")
+    assert csrf_response.status_code == 200
+    csrf_token = client.cookies.get(main.CSRF_COOKIE_NAME)
+    assert csrf_token
+    return {main.CSRF_HEADER_NAME: csrf_token}
 
 
 def _create_owner_client(
@@ -126,11 +131,15 @@ def test_payment_reference_unique(client: TestClient):
 
 
 def test_cannot_confirm_foreign_payment(client: TestClient):
-    owner_headers = _auth_headers(client, "+79990000001")
+    _auth_headers(client, "+79990000001")
     foreign_headers = _auth_headers(client, "+79990000002")
+    owner_headers = _auth_headers(client, "+79990000001")
     payment = client.post("/api/payments/create", json={"subscription_plan_code": "pro", "child_id": None}, headers=owner_headers).json()
+    payment_id = payment.get("payment_id") or payment.get("id")
+    assert payment_id
 
-    response = client.post(f"/api/payments/{payment['payment_id']}/confirm-user-paid", headers=foreign_headers)
+    _auth_headers(client, "+79990000002")
+    response = client.post(f"/api/payments/{payment_id}/confirm-user-paid", headers=foreign_headers)
     assert response.status_code == 403
 
 
@@ -162,6 +171,60 @@ def test_confirm_idempotent_no_duplicate_subscription(client: TestClient):
     assert len(subscriptions.json()) == 1
 
 
+def test_online_payment_is_confirmed_only_by_provider_webhook(client: TestClient, monkeypatch):
+    monkeypatch.setenv("PAYMENT_METHOD", "online")
+    monkeypatch.setenv("PAYMENT_PROVIDER", "internet_acquiring")
+    headers = _auth_headers(client, "+79990000001")
+    payment = client.post("/api/payments/create", json={"subscription_plan_code": "hobby", "child_id": None}, headers=headers).json()
+
+    manual_confirm = client.post(f"/api/payments/{payment['payment_id']}/confirm-user-paid", headers=headers)
+    assert manual_confirm.status_code == 409
+    assert "automatically" in manual_confirm.json()["detail"]
+
+    webhook = client.post(
+        "/api/payments/provider/webhook",
+        json={
+            "payment_id": payment["payment_id"],
+            "status": "paid",
+            "provider_payment_id": "prov-123",
+            "raw_payload": {"event": "payment.succeeded"},
+        },
+    )
+    assert webhook.status_code == 200
+    body = webhook.json()
+    assert body["payment"]["status"] == "paid"
+    assert body["payment"]["confirmed_by"] == "provider"
+    assert body["payment"]["provider_payment_id"] == "prov-123"
+    assert body["subscription"]["status"] == "active"
+
+    access = client.get("/api/parent/access", headers=headers)
+    assert access.status_code == 200
+    assert access.json()["canUseDashboard"] is False
+    assert access.json()["portalStatus"] in {"paid_online_waiting_activation", "activation_link_created"}
+
+    store = json.loads(main.DATA_FILE.read_text(encoding="utf-8"))
+    journal_entry = next(
+        (item for item in store.get("paymentJournal", []) if item.get("paymentId") == payment["payment_id"]),
+        None,
+    )
+    assert journal_entry is not None
+    assert journal_entry["eventType"] == "payment.confirmed_online"
+    assert journal_entry["newStatus"] == "paid"
+
+    notification = next(
+        (
+            item
+            for item in store.get("notifications", [])
+            if str(item.get("userId")) == "parent-1"
+            and str(item.get("metadata", {}).get("paymentId")) == payment["payment_id"]
+            and str(item.get("metadata", {}).get("status")) == "paid"
+        ),
+        None,
+    )
+    assert notification is not None
+    assert notification["title"] == "Оплата подтверждена"
+
+
 def test_owner_can_create_invoice_after_paid_cycle(client: TestClient):
     owner_headers = _auth_headers(client, main.OWNER_PHONE)
     created = _create_owner_client(client, owner_headers, payment_method="cash")
@@ -188,6 +251,32 @@ def test_owner_can_create_invoice_after_paid_cycle(client: TestClient):
     assert body["status"] == "pending"
     assert body["invoiceNumber"].startswith("INV-")
     assert body["dueDate"] == "2026-12-31"
+
+
+def test_owner_can_set_service_start_date_on_invoice(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001010", payment_method="cash")
+    confirm = client.post(
+        f"/api/admin/payments/{created['payment']['id']}/confirm-cash",
+        json={"paid_amount": 5000},
+        headers=owner_headers,
+    )
+    assert confirm.status_code == 200
+
+    invoice = client.post(
+        "/api/admin/payments/invoices",
+        json={
+            "client_id": created["client"]["id"],
+            "payment_method": "online",
+            "due_date": "2026-12-31",
+            "starts_at": "2026-06-01",
+            "comment": "Июньский старт",
+        },
+        headers=owner_headers,
+    )
+    assert invoice.status_code == 200
+    payment = invoice.json()["payment"]
+    assert payment["serviceStartDate"] == "2026-06-01"
 
 
 def test_owner_send_reminder_updates_payment_fields(client: TestClient):
@@ -269,3 +358,116 @@ def test_owner_can_mark_pending_payment_as_paid(client: TestClient):
     payment = patch.json()["payment"]
     assert payment["status"] == "paid"
     assert payment["paidAt"] is not None
+
+
+def test_owner_can_switch_online_payment_to_cash_and_confirm(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001005", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    change = client.post(
+        f"/api/admin/payments/{payment_id}/change-method",
+        json={
+            "payment_method": "cash",
+            "confirm_cash_immediately": True,
+            "paid_amount": 5000,
+            "comment": "Родитель оплатил наличными",
+        },
+        headers=owner_headers,
+    )
+    assert change.status_code == 200
+    payment = change.json()["payment"]
+    assert payment["paymentMethod"] == "cash"
+    assert payment["status"] == "paid"
+    assert payment["paidAt"] is not None
+
+    store = main._read_store()
+    journal_entries = [item for item in store.get("paymentJournal", []) if str(item.get("paymentId")) == payment_id]
+    event_types = {str(item.get("eventType")) for item in journal_entries}
+    assert "payment.method_changed" in event_types
+    assert "payment.confirmed_cash" in event_types
+
+
+def test_selfwork_provider_create_returns_local_form(client: TestClient, monkeypatch):
+    monkeypatch.setenv("PAYMENT_METHOD", "online")
+    monkeypatch.setenv("PAYMENT_PROVIDER", "selfwork")
+    monkeypatch.setenv("SELFWORK_API_KEY", "test-selfwork-secret")
+    headers = _auth_headers(client, "+79990000001")
+    payment = client.post("/api/payments/create", json={"subscription_plan_code": "hobby", "child_id": None}, headers=headers).json()
+    payment_id = payment.get("payment_id") or payment.get("id")
+    assert payment_id
+
+    created = client.post(
+        "/api/payments/provider/create",
+        json={
+            "payment_id": payment_id,
+            "success_url": "http://localhost:3000/?payment=success",
+            "fail_url": "http://localhost:3000/?payment=fail",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    assert payload["payment_url"].startswith(f"http://testserver/api/payments/provider/selfwork/form/{payment['payment_id']}?token=")
+    assert payload["provider_payment_id"] == payment["payment_reference"]
+
+    form_response = client.get(payload["payment_url"])
+    assert form_response.status_code == 200
+    assert "https://pro.selfwork.ru/merchant/v1/init" in form_response.text
+    assert 'name="order_id"' in form_response.text
+    assert payment["payment_reference"] in form_response.text
+    assert "manera_pending_provider_payment_id" in form_response.text
+
+
+def test_selfwork_status_sync_marks_parent_payment_paid(client: TestClient, monkeypatch):
+    monkeypatch.setenv("PAYMENT_METHOD", "online")
+    monkeypatch.setenv("PAYMENT_PROVIDER", "selfwork")
+    monkeypatch.setenv("SELFWORK_API_KEY", "test-selfwork-secret")
+    monkeypatch.setenv("SELFWORK_MERCHANT_ID", "merchant-1")
+    headers = _auth_headers(client, "+79990000001")
+    payment = client.post("/api/payments/create", json={"subscription_plan_code": "hobby", "child_id": None}, headers=headers).json()
+
+    class _FakeResponse:
+        def __init__(self, body: str):
+            self._body = body.encode("utf-8")
+
+        def read(self) -> bytes:
+            return self._body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def _fake_urlopen(request, timeout=10):
+        assert timeout == 10
+        assert request.full_url.startswith("https://pro.selfwork.ru/merchant/v1/status?")
+        return _FakeResponse(
+            json.dumps(
+                {
+                    "order_id": payment["payment_reference"],
+                    "status": "succeeded",
+                    "amount": 500000,
+                    "currency": "RUB",
+                }
+            )
+        )
+
+    monkeypatch.setattr(main, "urlopen", _fake_urlopen)
+
+    sync = client.post(
+        "/api/payments/provider/status-sync",
+        json={"payment_id": payment["payment_id"]},
+        headers=headers,
+    )
+    assert sync.status_code == 200
+    body = sync.json()
+    assert body["provider_status"] == "succeeded"
+    assert body["synced"] is True
+    assert body["result"]["payment"]["status"] == "paid"
+
+    access = client.get("/api/parent/access", headers=headers)
+    assert access.status_code == 200
+    assert access.json()["canUseDashboard"] is False
+    assert access.json()["portalStatus"] in {"paid_online_waiting_activation", "activation_link_created"}

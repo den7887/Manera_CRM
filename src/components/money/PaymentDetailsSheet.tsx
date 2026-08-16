@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { PaymentStatusBadge } from '../payments/PaymentStatusBadge';
 import { PaymentTypeBadge } from './PaymentTypeBadge';
 import { PaymentTimeline } from './PaymentTimeline';
-import { MoneyJournalEntry, derivePaymentType, formatDateTime, formatMoney, formatShortDate } from './moneyTypes';
+import { MoneyJournalEntry, derivePaymentType, formatDateTime, formatMoney, formatShortDate, getPaymentMethodLabel, getPaymentStatusLabel } from './moneyTypes';
 
 export function PaymentDetailsSheet({
   open,
@@ -18,6 +18,7 @@ export function PaymentDetailsSheet({
   onConfirm,
   onCancel,
   onMarkCash,
+  onChangeMethod,
   onChangeDueDate,
   onOpenClient,
 }: {
@@ -29,6 +30,7 @@ export function PaymentDetailsSheet({
   onConfirm?: (payment: AdminPaymentRecord) => void;
   onCancel?: (payment: AdminPaymentRecord) => void;
   onMarkCash?: (payment: AdminPaymentRecord) => void;
+  onChangeMethod?: (payment: AdminPaymentRecord) => void;
   onChangeDueDate?: (payment: AdminPaymentRecord) => void;
   onOpenClient?: (payment: AdminPaymentRecord) => void;
 }) {
@@ -56,8 +58,10 @@ export function PaymentDetailsSheet({
           <div className="mt-3 grid gap-2 text-sm text-[#133C2A]">
             <p>Счет: {payment.invoiceNumber || '—'}</p>
             <p>Тип: {payment.subscriptionName}</p>
+            <p>Статус: {getPaymentStatusLabel(payment.status)}</p>
             <p>Срок оплаты: {formatShortDate(payment.dueDate)}</p>
-            <p>Способ: {payment.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}</p>
+            <p>Начало действия: {formatShortDate(payment.serviceStartDate)}</p>
+            <p>Способ: {getPaymentMethodLabel(payment.paymentMethod)}</p>
           </div>
         </div>
 
@@ -77,15 +81,18 @@ export function PaymentDetailsSheet({
             <CalendarClock className="h-4 w-4" />
             <span>Действия</span>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
+            {onMarkCash && payment.paymentMethod === 'cash' && !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status) ? (
+              <Button className="rounded-2xl" onClick={() => onMarkCash(payment)}>Подтвердить</Button>
+            ) : null}
             {onRemind && !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status) ? (
               <Button variant="outline" className="rounded-2xl" onClick={() => onRemind(payment)}>Напомнить</Button>
             ) : null}
-            {onConfirm && payment.status === 'pending' ? (
-              <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => onConfirm(payment)}>Подтвердить</Button>
+            {onConfirm && payment.status === 'pending' && payment.paymentMethod !== 'cash' ? (
+              <Button className="rounded-2xl" onClick={() => onConfirm(payment)}>Подтвердить</Button>
             ) : null}
-            {onMarkCash && payment.paymentMethod === 'cash' && payment.status !== 'paid' ? (
-              <Button variant="outline" className="rounded-2xl" onClick={() => onMarkCash(payment)}>Наличные</Button>
+            {onChangeMethod && !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status) ? (
+              <Button variant="outline" className="rounded-2xl" onClick={() => onChangeMethod(payment)}>Способ оплаты</Button>
             ) : null}
             {onChangeDueDate ? (
               <Button variant="outline" className="rounded-2xl" onClick={() => onChangeDueDate(payment)}>Изменить срок</Button>
@@ -96,6 +103,18 @@ export function PaymentDetailsSheet({
             {onOpenClient ? (
               <Button variant="outline" className="rounded-2xl" onClick={() => onOpenClient(payment)}>Открыть клиента</Button>
             ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4">
+          <div className="flex items-center gap-2 text-sm text-[#133C2A]/55">
+            <CreditCard className="h-4 w-4" />
+            <span>Назначение</span>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm text-[#133C2A]">
+            <p>{derivePaymentType(payment) === 'trial' ? 'Пробное занятие' : 'Абонемент / продление'}</p>
+            <p>{payment.subscriptionName}</p>
+            {payment.invoiceComment ? <p>Комментарий: {payment.invoiceComment}</p> : null}
           </div>
         </div>
 
@@ -139,4 +158,3 @@ export function PaymentDetailsSheet({
     </Sheet>
   );
 }
-

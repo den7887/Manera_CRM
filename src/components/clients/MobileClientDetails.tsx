@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import { AdminChildRecord, AdminPaymentRecord } from '../../lib/backendApi';
 import { Group } from '../../types';
-import { Copy, CreditCard, MessageSquareText, ShieldCheck, UserPlus2, Users } from 'lucide-react';
+import { ClipboardList, Copy, CreditCard, MessageSquareText, ShieldCheck, UserPlus2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { Badge } from '../ui/badge';
@@ -19,6 +19,7 @@ import { ClientTemperatureBadge } from './ClientTemperatureBadge';
 import { ClientTimeline } from './ClientTimeline';
 import { clientStageLabel, clientTemperatureLabel } from './clientStatus';
 import { ClientWorkspaceEntry } from './clientsWorkspaceTypes';
+import { accountStatusLabel, portalStatusLabel } from '../../lib/portalStatus';
 
 function formatRuDate(value?: string | null): string {
   if (!value) return '—';
@@ -128,7 +129,14 @@ export function MobileClientDetails({
   onCreateInvoice,
   onRemind,
   onOpenTasks,
+  onOpenTaskComposer,
+  onOpenLeadActivation,
   onAssignGroup,
+  onCreatePortalActivation,
+  onResetPortalPin,
+  onSuspendPortal,
+  onResumePortal,
+  isPortalActionLoading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -142,15 +150,25 @@ export function MobileClientDetails({
   onCreateInvoice: () => void;
   onRemind?: () => void;
   onOpenTasks: () => void;
+  onOpenTaskComposer: () => void;
+  onOpenLeadActivation: () => void;
   onAssignGroup: (groupId: string | null) => void;
+  onCreatePortalActivation: () => void;
+  onResetPortalPin: () => void;
+  onSuspendPortal: () => void;
+  onResumePortal: () => void;
+  isPortalActionLoading?: boolean;
 }) {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   const payments = useMemo(() => entry?.payments || [], [entry]);
+  const isLeadOnlyRecord = entry?.child.id.startsWith('lead::') ?? false;
 
   if (!entry) {
     return null;
   }
+
+  const leadCreatedAt = entry.child.landingLead?.createdAt || entry.child.createdAt;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,31 +191,111 @@ export function MobileClientDetails({
             </div>
 
             <div className="mt-4 grid grid-cols-4 gap-2">
-              <Button variant="outline" className="h-11 rounded-2xl border-[#133C2A]/12 px-2 text-xs" onClick={() => void copyPhone(entry.child.parentPhone)}>
-                <Copy className="mb-1 h-4 w-4" />
-                Телефон
+              <Button variant="outline" size="icon" className="h-11 rounded-2xl border-[#133C2A]/12" onClick={() => void copyPhone(entry.child.parentPhone)} title="Скопировать телефон">
+                <Copy className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="h-11 rounded-2xl border-[#133C2A]/12 px-2 text-xs" onClick={onOpenPayments}>
-                <CreditCard className="mb-1 h-4 w-4" />
-                Оплаты
+              <Button variant="outline" size="icon" className="h-11 rounded-2xl border-[#133C2A]/12" onClick={onOpenPayments} title="Открыть оплаты">
+                <CreditCard className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="h-11 rounded-2xl border-[#133C2A]/12 px-2 text-xs" onClick={onOpenTasks}>
-                <Users className="mb-1 h-4 w-4" />
-                Задачи
+              <Button variant="outline" size="icon" className="h-11 rounded-2xl border-[#133C2A]/12" onClick={onOpenTaskComposer} title="Создать задачу">
+                <ClipboardList className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="h-11 rounded-2xl border-[#133C2A]/12 px-2 text-xs" onClick={() => setIsEditingNotes(true)}>
-                <MessageSquareText className="mb-1 h-4 w-4" />
-                Комментарий
+              <Button variant="outline" size="icon" className="h-11 rounded-2xl border-[#133C2A]/12" onClick={() => setIsEditingNotes(true)} title="Открыть комментарии">
+                <MessageSquareText className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-8 pt-4">
             <div className="space-y-3">
+              {entry.child.landingLead ? (
+                <Card className="border-[#D4AF37]/25 bg-[#FFF9E8]">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-[#8B6B00]">Данные из заявки</p>
+                        <p className="mt-1 text-xs text-[#8B6B00]/75">Показываем то, что заполнил родитель при обращении.</p>
+                      </div>
+                      <Badge variant="outline" className="rounded-full border-[#D4AF37]/25 bg-white/70 text-[#8B6B00]">
+                        Лид
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm text-[#133C2A]">
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <p className="text-xs text-[#133C2A]/45">Имя ребенка</p>
+                        <p className="mt-1">{entry.child.landingLead.childFullName || entry.child.fullName || '—'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <p className="text-xs text-[#133C2A]/45">Родитель</p>
+                        <p className="mt-1">{entry.child.landingLead.parentFullName || entry.child.parentName || '—'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <p className="text-xs text-[#133C2A]/45">Телефон</p>
+                        <p className="mt-1">{entry.child.landingLead.phone || entry.child.parentPhone || '—'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <p className="text-xs text-[#133C2A]/45">Откуда узнали</p>
+                        <p className="mt-1">{sourceLabel(entry)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <p className="text-xs text-[#133C2A]/45">Поступила</p>
+                        <p className="mt-1">{formatRuDateTime(leadCreatedAt)}</p>
+                      </div>
+                    </div>
+                    {entry.child.landingLead.comment ? (
+                      <div className="rounded-2xl bg-white/75 p-3 text-sm text-[#133C2A]">
+                        <p className="text-xs text-[#133C2A]/45">Комментарий из заявки</p>
+                        <p className="mt-1">{entry.child.landingLead.comment}</p>
+                      </div>
+                    ) : null}
+                    {isLeadOnlyRecord ? (
+                      <Button className="w-full rounded-2xl bg-[#133C2A] text-white" onClick={onOpenLeadActivation}>
+                        <UserPlus2 className="mr-2 h-4 w-4" />
+                        Создать карточку ученика
+                      </Button>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={onOpenTaskComposer}
+              >
+                <Card className="border-[#133C2A]/10 bg-white/95 transition-colors hover:bg-[#FCF7E9]">
+                  <CardContent className="p-4">
+                    <ClientNextAction nextAction={entry.nextAction} />
+                    <p className="mt-3 text-xs text-[#133C2A]/45">Нажмите, чтобы сразу поставить задачу по этому шагу</p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              {isLeadOnlyRecord ? (
+                <Card className="border-[#133C2A]/10 bg-white/95">
+                  <CardContent className="space-y-3 p-4">
+                    <p className="text-sm text-[#133C2A]">Сначала нужно активировать лид</p>
+                    <p className="text-sm text-[#133C2A]/58">
+                      Пока это только заявка. Назначение группы, внутренний профиль и продажи станут доступны после создания полноценной карточки ученика.
+                    </p>
+                    <Button variant="outline" className="w-full rounded-2xl border-[#133C2A]/12" onClick={onOpenLeadActivation}>
+                      Активировать заявку
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : null}
+
               <Card className="border-[#133C2A]/10 bg-white/95">
                 <CardContent className="p-4">
-                  <ClientNextAction nextAction={entry.nextAction} />
-                  <p className="mt-3 text-xs text-[#133C2A]/45">Рекомендовано системой</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-[#133C2A]">Быстрые действия</p>
+                      <p className="mt-1 text-xs text-[#133C2A]/45">Оплаты, задачи и комментарии по карточке.</p>
+                    </div>
+                    <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onOpenTasks}>
+                      Открыть задачи
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -279,7 +377,7 @@ export function MobileClientDetails({
                     </div>
                     <div className="space-y-2">
                       <Label>Назначить группу</Label>
-                      <Select value={entry.child.groupId || 'none'} onValueChange={(value) => onAssignGroup(value === 'none' ? null : value)}>
+                      <Select value={entry.child.groupId || 'none'} onValueChange={(value) => onAssignGroup(value === 'none' ? null : value)} disabled={isLeadOnlyRecord}>
                         <SelectTrigger className="rounded-2xl">
                           <SelectValue placeholder="Без группы" />
                         </SelectTrigger>
@@ -292,6 +390,16 @@ export function MobileClientDetails({
                           ))}
                         </SelectContent>
                       </Select>
+                      {isLeadOnlyRecord ? (
+                        <p className="text-xs text-[#133C2A]/55">
+                          Назначение группы откроется после создания карточки ученика.
+                        </p>
+                      ) : null}
+                      {isLeadOnlyRecord ? (
+                        <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onOpenLeadActivation}>
+                          Сначала создать карточку ученика
+                        </Button>
+                      ) : null}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -331,7 +439,7 @@ export function MobileClientDetails({
                     </div>
 
                     {!isEditingNotes ? (
-                      <Button variant="outline" className="w-full rounded-2xl border-[#133C2A]/12" onClick={() => setIsEditingNotes(true)}>
+                      <Button variant="outline" className="w-full rounded-2xl border-[#133C2A]/12" onClick={() => setIsEditingNotes(true)} disabled={isLeadOnlyRecord}>
                         Редактировать заметки
                       </Button>
                     ) : (
@@ -380,7 +488,7 @@ export function MobileClientDetails({
                           <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => setIsEditingNotes(false)}>
                             Свернуть
                           </Button>
-                          <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={onSaveProfile} disabled={isProfileSaving}>
+                          <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={onSaveProfile} disabled={isProfileSaving || isLeadOnlyRecord}>
                             {isProfileSaving ? 'Сохраняем...' : 'Сохранить'}
                           </Button>
                         </div>
@@ -410,13 +518,31 @@ export function MobileClientDetails({
 
                 <AccordionItem value="parent" className="rounded-[24px] border border-[#133C2A]/10 bg-white/95 px-4">
                   <AccordionTrigger className="text-[#133C2A] hover:no-underline">Данные родителя</AccordionTrigger>
-                  <AccordionContent className="space-y-2 text-sm text-[#133C2A]">
+                  <AccordionContent className="space-y-3 text-sm text-[#133C2A]">
                     <p>Родитель: {entry.child.parentName || '—'}</p>
                     <p>Телефон: {entry.child.parentPhone || '—'}</p>
-                    <p>Доступ в ЛК: {entry.child.parentAccountStatus || '—'}</p>
+                    <p>Доступ в ЛК: {accountStatusLabel(entry.child.parentAccountStatus)}</p>
+                    <p>Статус кабинета: {portalStatusLabel(entry.child.parentPortalStatus)}</p>
                     <p>Источник: {sourceLabel(entry)}</p>
                     <p>Ожидания: {profileDraft.parentExpectations || '—'}</p>
                     <p>Экстренный контакт: {profileDraft.emergencyContactName || '—'} {profileDraft.emergencyContactPhone ? `· ${profileDraft.emergencyContactPhone}` : ''}</p>
+                    <div className="grid gap-2 pt-1">
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onCreatePortalActivation} disabled={isLeadOnlyRecord || isPortalActionLoading}>
+                        Создать ссылку активации
+                      </Button>
+                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onResetPortalPin} disabled={isLeadOnlyRecord || isPortalActionLoading}>
+                        Сбросить PIN
+                      </Button>
+                      {entry.child.parentPortalStatus === 'blocked' ? (
+                        <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onResumePortal} disabled={isLeadOnlyRecord || isPortalActionLoading}>
+                          Возобновить доступ в ЛК
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={onSuspendPortal} disabled={isLeadOnlyRecord || isPortalActionLoading}>
+                          Приостановить доступ в ЛК
+                        </Button>
+                      )}
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
 

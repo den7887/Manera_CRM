@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Textarea } from '../ui/textarea';
 import { EditStudentDialog } from './EditStudentDialog';
 import { AddStudentDialog, type AdminStudentViewModel } from './AddStudentDialog';
-import { mockUsers } from '../../data/mockData';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -40,135 +39,6 @@ interface AdminStudentsProps {
   groups: Group[];
 }
 
-// Extended mock student data with all information
-const initialMockStudents: AdminStudentViewModel[] = [
-  { 
-    id: '1', 
-    name: 'София Петрова', 
-    birthDate: new Date(2017, 2, 15), // 15 марта 2017
-    age: 8, 
-    groupId: '1',
-    groupName: 'Младшая группа',
-    parentName: 'Анна Петрова',
-    parentEmail: 'anna.petrova@email.com',
-    parentPhone: '+7 (999) 123-45-67',
-    status: 'active',
-    attendedClasses: 10,
-    totalClasses: 12,
-    missedClasses: 2,
-    startDate: new Date(2023, 8, 1), // Сентябрь 2023
-    subscriptionName: 'Абонемент 8 занятий',
-    subscriptionClasses: 8,
-    remainingClasses: 2,
-    lastPaymentDate: new Date(2024, 10, 1), // 1 ноября 2024
-    lastPaymentAmount: 4800,
-    paymentStatus: 'paid' as const,
-    nextPaymentDate: new Date(2024, 11, 1), // 1 декабря 2024
-    purchaseDate: new Date(2024, 10, 1),
-    notes: 'Хорошо схватывает новые движения, активная'
-  },
-  { 
-    id: '2', 
-    name: 'Даша Иванова', 
-    birthDate: new Date(2015, 5, 22), // 22 июня 2015
-    age: 10, 
-    groupId: '2',
-    groupName: 'Средняя группа',
-    parentName: 'Ирина Иванова',
-    parentEmail: 'irina.ivanova@email.com',
-    parentPhone: '+7 (999) 234-56-78',
-    status: 'active',
-    attendedClasses: 14,
-    totalClasses: 16,
-    missedClasses: 2,
-    startDate: new Date(2022, 9, 1), // Октябрь 2022
-    subscriptionName: 'Абонемент 12 занятий',
-    subscriptionClasses: 12,
-    remainingClasses: 4,
-    lastPaymentDate: new Date(2024, 9, 15), // 15 октября 2024
-    lastPaymentAmount: 6500,
-    paymentStatus: 'paid' as const,
-    nextPaymentDate: new Date(2024, 11, 15), // 15 декабря 2024
-    purchaseDate: new Date(2024, 9, 15),
-    notes: ''
-  },
-  { 
-    id: '3', 
-    name: 'Мария Смирнова', 
-    birthDate: new Date(2016, 10, 8), // 8 ноября 2016
-    age: 9, 
-    groupId: '1',
-    groupName: 'Младшая группа',
-    parentName: 'Елена Смирнова',
-    parentEmail: 'elena.smirnova@email.com',
-    parentPhone: '+7 (999) 345-67-89',
-    status: 'active',
-    attendedClasses: 11,
-    totalClasses: 12,
-    missedClasses: 1,
-    startDate: new Date(2024, 0, 10), // Январь 2024
-    subscriptionName: 'Абонемент 8 занятий',
-    subscriptionClasses: 8,
-    remainingClasses: 1,
-    lastPaymentDate: new Date(2024, 10, 5), // 5 ноября 2024
-    lastPaymentAmount: 4800,
-    paymentStatus: 'pending' as const,
-    nextPaymentDate: new Date(2024, 10, 20), // 20 ноября 2024
-    purchaseDate: new Date(2024, 10, 5),
-    notes: ''
-  },
-  { 
-    id: '4', 
-    name: 'Анна Козлова', 
-    birthDate: new Date(2014, 3, 30), // 30 апреля 2014
-    age: 11, 
-    groupId: '2',
-    groupName: 'Средняя группа',
-    parentName: 'Ольга Козлова',
-    parentEmail: 'olga.kozlova@email.com',
-    parentPhone: '+7 (999) 456-78-90',
-    status: 'active',
-    attendedClasses: 13,
-    totalClasses: 16,
-    missedClasses: 3,
-    startDate: new Date(2021, 8, 15), // Сентябрь 2021
-    subscriptionName: 'Абонемент 12 занятий',
-    subscriptionClasses: 12,
-    remainingClasses: 7,
-    lastPaymentDate: new Date(2024, 10, 10), // 10 ноября 2024
-    lastPaymentAmount: 6500,
-    paymentStatus: 'paid' as const,
-    nextPaymentDate: new Date(2024, 11, 25), // 25 декабря 2024
-    purchaseDate: new Date(2024, 10, 10),
-    notes: 'Опытная ученица, помогает младшим'
-  },
-  { 
-    id: '5', 
-    name: 'Екатерина Волкова', 
-    birthDate: new Date(2018, 7, 5), // 5 августа 2018
-    age: 7, 
-    groupId: '1',
-    groupName: 'Младшая группа',
-    parentName: 'Наталья Волкова',
-    parentEmail: 'natalia.volkova@email.com',
-    parentPhone: '+7 (999) 567-89-01',
-    status: 'inactive',
-    attendedClasses: 10,
-    totalClasses: 12,
-    missedClasses: 2,
-    startDate: new Date(2023, 9, 5), // Октябрь 2023
-    subscriptionName: 'Абонемент 8 занятий',
-    subscriptionClasses: 8,
-    remainingClasses: 0,
-    lastPaymentDate: new Date(2024, 8, 1), // 1 сентября 2024
-    lastPaymentAmount: 4800,
-    paymentStatus: 'overdue' as const,
-    nextPaymentDate: new Date(2024, 9, 1), // 1 октября 2024
-    purchaseDate: new Date(2024, 8, 1),
-    notes: 'Приостановила занятия на осень'
-  },
-];
-
 // Функция для расчета возраста
 const calculateAge = (birthDate: Date): number => {
   const today = new Date();
@@ -201,17 +71,8 @@ const formatDate = (date: Date): string => {
 };
 
 export function AdminStudents({ groups }: AdminStudentsProps) {
-  const [students, setStudents] = useState<AdminStudentViewModel[]>(initialMockStudents);
-  const [parentsData, setParentsData] = useState(() =>
-    mockUsers
-      .filter((u) => u.role === 'parent')
-      .map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email || '',
-        phone: u.phone,
-      })),
-  );
+  const [students, setStudents] = useState<AdminStudentViewModel[]>([]);
+  const [parentsData, setParentsData] = useState<Array<{ id: string; name: string; email: string; phone: string }>>([]);
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -234,10 +95,6 @@ export function AdminStudents({ groups }: AdminStudentsProps) {
     const hydrateFromBackend = async () => {
       try {
         const serverClients = await loadAdminClients();
-        if (serverClients.length === 0) {
-          return;
-        }
-
         const mappedStudents: AdminStudentViewModel[] = serverClients.map((client) => {
           const birthDate = client.childBirthDate ? new Date(client.childBirthDate) : new Date();
           const createdAt = new Date(client.createdAt);
@@ -279,14 +136,18 @@ export function AdminStudents({ groups }: AdminStudentsProps) {
           };
         });
 
-        setStudents((prev) => {
-          const manualStudents = prev.filter(
-            (student) => !mappedStudents.some((serverStudent) => serverStudent.id === student.id),
-          );
-          return [...mappedStudents, ...manualStudents];
-        });
+        setStudents(mappedStudents);
+        setParentsData(
+          serverClients.map((client) => ({
+            id: client.parentUserId,
+            name: client.parentName || 'Без имени',
+            email: '',
+            phone: client.parentPhone,
+          })),
+        );
       } catch {
-        // Если backend недоступен, сохраняем демо-данные.
+        setStudents([]);
+        setParentsData([]);
       }
     };
 

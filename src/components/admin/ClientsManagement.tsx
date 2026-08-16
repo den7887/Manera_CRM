@@ -1,25 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AdminChildRecord,
+  AdminLandingLeadRecord,
   AdminPaymentRecord,
   assignAdminChildGroup,
+  createClientActivationLink,
+  createClientByAdmin,
   createAdminInvoice,
+  createTask,
+  resetClientPin,
+  resumeClientPortal,
+  suspendClientPortal,
   loadAdminChildren,
+  loadAdminLandingLeads,
   loadAdminPayments,
+  loadOwnerEmployees,
   loadOwnerGroups,
   sendAdminPaymentReminder,
   updateAdminChildProfile,
 } from '../../lib/backendApi';
-import { Group, Task, User } from '../../types';
+import { Employee, Group, Task, User } from '../../types';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
   ClipboardList,
+  Copy,
   CreditCard,
+  KeyRound,
   FolderArchive,
   Plus,
+  QrCode,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -44,6 +56,7 @@ import { ClientStatusBadge } from '../clients/ClientStatusBadge';
 import { ClientTemperatureBadge } from '../clients/ClientTemperatureBadge';
 import { MobileClientsWorkspace } from '../clients/MobileClientsWorkspace';
 import { MobileClientDetails } from '../clients/MobileClientDetails';
+import { accountStatusLabel, portalStatusLabel } from '../../lib/portalStatus';
 import {
   ClientStage,
   TrialWorkspaceStage,
@@ -67,10 +80,11 @@ import {
 } from '../clients/clientsWorkspaceTypes';
 
 const workspaceLabels: Record<WorkspaceTab, string> = {
-  today: 'Сегодня',
+  today: 'Обзор',
   funnel: 'Воронка',
   base: 'База клиентов',
   trials: 'Пробные',
+  clients: 'Клиенты',
   tasks: 'Задачи',
   archive: 'Архив',
 };
@@ -116,7 +130,7 @@ const temperatureFilterOptions: Array<{ value: TemperatureFilter; label: string 
   { value: 'hot', label: 'Горячие' },
   { value: 'warm', label: 'Теплые' },
   { value: 'cold', label: 'Холодные' },
-  { value: 'problem', label: 'Проблемные' },
+  { value: 'problem', label: 'Нужен разбор' },
 ];
 
 const archiveFilterOptions: Array<{ value: ArchiveFilter; label: string }> = [
@@ -176,6 +190,103 @@ function formatRuDateTime(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString('ru-RU');
+}
+
+function normalizeLeadBirthDate(value?: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return trimmed;
+  }
+  const ruMatch = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (ruMatch) {
+    return `${ruMatch[3]}-${ruMatch[2]}-${ruMatch[1]}`;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
+function calculateAgeFromBirthDate(value?: string | null): number | null {
+  const normalized = normalizeLeadBirthDate(value);
+  if (!normalized) return null;
+  const birthDate = new Date(normalized);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDelta = now.getMonth() - birthDate.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+}
+
+function buildLeadWorkspaceChild(lead: AdminLandingLeadRecord): AdminChildRecord {
+  const birthDate = normalizeLeadBirthDate(lead.childBirthDate);
+  return {
+    id: `lead::${lead.id}`,
+    fullName: lead.childFullName || 'Ребенок не указан',
+    birthDate,
+    age: calculateAgeFromBirthDate(lead.childBirthDate),
+    groupId: null,
+    groupName: null,
+    parentUserId: lead.parentUserId || '',
+    parentName: lead.parentName || lead.parentFullName || null,
+    parentPhone: lead.phone || null,
+    parentAccessLevel: lead.parentAccessLevel || null,
+    parentAccountStatus: lead.parentAccountStatus || null,
+    clientId: null,
+    subscriptionName: null,
+    subscriptionCode: null,
+    subscriptionAmount: null,
+    paymentMethod: null,
+    paymentStatus: null,
+    createdAt: lead.createdAt || null,
+    updatedAt: lead.updatedAt || lead.createdAt || null,
+    notes: null,
+    latestPayment: null,
+    lessonsTracked: true,
+    totalClasses: 0,
+    attendedClasses: 0,
+    remainingClasses: 0,
+    progressPercent: 0,
+    profile: {
+      internalComment: '',
+      healthNotes: '',
+      behavioralNotes: '',
+      goals: '',
+      strengths: '',
+      parentExpectations: '',
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      communicationPreferences: '',
+      sourceChannel: lead.discoverySource || '',
+      priorExperience: lead.previousActivities || '',
+      tags: [],
+      updatedAt: lead.updatedAt || lead.createdAt || null,
+    },
+    landingLead: {
+      id: lead.id,
+      parentFullName: lead.parentFullName || null,
+      phone: lead.phone || null,
+      childFullName: lead.childFullName || null,
+      childBirthDate: lead.childBirthDate || null,
+      medicalRestrictions: lead.medicalRestrictions || null,
+      previousActivities: lead.previousActivities || null,
+      discoverySource: lead.discoverySource || null,
+      preferredSchedule: lead.preferredSchedule || null,
+      comment: lead.comment || null,
+      consent: Boolean(lead.consent),
+      createdAt: lead.createdAt || null,
+    },
+  };
+}
+
+function isLeadOnlyChildRecord(child: AdminChildRecord): boolean {
+  return child.id.startsWith('lead::');
 }
 
 function sourceLabel(child: AdminChildRecord): string {
@@ -267,6 +378,13 @@ function archiveCategoryLabel(filter: ArchiveFilter): string {
   return archiveFilterOptions.find((item) => item.value === filter)?.label || 'Причина не указана';
 }
 
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function ClientsManagement({
   navigationContext,
   onNavigationContextApplied,
@@ -286,6 +404,7 @@ export function ClientsManagement({
   const [children, setChildren] = useState<AdminChildRecord[]>([]);
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('today');
@@ -303,6 +422,13 @@ export function ClientsManagement({
   const [isAssigningChildId, setIsAssigningChildId] = useState<string | null>(null);
   const [isInvoicingChildId, setIsInvoicingChildId] = useState<string | null>(null);
   const [isReminderPaymentId, setIsReminderPaymentId] = useState<string | null>(null);
+  const [isPortalActionLoading, setIsPortalActionLoading] = useState(false);
+  const [portalDialog, setPortalDialog] = useState<null | {
+    title: string;
+    activationUrl: string;
+    qrCode: string;
+    expiresAt: string;
+  }>(null);
   const [profileDraft, setProfileDraft] = useState({
     internalComment: '',
     healthNotes: '',
@@ -320,6 +446,28 @@ export function ClientsManagement({
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [contextId, setContextId] = useState<number | null>(null);
   const [contextLabel, setContextLabel] = useState<string | null>(null);
+  const [taskDialogEntry, setTaskDialogEntry] = useState<ClientWorkspaceEntry | null>(null);
+  const [taskDraft, setTaskDraft] = useState({
+    title: '',
+    description: '',
+    assigneeId: '',
+    dueDate: '',
+    dueTime: '',
+    priority: 'high' as Task['priority'],
+  });
+  const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+  const [leadActivationEntry, setLeadActivationEntry] = useState<ClientWorkspaceEntry | null>(null);
+  const [leadActivationDraft, setLeadActivationDraft] = useState({
+    childFullName: '',
+    childBirthDate: '',
+    parentFullName: '',
+    parentPhone: '',
+    subscriptionName: 'Пробное занятие',
+    subscriptionAmount: '1000',
+    paymentMethod: 'online' as 'cash' | 'online',
+    groupId: '',
+  });
+  const [isLeadSubmitting, setIsLeadSubmitting] = useState(false);
 
   const refresh = async (silent = false) => {
     if (silent) {
@@ -329,14 +477,20 @@ export function ClientsManagement({
     }
 
     try {
-      const [childrenRows, paymentRows, groupRows] = await Promise.all([
+      const [childrenRows, landingLeadRows, paymentRows, groupRows, employeeRows] = await Promise.all([
         loadAdminChildren(),
+        loadAdminLandingLeads(),
         loadAdminPayments(),
         loadOwnerGroups(),
+        loadOwnerEmployees(),
       ]);
-      setChildren(childrenRows);
+      setChildren([
+        ...landingLeadRows.map(buildLeadWorkspaceChild),
+        ...childrenRows,
+      ]);
       setPayments(paymentRows);
       setGroups(groupRows);
+      setEmployees(employeeRows);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить клиентов');
     } finally {
@@ -647,8 +801,123 @@ export function ClientsManagement({
     setIsDetailsOpen(true);
   };
 
+  const openTaskComposer = (entry: ClientWorkspaceEntry) => {
+    const dueDate = new Date();
+    if (entry.nextAction.dueLabel.includes('недел')) {
+      dueDate.setDate(dueDate.getDate() + 3);
+    }
+    setTaskDialogEntry(entry);
+    setTaskDraft({
+      title: entry.nextAction.title,
+      description: `${entry.nextAction.description}\n\nКлиент: ${entry.child.parentName || entry.child.fullName}\nРебенок: ${entry.child.fullName || '—'}`,
+      assigneeId: '',
+      dueDate: toIsoDate(dueDate),
+      dueTime: '12:00',
+      priority: entry.stage === 'risk' || entry.stage === 'waiting_payment' ? 'high' : 'medium',
+    });
+  };
+
+  const submitTaskFromClient = async () => {
+    if (!taskDialogEntry) return;
+    if (!taskDraft.title.trim() || !taskDraft.assigneeId || !taskDraft.dueDate || !taskDraft.dueTime) {
+      toast.error('Заполните название, ответственного, дату и время');
+      return;
+    }
+    const assignee = employees.find((item) => item.id === taskDraft.assigneeId);
+    if (!assignee) {
+      toast.error('Не удалось определить сотрудника');
+      return;
+    }
+    const dueDate = new Date(`${taskDraft.dueDate}T${taskDraft.dueTime}:00`);
+    setIsTaskSubmitting(true);
+    try {
+      await createTask({
+        id: `client-task-${Date.now()}`,
+        title: taskDraft.title.trim(),
+        description: taskDraft.description.trim(),
+        type: 'communication',
+        priority: taskDraft.priority,
+        status: 'todo',
+        assigneeId: assignee.id,
+        assigneeName: assignee.name,
+        createdBy: currentUser.id,
+        createdByName: currentUser.name,
+        createdAt: new Date(),
+        dueDate,
+        relatedUserId: taskDialogEntry.child.parentUserId || undefined,
+        relatedUserName: taskDialogEntry.child.parentName || undefined,
+        relatedChildId: isLeadOnlyChildRecord(taskDialogEntry.child) ? undefined : taskDialogEntry.child.id,
+        relatedChildName: taskDialogEntry.child.fullName || undefined,
+        notes: `Создано из карточки клиента. Действие: ${taskDialogEntry.nextAction.title}`,
+        isAutoGenerated: false,
+      });
+      toast.success('Задача создана');
+      setTaskDialogEntry(null);
+      setWorkspaceTab('tasks');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать задачу');
+    } finally {
+      setIsTaskSubmitting(false);
+    }
+  };
+
+  const openLeadActivation = (entry: ClientWorkspaceEntry) => {
+    setLeadActivationEntry(entry);
+    setLeadActivationDraft({
+      childFullName: entry.child.fullName || entry.child.landingLead?.childFullName || '',
+      childBirthDate: normalizeLeadBirthDate(entry.child.birthDate || entry.child.landingLead?.childBirthDate) || '',
+      parentFullName: entry.child.parentName || entry.child.landingLead?.parentFullName || '',
+      parentPhone: entry.child.parentPhone || entry.child.landingLead?.phone || '',
+      subscriptionName: entry.child.groupId ? 'Абонемент Хобби' : 'Пробное занятие',
+      subscriptionAmount: entry.child.groupId ? '5900' : '1000',
+      paymentMethod: 'online',
+      groupId: entry.child.groupId || '',
+    });
+  };
+
+  const submitLeadActivation = async () => {
+    if (!leadActivationEntry) return;
+    if (!leadActivationDraft.childFullName.trim() || !leadActivationDraft.parentFullName.trim() || !leadActivationDraft.parentPhone.trim() || !leadActivationDraft.childBirthDate || !leadActivationDraft.subscriptionName.trim()) {
+      toast.error('Заполните имя ребенка, родителя, телефон, дату рождения и тип продажи');
+      return;
+    }
+    const amount = Number(leadActivationDraft.subscriptionAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error('Укажите корректную сумму');
+      return;
+    }
+    setIsLeadSubmitting(true);
+    try {
+      const created = await createClientByAdmin({
+        parent_full_name: leadActivationDraft.parentFullName.trim(),
+        child_full_name: leadActivationDraft.childFullName.trim(),
+        child_birth_date: leadActivationDraft.childBirthDate,
+        parent_phone: leadActivationDraft.parentPhone.trim(),
+        subscription_name: leadActivationDraft.subscriptionName.trim(),
+        subscription_amount: amount,
+        payment_method: leadActivationDraft.paymentMethod,
+        group_id: leadActivationDraft.groupId || undefined,
+      });
+      await refresh(true);
+      if (created?.child?.id) {
+        setSelectedChildId(created.child.id);
+        setIsDetailsOpen(true);
+      }
+      setLeadActivationEntry(null);
+      toast.success('Карточка ученика создана');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать карточку ученика');
+    } finally {
+      setIsLeadSubmitting(false);
+    }
+  };
+
   const saveProfile = async () => {
     if (!selectedClient) return;
+    if (isLeadOnlyChildRecord(selectedClient.child)) {
+      toast.info('Сначала создайте карточку ученика по заявке, затем можно сохранять внутренний профиль');
+      return;
+    }
     setIsProfileSaving(true);
     try {
       const response = await updateAdminChildProfile(selectedClient.child.id, {
@@ -678,6 +947,11 @@ export function ClientsManagement({
   };
 
   const assignGroup = async (childId: string, groupId: string | null) => {
+    const targetChild = children.find((child) => child.id === childId);
+    if (targetChild && isLeadOnlyChildRecord(targetChild)) {
+      toast.info('Сначала создайте карточку ученика по заявке, затем можно назначить группу');
+      return;
+    }
     setIsAssigningChildId(childId);
     try {
       await assignAdminChildGroup(childId, { group_id: groupId || null });
@@ -721,6 +995,93 @@ export function ClientsManagement({
       toast.error(error instanceof Error ? error.message : 'Не удалось отправить напоминание');
     } finally {
       setIsReminderPaymentId(null);
+    }
+  };
+
+  const copyPortalLink = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success('Ссылка скопирована');
+    } catch {
+      toast.error('Не удалось скопировать ссылку');
+    }
+  };
+
+  const createPortalActivation = async (entry: ClientWorkspaceEntry) => {
+    if (!entry.child.clientId) {
+      toast.error('У карточки нет clientId для создания ссылки активации');
+      return;
+    }
+    setIsPortalActionLoading(true);
+    try {
+      const response = await createClientActivationLink(String(entry.child.clientId), { purpose: 'after_cash_payment' });
+      setPortalDialog({
+        title: 'Ссылка активации кабинета',
+        activationUrl: response.activation_url,
+        qrCode: response.qr_code,
+        expiresAt: response.expires_at,
+      });
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать ссылку активации');
+    } finally {
+      setIsPortalActionLoading(false);
+    }
+  };
+
+  const resetPortalPinForEntry = async (entry: ClientWorkspaceEntry) => {
+    if (!entry.child.clientId) {
+      toast.error('У карточки нет clientId для сброса PIN');
+      return;
+    }
+    setIsPortalActionLoading(true);
+    try {
+      const response = await resetClientPin(String(entry.child.clientId));
+      setPortalDialog({
+        title: 'Ссылка для сброса PIN',
+        activationUrl: response.activation_url,
+        qrCode: response.qr_code,
+        expiresAt: response.expires_at,
+      });
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать ссылку для сброса PIN');
+    } finally {
+      setIsPortalActionLoading(false);
+    }
+  };
+
+  const suspendPortalForEntry = async (entry: ClientWorkspaceEntry) => {
+    if (!entry.child.clientId) {
+      toast.error('У карточки нет clientId для управления доступом');
+      return;
+    }
+    setIsPortalActionLoading(true);
+    try {
+      await suspendClientPortal(String(entry.child.clientId));
+      toast.success('Доступ в кабинет приостановлен');
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось приостановить кабинет');
+    } finally {
+      setIsPortalActionLoading(false);
+    }
+  };
+
+  const resumePortalForEntry = async (entry: ClientWorkspaceEntry) => {
+    if (!entry.child.clientId) {
+      toast.error('У карточки нет clientId для управления доступом');
+      return;
+    }
+    setIsPortalActionLoading(true);
+    try {
+      await resumeClientPortal(String(entry.child.clientId));
+      toast.success('Доступ в кабинет возобновлен');
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось возобновить кабинет');
+    } finally {
+      setIsPortalActionLoading(false);
     }
   };
 
@@ -795,6 +1156,10 @@ export function ClientsManagement({
                   <p className="mt-1 text-sm text-[#133C2A]">{sourceLabel(entry.child)}</p>
                 </div>
               ) : null}
+              <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
+                <p className="text-xs text-[#133C2A]/45">Заявка поступила</p>
+                <p className="mt-1 text-sm text-[#133C2A]">{formatRuDateTime(entry.child.landingLead?.createdAt || entry.child.createdAt)}</p>
+              </div>
               {options?.showGroup !== false ? (
                 <div className="rounded-2xl bg-[#F8F4E3]/68 px-3 py-3">
                   <p className="text-xs text-[#133C2A]/45">Группа</p>
@@ -887,6 +1252,8 @@ export function ClientsManagement({
     }
   };
 
+  const selectedClientIsLeadOnly = selectedClient ? isLeadOnlyChildRecord(selectedClient.child) : false;
+
   return (
     <div className="space-y-4 md:space-y-6">
       {isMobile ? (
@@ -922,6 +1289,8 @@ export function ClientsManagement({
           onCreateInvoice={(entry) => void createInvoiceForChild(entry.child)}
           onRemind={(payment) => void remindAboutPayment(payment)}
           onOpenTasks={openTasksForEntry}
+          onOpenTaskComposer={openTaskComposer}
+          onActivateLead={openLeadActivation}
           onAssignGroup={(entry) => openClient(entry.child.id)}
           onOpenComments={(entry) => openClient(entry.child.id)}
           isInvoicingChildId={isInvoicingChildId}
@@ -1229,6 +1598,33 @@ export function ClientsManagement({
                 ))
               )}
             </div>
+          ) : workspaceTab === 'clients' ? (
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4 md:p-5">
+                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h2 className="text-[#133C2A]">Клиенты</h2>
+                    <p className="text-sm text-[#133C2A]/55">Полный список клиентов. Нажмите на строку, чтобы открыть карточку.</p>
+                  </div>
+                  <p className="text-sm text-[#133C2A]/48">Найдено: {filteredClients.length}</p>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {filteredClients.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                      По текущим фильтрам клиентов не найдено.
+                    </div>
+                  ) : (
+                    filteredClients.map((entry) =>
+                      renderCompactClientRow(entry, {
+                        contextLabel: clientStageLabel[entry.stage],
+                        showSource: false,
+                        highlight: entry.child.profile?.internalComment ? `Важно: ${entry.child.profile.internalComment}` : undefined,
+                      }),
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
           ) : workspaceTab === 'tasks' ? (
             <div className="space-y-4">
               <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#fbf7e8]/70 p-1">
@@ -1416,11 +1812,42 @@ export function ClientsManagement({
               openTasksForEntry(selectedClient);
             }
           }}
+          onOpenTaskComposer={() => {
+            if (selectedClient) {
+              openTaskComposer(selectedClient);
+            }
+          }}
+          onOpenLeadActivation={() => {
+            if (selectedClient) {
+              openLeadActivation(selectedClient);
+            }
+          }}
           onAssignGroup={(groupId) => {
             if (selectedClient) {
               void assignGroup(selectedClient.child.id, groupId);
             }
           }}
+          onCreatePortalActivation={() => {
+            if (selectedClient) {
+              void createPortalActivation(selectedClient);
+            }
+          }}
+          onResetPortalPin={() => {
+            if (selectedClient) {
+              void resetPortalPinForEntry(selectedClient);
+            }
+          }}
+          onSuspendPortal={() => {
+            if (selectedClient) {
+              void suspendPortalForEntry(selectedClient);
+            }
+          }}
+          onResumePortal={() => {
+            if (selectedClient) {
+              void resumePortalForEntry(selectedClient);
+            }
+          }}
+          isPortalActionLoading={isPortalActionLoading}
         />
       ) : (
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
@@ -1501,6 +1928,45 @@ export function ClientsManagement({
                           Напомнить об оплате
                         </Button>
                       ) : null}
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl border-[#133C2A]/15"
+                        onClick={() => void createPortalActivation(selectedClient)}
+                        disabled={!selectedClient.child.clientId || isPortalActionLoading}
+                      >
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Ссылка активации
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-2xl border-[#133C2A]/15"
+                        onClick={() => void resetPortalPinForEntry(selectedClient)}
+                        disabled={!selectedClient.child.clientId || isPortalActionLoading}
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Сбросить PIN
+                      </Button>
+                      {selectedClient.child.parentPortalStatus === 'blocked' ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl border-[#133C2A]/15"
+                          onClick={() => void resumePortalForEntry(selectedClient)}
+                          disabled={!selectedClient.child.clientId || isPortalActionLoading}
+                        >
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          Возобновить ЛК
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl border-[#133C2A]/15"
+                          onClick={() => void suspendPortalForEntry(selectedClient)}
+                          disabled={!selectedClient.child.clientId || isPortalActionLoading}
+                        >
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          Приостановить ЛК
+                        </Button>
+                      )}
                       <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
                         Открыть задачи
                       </Button>
@@ -1533,6 +1999,7 @@ export function ClientsManagement({
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Статус клиента</p><p className="mt-1 text-[#133C2A]">{clientStageLabel[selectedClient.stage]}</p></div>
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Температура</p><p className="mt-1 text-[#133C2A]">{clientTemperatureLabel[selectedClient.temperature]}</p></div>
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Ребенок</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.fullName}</p></div>
+                      <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Заявка поступила</p><p className="mt-1 text-[#133C2A]">{formatRuDateTime(selectedClient.child.landingLead?.createdAt || selectedClient.child.createdAt)}</p></div>
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Группа</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p></div>
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Абонемент</p><p className="mt-1 text-[#133C2A]">{selectedClient.child.subscriptionName || 'Не выбран'}</p></div>
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Статус оплаты</p><p className="mt-1 text-[#133C2A]">{paymentStatusLabel(selectedClient.latestOpenPayment?.status || selectedClient.child.paymentStatus)}</p></div>
@@ -1559,9 +2026,37 @@ export function ClientsManagement({
                     <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                       <div><p className="text-xs text-[#133C2A]/60">ФИО родителя</p><p className="text-[#133C2A]">{selectedClient.child.parentName || '—'}</p></div>
                       <div><p className="text-xs text-[#133C2A]/60">Телефон</p><p className="text-[#133C2A]">{selectedClient.child.parentPhone || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{selectedClient.child.parentAccountStatus || '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{accountStatusLabel(selectedClient.child.parentAccountStatus)}</p></div>
                       <div><p className="text-xs text-[#133C2A]/60">Уровень доступа</p><p className="text-[#133C2A]">{selectedClient.child.parentAccessLevel || '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Статус кабинета</p><p className="text-[#133C2A]">{portalStatusLabel(selectedClient.child.parentPortalStatus)}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Последний вход</p><p className="text-[#133C2A]">{selectedClient.child.parentLastLoginAt ? formatRuDateTime(selectedClient.child.parentLastLoginAt) : '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Активация кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalActivatedAt ? formatRuDateTime(selectedClient.child.parentPortalActivatedAt) : '—'}</p></div>
+                      <div><p className="text-xs text-[#133C2A]/60">Блокировка кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalBlockedAt ? formatRuDateTime(selectedClient.child.parentPortalBlockedAt) : '—'}</p></div>
                       <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Предпочтения по связи</p><p className="text-[#133C2A]">{profileDraft.communicationPreferences || 'Не заданы'}</p></div>
+                      <div className="md:col-span-2 rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-4">
+                        <p className="text-xs text-[#133C2A]/60">Управление доступом</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void createPortalActivation(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                            <QrCode className="mr-2 h-4 w-4" />
+                            Создать ссылку активации
+                          </Button>
+                          <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resetPortalPinForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Сбросить PIN
+                          </Button>
+                          {selectedClient.child.parentPortalStatus === 'blocked' ? (
+                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resumePortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Возобновить доступ
+                            </Button>
+                          ) : (
+                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void suspendPortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Приостановить доступ
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -1589,6 +2084,7 @@ export function ClientsManagement({
                       <p className="mt-2 text-sm text-[#133C2A]/62">{selectedClient.trialFacts.note}</p>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div><p className="text-xs text-[#133C2A]/60">Источник</p><p className="text-[#133C2A]">{sourceLabel(selectedClient.child)}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Поступила</p><p className="text-[#133C2A]">{formatRuDateTime(selectedClient.child.landingLead?.createdAt || selectedClient.child.createdAt)}</p></div>
                         <div><p className="text-xs text-[#133C2A]/60">Предпочтительный график</p><p className="text-[#133C2A]">{selectedClient.child.landingLead?.preferredSchedule || '—'}</p></div>
                         <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Комментарий из заявки</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedClient.child.landingLead?.comment || '—'}</p></div>
                       </div>
@@ -1634,7 +2130,7 @@ export function ClientsManagement({
                       </div>
                       <div className="space-y-2">
                         <Label>Изменить группу</Label>
-                        <Select value={selectedClient.child.groupId || 'none'} onValueChange={(value) => void assignGroup(selectedClient.child.id, value === 'none' ? null : value)} disabled={isAssigningChildId === selectedClient.child.id}>
+                        <Select value={selectedClient.child.groupId || 'none'} onValueChange={(value) => void assignGroup(selectedClient.child.id, value === 'none' ? null : value)} disabled={isAssigningChildId === selectedClient.child.id || selectedClientIsLeadOnly}>
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Без группы" />
                           </SelectTrigger>
@@ -1743,7 +2239,7 @@ export function ClientsManagement({
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <Button onClick={() => void saveProfile()} disabled={isProfileSaving} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+                        <Button onClick={() => void saveProfile()} disabled={isProfileSaving || selectedClientIsLeadOnly} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
                           {isProfileSaving ? 'Сохраняем...' : 'Сохранить комментарии'}
                         </Button>
                       </div>
@@ -1785,6 +2281,240 @@ export function ClientsManagement({
         </DialogContent>
       </Dialog>
       )}
+
+      <Dialog open={Boolean(taskDialogEntry)} onOpenChange={(open) => !open && setTaskDialogEntry(null)}>
+        <DialogContent className="max-w-lg rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#133C2A]">Создать задачу</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-[#F8F4E3]/72 p-4">
+              <p className="text-sm text-[#133C2A]">{taskDialogEntry?.child.fullName || 'Клиент'}</p>
+              <p className="mt-1 text-sm text-[#133C2A]/58">{taskDialogEntry?.nextAction.description}</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Следующее действие</Label>
+              <Input
+                value={taskDraft.title}
+                onChange={(event) => setTaskDraft((prev) => ({ ...prev, title: event.target.value }))}
+                className="rounded-2xl"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Комментарий</Label>
+              <Textarea
+                value={taskDraft.description}
+                onChange={(event) => setTaskDraft((prev) => ({ ...prev, description: event.target.value }))}
+                className="min-h-[110px] rounded-2xl"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Ответственный</Label>
+                <Select
+                  value={taskDraft.assigneeId || undefined}
+                  onValueChange={(value) => setTaskDraft((prev) => ({ ...prev, assigneeId: value }))}
+                >
+                  <SelectTrigger className="rounded-2xl">
+                    <SelectValue placeholder="Выберите сотрудника" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Приоритет</Label>
+                <Select
+                  value={taskDraft.priority}
+                  onValueChange={(value) => setTaskDraft((prev) => ({ ...prev, priority: value }))}
+                >
+                  <SelectTrigger className="rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Низкий</SelectItem>
+                    <SelectItem value="medium">Средний</SelectItem>
+                    <SelectItem value="high">Высокий</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Дата</Label>
+                <Input
+                  type="date"
+                  value={taskDraft.dueDate}
+                  onChange={(event) => setTaskDraft((prev) => ({ ...prev, dueDate: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Время</Label>
+                <Input
+                  type="time"
+                  value={taskDraft.dueTime}
+                  onChange={(event) => setTaskDraft((prev) => ({ ...prev, dueTime: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => setTaskDialogEntry(null)}>
+                Отмена
+              </Button>
+              <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={() => void submitTaskFromClient()} disabled={isTaskSubmitting}>
+                {isTaskSubmitting ? 'Создаем...' : 'Создать задачу'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(leadActivationEntry)} onOpenChange={(open) => !open && setLeadActivationEntry(null)}>
+        <DialogContent className="max-w-xl rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#133C2A]">Активировать заявку</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-[#F8F4E3]/72 p-4 text-sm text-[#133C2A]/60">
+              Заявка станет полноценной карточкой ученика. После этого будут доступны группа, заметки, продажи и дальнейшие действия по клиенту.
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Имя ребенка</Label>
+                <Input
+                  value={leadActivationDraft.childFullName}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, childFullName: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Дата рождения</Label>
+                <Input
+                  type="date"
+                  value={leadActivationDraft.childBirthDate}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, childBirthDate: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Родитель</Label>
+                <Input
+                  value={leadActivationDraft.parentFullName}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, parentFullName: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Телефон</Label>
+                <Input
+                  value={leadActivationDraft.parentPhone}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, parentPhone: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>За что платит</Label>
+                <Input
+                  value={leadActivationDraft.subscriptionName}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, subscriptionName: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Сумма</Label>
+                <Input
+                  type="number"
+                  value={leadActivationDraft.subscriptionAmount}
+                  onChange={(event) => setLeadActivationDraft((prev) => ({ ...prev, subscriptionAmount: event.target.value }))}
+                  className="rounded-2xl"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Оплата</Label>
+                <Select
+                  value={leadActivationDraft.paymentMethod}
+                  onValueChange={(value) => setLeadActivationDraft((prev) => ({ ...prev, paymentMethod: value }))}
+                >
+                  <SelectTrigger className="rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">Онлайн</SelectItem>
+                    <SelectItem value="cash">Наличные</SelectItem>
+                    <SelectItem value="transfer">Перевод</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Группа</Label>
+                <Select
+                  value={leadActivationDraft.groupId || 'none'}
+                  onValueChange={(value) => setLeadActivationDraft((prev) => ({ ...prev, groupId: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger className="rounded-2xl">
+                    <SelectValue placeholder="Пока без группы" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Пока без группы</SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => setLeadActivationEntry(null)}>
+                Отмена
+              </Button>
+              <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={() => void submitLeadActivation()} disabled={isLeadSubmitting}>
+                {isLeadSubmitting ? 'Создаем...' : 'Создать карточку'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(portalDialog)} onOpenChange={(open) => !open && setPortalDialog(null)}>
+        <DialogContent className="max-w-lg rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#133C2A]">{portalDialog?.title}</DialogTitle>
+          </DialogHeader>
+          {portalDialog ? (
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-[#133C2A]/10 bg-[#FCFBF6] p-5 text-center">
+                <img src={portalDialog.qrCode} alt="QR-код активации кабинета" className="mx-auto h-56 w-56 rounded-2xl border border-[#133C2A]/10 bg-white p-3" />
+              </div>
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4">
+                <p className="text-xs text-[#133C2A]/55">Ссылка</p>
+                <p className="mt-1 break-all text-sm text-[#133C2A]">{portalDialog.activationUrl}</p>
+              </div>
+              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-4">
+                <p className="text-xs text-[#133C2A]/55">Срок действия</p>
+                <p className="mt-1 text-sm text-[#133C2A]">{portalDialog.expiresAt ? formatRuDateTime(portalDialog.expiresAt) : '—'}</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => void copyPortalLink(portalDialog.activationUrl)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Скопировать ссылку
+                </Button>
+                <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={() => setPortalDialog(null)}>
+                  Закрыть
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <AddStudentDialog
         isOpen={isAddDialogOpen}

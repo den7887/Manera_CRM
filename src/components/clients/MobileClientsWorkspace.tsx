@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { Group, Task } from '../../types';
-import { AlertTriangle, ClipboardList, FolderArchive, Search, SlidersHorizontal, Workflow } from 'lucide-react';
+import { ClipboardList, Search, SlidersHorizontal } from 'lucide-react';
 import { EmptyState } from '../EmptyState';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -11,7 +11,6 @@ import {
   ArchiveFilter,
   ClientWorkspaceEntry,
   ClientWorkspaceSection,
-  MobileMoreTab,
   StageFilter,
   TaskTab,
   TemperatureFilter,
@@ -92,6 +91,8 @@ export function MobileClientsWorkspace({
   onCreateInvoice,
   onRemind,
   onOpenTasks,
+  onOpenTaskComposer,
+  onActivateLead,
   onAssignGroup,
   onOpenComments,
   isInvoicingChildId,
@@ -136,29 +137,21 @@ export function MobileClientsWorkspace({
   onCreateInvoice: (entry: ClientWorkspaceEntry) => void;
   onRemind: (payment: AdminPaymentRecord) => void;
   onOpenTasks: (entry: ClientWorkspaceEntry) => void;
+  onOpenTaskComposer: (entry: ClientWorkspaceEntry) => void;
+  onActivateLead: (entry: ClientWorkspaceEntry) => void;
   onAssignGroup: (entry: ClientWorkspaceEntry) => void;
   onOpenComments: (entry: ClientWorkspaceEntry) => void;
   isInvoicingChildId: string | null;
   isReminderPaymentId: string | null;
   onNavigateSection?: (page: string) => void;
 }) {
-  const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base' | 'more'>('today');
-  const [moreTab, setMoreTab] = useState<MobileMoreTab>('tasks');
+  const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base' | 'clients'>('today');
   const [todayFocus, setTodayFocus] = useState<'all' | 'new' | 'trials' | 'after' | 'waiting' | 'risk' | 'no-action'>('all');
   const [activeFunnelId, setActiveFunnelId] = useState<string>('new');
   const [activeTrialId, setActiveTrialId] = useState<string>('new_request');
-  const [baseQuickFilter, setBaseQuickFilter] = useState<'all' | 'active' | 'waiting' | 'ungrouped' | 'risk' | 'archive'>('all');
+  const [baseQuickFilter, setBaseQuickFilter] = useState<'all' | 'active' | 'interested' | 'trial_lost' | 'not_renewed' | 'no_show'>('all');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [expandedTodaySections, setExpandedTodaySections] = useState<string[]>([]);
-
-  const sourceStats = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredClients.forEach((entry) => {
-      const key = sourceLabel(entry);
-      map.set(key, (map.get(key) || 0) + 1);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-  }, [filteredClients]);
 
   const visibleTodaySections = useMemo(() => {
     if (todayFocus === 'all') return todaySections;
@@ -187,16 +180,82 @@ export function MobileClientsWorkspace({
     [activeTrialId, trialSections],
   );
 
-  const baseClients = useMemo(() => {
-    return filteredClients.filter((entry) => {
-      if (baseQuickFilter === 'active') return entry.stage === 'active';
-      if (baseQuickFilter === 'waiting') return entry.stage === 'waiting_payment';
-      if (baseQuickFilter === 'ungrouped') return !entry.child.groupId;
-      if (baseQuickFilter === 'risk') return entry.stage === 'risk';
-      if (baseQuickFilter === 'archive') return ['archived', 'paused', 'lost', 'frozen'].includes(entry.stage);
-      return true;
-    });
-  }, [filteredClients, baseQuickFilter]);
+  const leadOnlyEntries = useMemo(
+    () => new Set(filteredClients.filter((entry) => entry.child.id.startsWith('lead::')).map((entry) => entry.child.id)),
+    [filteredClients],
+  );
+
+  const baseSections = useMemo(() => {
+    const sections = [
+      {
+        id: 'active',
+        title: 'Активные',
+        note: 'Текущие ученики, которые занимаются сейчас.',
+        items: filteredClients.filter((entry) => entry.stage === 'active'),
+      },
+      {
+        id: 'interested',
+        title: 'Интересовались, но без движения',
+        note: 'Был интерес, но дальше диалог не дошел до пробного или оплаты.',
+        items: filteredClients.filter((entry) => ['contact_needed', 'in_dialog', 'thinking'].includes(entry.stage)),
+      },
+      {
+        id: 'trial_lost',
+        title: 'Были на пробном, но не купили',
+        note: 'После пробного нужен повторный контакт и закрытие решения.',
+        items: filteredClients.filter(
+          (entry) =>
+            entry.trialFacts.trialStage === 'waiting_decision' ||
+            (entry.trialFacts.trialStage === 'at_risk' && !entry.latestOpenPayment),
+        ),
+      },
+      {
+        id: 'not_renewed',
+        title: 'Не продлили абонемент',
+        note: 'Есть просрочка или зависшее продление по действующему клиенту.',
+        items: filteredClients.filter(
+          (entry) =>
+            entry.stage === 'waiting_payment' ||
+            (entry.stage === 'risk' && !leadOnlyEntries.has(entry.child.id)),
+        ),
+      },
+      {
+        id: 'no_show',
+        title: 'Подали заявку, но не дошли до пробного',
+        note: 'Новые или зависшие лиды без перехода в реальное занятие.',
+        items: filteredClients.filter(
+          (entry) => entry.trialFacts.trialStage === 'new_request' || entry.stage === 'lead_new',
+        ),
+      },
+    ];
+
+    if (baseQuickFilter === 'all') {
+      return sections;
+    }
+
+    return sections.filter((section) => section.id === baseQuickFilter);
+  }, [baseQuickFilter, filteredClients, leadOnlyEntries]);
+
+  const funnelMetrics = useMemo(
+    () => [
+      {
+        id: 'conversion',
+        label: 'В работе',
+        value: filteredClients.filter((entry) => ['lead_new', 'contact_needed', 'in_dialog', 'trial_scheduled', 'thinking'].includes(entry.stage)).length,
+      },
+      {
+        id: 'payment',
+        label: 'Ждут оплату',
+        value: filteredClients.filter((entry) => entry.stage === 'waiting_payment').length,
+      },
+      {
+        id: 'active',
+        label: 'Стали активными',
+        value: filteredClients.filter((entry) => entry.stage === 'active').length,
+      },
+    ],
+    [filteredClients],
+  );
 
   const resetFilters = () => {
     setGroupFilter('all');
@@ -219,6 +278,8 @@ export function MobileClientsWorkspace({
       onCreateInvoice={() => onCreateInvoice(entry)}
       onRemind={entry.latestOpenPayment ? () => onRemind(entry.latestOpenPayment as AdminPaymentRecord) : undefined}
       onOpenTasks={() => onOpenTasks(entry)}
+      onOpenTaskComposer={() => onOpenTaskComposer(entry)}
+      onActivateLead={() => onActivateLead(entry)}
       onAssignGroup={() => onAssignGroup(entry)}
       onOpenComments={() => onOpenComments(entry)}
       isInvoicing={isInvoicingChildId === entry.child.id}
@@ -238,11 +299,11 @@ export function MobileClientsWorkspace({
       <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/75 p-1">
         <div className="flex min-w-max gap-1">
           {[
-            { id: 'today', label: 'Сегодня' },
+            { id: 'today', label: 'Обзор' },
             { id: 'funnel', label: 'Воронка' },
             { id: 'trials', label: 'Пробные' },
             { id: 'base', label: 'База' },
-            { id: 'more', label: 'Еще' },
+            { id: 'clients', label: 'Клиенты' },
           ].map((tab) => (
             <Button
               key={tab.id}
@@ -276,7 +337,7 @@ export function MobileClientsWorkspace({
           {visibleTodaySections.every((section) => section.items.length === 0) ? (
             <EmptyState
               icon={ClipboardList}
-              title="Сегодня нет клиентов в активной обработке"
+              title="В обзоре пока пусто"
               description="Когда появятся новые заявки, пробные или оплаты в работе, они будут собраны здесь по очередям."
             />
           ) : (
@@ -328,6 +389,16 @@ export function MobileClientsWorkspace({
         </div>
       ) : mobileTab === 'funnel' ? (
         <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {funnelMetrics.map((metric) => (
+              <Card key={metric.id} className="border-[#133C2A]/10 bg-white/94">
+                <CardContent className="p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#133C2A]/42">{metric.label}</p>
+                  <p className="mt-2 text-xl text-[#133C2A]">{metric.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
           <div className="mobile-scroll-x">
             <div className="flex min-w-max gap-2 pb-1">
               {funnelSections.map((section) => (
@@ -394,7 +465,7 @@ export function MobileClientsWorkspace({
                 <p className="mt-1 text-sm text-[#133C2A]/55">
                   {activeTrialId === 'all'
                     ? 'Все карточки, связанные с пробным сценарием.'
-                    : 'Статус пробного рассчитан по заявке, группе и оплате. Для точной работы нужен backend `trial_lessons`.'}
+                    : 'Здесь собраны люди, которых нужно довести от пробного до понятного решения.'}
                 </p>
               </div>
               <Badge variant="outline" className="rounded-full border-[#133C2A]/12 px-3 py-1 text-[#133C2A]/70">
@@ -443,10 +514,10 @@ export function MobileClientsWorkspace({
                 {[
                   { id: 'all', label: 'Все' },
                   { id: 'active', label: 'Активные' },
-                  { id: 'waiting', label: 'Ждут оплату' },
-                  { id: 'ungrouped', label: 'Без группы' },
-                  { id: 'risk', label: 'Риск' },
-                  { id: 'archive', label: 'Архив' },
+                  { id: 'interested', label: 'Интерес' },
+                  { id: 'trial_lost', label: 'После пробного' },
+                  { id: 'not_renewed', label: 'Не продлили' },
+                  { id: 'no_show', label: 'Не дошли' },
                 ].map((chip) => (
                   <Button
                     key={chip.id}
@@ -468,185 +539,72 @@ export function MobileClientsWorkspace({
           </div>
 
           <div className="space-y-3">
-            {baseClients.length === 0 ? (
+            {baseSections.every((section) => section.items.length === 0) ? (
               <div className="rounded-[28px] border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-8 text-center text-sm text-[#133C2A]/52">
                 По текущим фильтрам клиентов не найдено.
               </div>
             ) : (
-              baseClients.map((entry) =>
+              baseSections.map((section) => (
+                <section key={section.id} className="rounded-[28px] border border-[#133C2A]/10 bg-[#FCFAF0] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-[#133C2A]">{section.title}</h2>
+                      <p className="mt-1 text-sm text-[#133C2A]/55">{section.note}</p>
+                    </div>
+                    <Badge variant="outline" className="rounded-full border-[#133C2A]/12 px-3 py-1 text-[#133C2A]/70">
+                      {section.items.length}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {section.items.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
+                        В этом сегменте пока никого нет.
+                      </div>
+                    ) : (
+                      section.items.map((entry) =>
+                        renderMobileCard(
+                          entry,
+                          `${entry.child.groupName || 'Без группы'} · ${clientStageLabel[entry.stage]}`,
+                        ),
+                      )
+                    )}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </div>
+      ) : mobileTab === 'clients' ? (
+        <div className="space-y-4">
+          <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#FCFAF0] p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#133C2A]/40" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Поиск по ребенку, родителю, телефону"
+                className="rounded-2xl border-[#133C2A]/12 pl-9"
+              />
+            </div>
+            <p className="mt-3 text-sm text-[#133C2A]/55">Все клиенты: {filteredClients.length}</p>
+          </div>
+
+          {filteredClients.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-8 text-center text-sm text-[#133C2A]/52">
+              По текущим фильтрам клиентов не найдено.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredClients.map((entry) =>
                 renderMobileCard(
                   entry,
                   `${entry.child.groupName || 'Без группы'} · ${clientStageLabel[entry.stage]}`,
                 ),
-              )
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { id: 'tasks', label: 'Задачи', note: 'Сроки и ответственные', Icon: ClipboardList },
-              { id: 'archive', label: 'Архив', note: 'Бывшие и неактуальные', Icon: FolderArchive },
-              { id: 'sources', label: 'Источники', note: 'Откуда приходят заявки', Icon: Workflow },
-              { id: 'tech', label: 'Тех. CRM', note: 'Что пока считается', Icon: AlertTriangle },
-            ].map((item) => (
-              <Button
-                key={item.id}
-                type="button"
-                variant={moreTab === item.id ? 'default' : 'outline'}
-                className={moreTab === item.id ? 'h-auto flex-col items-start rounded-[24px] bg-[#133C2A] px-4 py-4 text-left' : 'h-auto flex-col items-start rounded-[24px] border-[#133C2A]/12 bg-white/94 px-4 py-4 text-left text-[#133C2A]'}
-                onClick={() => setMoreTab(item.id as MobileMoreTab)}
-              >
-                <item.Icon className="h-5 w-5" />
-                <span className="mt-3 text-sm">{item.label}</span>
-                <span className={`mt-1 text-xs ${moreTab === item.id ? 'text-white/68' : 'text-[#133C2A]/55'}`}>{item.note}</span>
-              </Button>
-            ))}
-          </div>
-
-          {moreTab === 'tasks' ? (
-            <div className="space-y-4">
-              <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/75 p-1">
-                <div className="flex min-w-max gap-1">
-                  {[
-                    { id: 'mine', label: 'Мои' },
-                    { id: 'today', label: 'Сегодня' },
-                    { id: 'overdue', label: 'Просрочены' },
-                    { id: 'unassigned', label: 'Без отв.' },
-                    { id: 'done', label: 'Выполнены' },
-                  ].map((item) => (
-                    <Button
-                      key={item.id}
-                      type="button"
-                      size="sm"
-                      variant={taskTab === item.id ? 'default' : 'ghost'}
-                      className={taskTab === item.id ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
-                      onClick={() => setTaskTab(item.id as TaskTab)}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {visibleTaskPool.length === 0 ? (
-                <Card className="border-[#133C2A]/10 bg-[#FCFAF0]">
-                  <CardContent className="space-y-4 p-5">
-                    <div>
-                      <p className="text-[#133C2A]">Задач по клиентам пока нет</p>
-                      <p className="mt-1 text-sm text-[#133C2A]/58">
-                        Сейчас раздел показывает вычисляемые следующие действия в карточках клиентов. Для полной связки нужны backend `client_id` и `child_id`.
-                      </p>
-                    </div>
-                    <div className="grid gap-2">
-                      <Button className="rounded-2xl bg-[#133C2A] text-white" onClick={() => onNavigateSection?.('tasks-management')}>
-                        Открыть общий раздел задач
-                      </Button>
-                      <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => setMobileTab('today')}>
-                        Открыть клиентов без следующего шага
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                visibleTaskPool.map((task) => {
-                  const linkedClient = filteredClients.find(
-                    (entry) => entry.child.id === task.relatedChildId || entry.child.parentUserId === task.relatedUserId,
-                  );
-                  return (
-                    <Card key={task.id} className="border-[#133C2A]/10 bg-white/94">
-                      <CardContent className="space-y-3 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[#133C2A]">{task.title}</p>
-                            <p className="mt-1 text-sm text-[#133C2A]/58">{task.description}</p>
-                          </div>
-                          <Badge variant="outline" className="rounded-full border-[#133C2A]/12">
-                            {task.status}
-                          </Badge>
-                        </div>
-                        <div className="space-y-1 text-sm text-[#133C2A]/60">
-                          <p>Срок: {taskDueLabel(task)}</p>
-                          <p>Ответственный: {task.assigneeName}</p>
-                          {linkedClient ? <p>Клиент: {linkedClient.child.parentName || linkedClient.child.fullName}</p> : null}
-                        </div>
-                        <Button variant="outline" className="w-full rounded-2xl border-[#133C2A]/12" onClick={() => linkedClient ? onOpenClient(linkedClient.child.id) : onNavigateSection?.('tasks-management')}>
-                          {linkedClient ? 'Открыть клиента' : 'Открыть задачи'}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })
               )}
             </div>
-          ) : moreTab === 'archive' ? (
-            <div className="space-y-4">
-              <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/75 p-1">
-                <div className="flex min-w-max gap-1">
-                  {[
-                    { id: 'all', label: 'Все' },
-                    { id: 'lost', label: 'Отказ' },
-                    { id: 'former', label: 'Бывшие' },
-                    { id: 'no_show', label: 'Не пришел' },
-                    { id: 'other', label: 'Другое' },
-                  ].map((item) => (
-                    <Button
-                      key={item.id}
-                      type="button"
-                      size="sm"
-                      variant={archiveFilter === item.id ? 'default' : 'ghost'}
-                      className={archiveFilter === item.id ? 'rounded-xl bg-[#133C2A]' : 'rounded-xl text-[#133C2A]/68'}
-                      onClick={() => setArchiveFilter(item.id as ArchiveFilter)}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {archivePool.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-8 text-center text-sm text-[#133C2A]/52">
-                  Архивных карточек по текущему фильтру нет.
-                </div>
-              ) : (
-                archivePool.map((entry) => renderMobileCard(entry, `Архив: ${archiveReasonLabel(entry)}`))
-              )}
-            </div>
-          ) : moreTab === 'sources' ? (
-            <div className="space-y-3">
-              {sourceStats.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-8 text-center text-sm text-[#133C2A]/52">
-                  Источники пока не определены.
-                </div>
-              ) : (
-                sourceStats.map(([source, count]) => (
-                  <Card key={source} className="border-[#133C2A]/10 bg-white/94">
-                    <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <div>
-                        <p className="text-[#133C2A]">{source}</p>
-                        <p className="mt-1 text-sm text-[#133C2A]/58">Карточек в CRM: {count}</p>
-                      </div>
-                      <Badge variant="outline" className="rounded-full border-[#133C2A]/12 px-3 py-1 text-[#133C2A]/70">
-                        {count}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          ) : (
-            <Card className="border-[#133C2A]/10 bg-[#FCFAF0]">
-              <CardContent className="space-y-3 p-5">
-                <p className="text-[#133C2A]">Техническая информация CRM</p>
-                <p className="text-sm text-[#133C2A]/58">
-                  Часть CRM-статусов пока рассчитывается по заявке, группе, оплате и дате обновления. Для точной работы нужны backend-поля `crm_status`, `next_action`, `trial_lessons`, `client_timeline`.
-                </p>
-              </CardContent>
-            </Card>
           )}
         </div>
-      )}
+      ) : null}
 
       <MobileClientFiltersSheet
         open={isFiltersOpen}

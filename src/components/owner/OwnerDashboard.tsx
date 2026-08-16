@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Employee,
   Event,
@@ -30,6 +30,11 @@ import { OwnerSettings } from './OwnerSettings';
 import { LandingSettings } from './LandingSettings';
 import { OwnerPricingPanel } from './OwnerPricingPanel';
 import { OwnerPaymentsNavigationContext } from './paymentsNavigation';
+import {
+  loadAdminLandingLeads,
+  loadOwnerCommunicationChats,
+  type AdminLandingLeadRecord,
+} from '../../lib/backendApi';
 
 interface OwnerDashboardProps {
   user: User;
@@ -123,14 +128,55 @@ export function OwnerDashboard({
   stats,
   monthlyData,
   expenses,
-  notifications,
-  automationCount,
 }: OwnerDashboardProps) {
-  const [currentPage, setCurrentPage] = useState<OwnerPage>(() => readOwnerPageFromUrl());
+  const [currentPage, setCurrentPage] = useState<OwnerPage>('home');
   const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<OwnerPaymentsNavigationContext | null>(null);
+  const [landingLeads, setLandingLeads] = useState<AdminLandingLeadRecord[]>([]);
+  const [chatUnreadMessagesCount, setChatUnreadMessagesCount] = useState(0);
 
-  const totalStudents = groups.reduce((sum, group) => sum + group.studentCount, 0);
-  const totalTeachers = employees.filter((item) => item.role === 'teacher').length;
+  useEffect(() => {
+    writeOwnerPageToUrl('home');
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    loadAdminLandingLeads()
+      .then((items) => {
+        if (active) {
+          setLandingLeads(items);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLandingLeads([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    loadOwnerCommunicationChats()
+      .then((items) => {
+        if (active) {
+          setChatUnreadMessagesCount(items.reduce((sum, chat) => sum + Number(chat.employeeUnreadCount || 0), 0));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setChatUnreadMessagesCount(0);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const openPayments = (context?: Omit<OwnerPaymentsNavigationContext, 'requestId'>) => {
     setPaymentsNavigationContext({
@@ -138,6 +184,14 @@ export function OwnerDashboard({
       ...(context || {}),
     });
     navigate('finance');
+  };
+
+  const openOverduePayments = () => {
+    openPayments({
+      statusFilter: 'overdue',
+      showOnlyOutstanding: true,
+      sourceLabel: 'Просроченные абонементы',
+    });
   };
 
   const navigate = (page: string) => {
@@ -157,12 +211,12 @@ export function OwnerDashboard({
           user={user}
           events={events}
           stats={stats}
-          totalStudents={totalStudents}
-          totalTeachers={totalTeachers}
+          groups={groups}
           tasks={tasks}
-          employees={employees}
-          notifications={notifications}
-          automationCount={automationCount}
+          payments={payments}
+          landingLeads={landingLeads}
+          chatUnreadMessagesCount={chatUnreadMessagesCount}
+          onOpenOverduePayments={openOverduePayments}
           onNavigate={navigate}
         />
       );
