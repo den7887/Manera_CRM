@@ -28,9 +28,11 @@ interface OwnerHomeProps {
 }
 
 function getFirstName(name?: string | null): string {
-  const value = String(name || '').trim();
-  if (!value) return '';
-  return value.split(/\s+/)[0];
+  // ФИО в системе хранится как «Фамилия Имя Отчество» (см. ParentHome.tsx —
+  // тот же порядок), поэтому имя — второе слово, а не первое: для
+  // «Павлова Олеся Витальевна» это «Олеся», а не «Павлова».
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return parts[1] || parts[0] || '';
 }
 
 export function OwnerHome({
