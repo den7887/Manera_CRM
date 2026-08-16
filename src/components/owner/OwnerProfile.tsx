@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner@2.0.3';
+import { PushNotificationsToggle } from '../PushNotificationsToggle';
 
 interface OwnerProfileProps {
   user: UserType;
@@ -271,9 +272,11 @@ export function OwnerProfile({ user, onLogout }: OwnerProfileProps) {
             </div>
           </Button>
 
-          <Button 
+          <PushNotificationsToggle />
+
+          <Button
             onClick={onLogout}
-            variant="outline" 
+            variant="outline"
             className="w-full rounded-2xl border-red-200 hover:bg-red-50 text-red-600 justify-start gap-3 h-auto py-4"
           >
             <LogOut className="w-5 h-5" />

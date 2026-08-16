@@ -7,6 +7,7 @@ import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
+import { PushNotificationsToggle } from '../PushNotificationsToggle';
 
 interface ParentProfileProps {
   user: User;
@@ -66,13 +67,7 @@ export function ParentProfile({ user, onLogout }: ParentProfileProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-xl border border-[#133C2A]/10 p-3 bg-white flex items-center justify-between gap-3">
-              <div>
-                <Label htmlFor="push-switch">Push</Label>
-                <p className="text-xs text-[#133C2A]/60 mt-0.5">Оперативные уведомления</p>
-              </div>
-              <Switch id="push-switch" defaultChecked onCheckedChange={(value) => handleToggle('Push', value)} />
-            </div>
+            <PushNotificationsToggle />
             <div className="rounded-xl border border-[#133C2A]/10 p-3 bg-white flex items-center justify-between gap-3">
               <div>
                 <Label htmlFor="email-switch">Email</Label>

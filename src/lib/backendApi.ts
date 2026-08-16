@@ -1717,3 +1717,25 @@ export async function confirmManualPayment(paymentId: string): Promise<{
 export async function loadMySubscriptions(): Promise<ParentSubscriptionDto[]> {
   return request<ParentSubscriptionDto[]>('/api/subscriptions/my');
 }
+
+export async function loadPushVapidPublicKey(): Promise<{ publicKey: string; configured: boolean }> {
+  return request('/api/push/vapid-public-key');
+}
+
+export async function subscribeToPushNotifications(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string;
+}): Promise<void> {
+  await request('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+  });
+}
+
+export async function unsubscribeFromPushNotifications(endpoint: string): Promise<void> {
+  await request('/api/push/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  });
+}

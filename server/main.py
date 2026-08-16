@@ -28,6 +28,12 @@ except Exception:  # pragma: no cover - optional dependency for production stora
     psycopg2 = None
     PsycopgJson = None
 
+try:
+    from pywebpush import WebPushException, webpush
+except Exception:  # pragma: no cover - optional dependency for browser push notifications
+    webpush = None
+    WebPushException = None
+
 
 UserRole = Literal["parent", "teacher", "admin", "owner"]
 AccessLevel = Literal["payment_only", "full"]
@@ -84,6 +90,7 @@ POSTGRES_GENERIC_COLLECTION_KEYS: tuple[str, ...] = (
     "automationRules",
     "communicationChats",
     "communicationMessages",
+    "pushSubscriptions",
 )
 POSTGRES_GENERIC_COLLECTION_TABLES: dict[str, str] = {
     "tasks": "crm_tasks",
@@ -98,6 +105,7 @@ POSTGRES_GENERIC_COLLECTION_TABLES: dict[str, str] = {
     "payments": "crm_legacy_payments",
     "subscriptions": "crm_legacy_subscriptions",
     "automationRules": "crm_automation_rules",
+    "pushSubscriptions": "crm_push_subscriptions",
     "communicationChats": "crm_communication_chats",
     "communicationMessages": "crm_communication_messages",
 }
@@ -397,6 +405,21 @@ class CreateCommunicationChatPayload(BaseModel):
 
 class CreateCommunicationMessagePayload(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
+
+
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str = Field(min_length=1, max_length=400)
+    auth: str = Field(min_length=1, max_length=200)
+
+
+class PushSubscribePayload(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=2000)
+    keys: PushSubscriptionKeys
+    userAgent: str | None = Field(default=None, max_length=400)
+
+
+class PushUnsubscribePayload(BaseModel):
+    endpoint: str = Field(min_length=1, max_length=2000)
 
 
 class DocumentCreatePayload(BaseModel):
@@ -1314,6 +1337,7 @@ def _default_store() -> dict[str, Any]:
         "automationRules": [],
         "communicationChats": [],
         "communicationMessages": [],
+        "pushSubscriptions": [],
         "securityAuditLog": [],
         "appState": {"statsResetAt": None},
         "ownerSettings": _default_owner_settings(),
@@ -1534,6 +1558,7 @@ def _ensure_store_shape(store: dict[str, Any]) -> bool:
         "automationRules",
         "communicationChats",
         "communicationMessages",
+        "pushSubscriptions",
         "ownerPricingPlans",
     ]
     for key in list_keys:
@@ -3652,7 +3677,100 @@ def _append_notification(
         "dedupKey": dedup_key,
     }
     notifications.insert(0, entry)
+    _send_web_push_to_user(
+        store,
+        user_id=user_id,
+        title=title,
+        body=message,
+        tag=dedup_key or entry["id"],
+        url=_push_notification_url(type_value),
+    )
     return entry
+
+
+def _vapid_public_key() -> str:
+    return str(os.getenv("VAPID_PUBLIC_KEY", "")).strip()
+
+
+def _vapid_private_key() -> str:
+    return str(os.getenv("VAPID_PRIVATE_KEY", "")).strip()
+
+
+def _vapid_subject() -> str:
+    return str(os.getenv("VAPID_SUBJECT", "") or "mailto:support@maneradancestudio.ru").strip()
+
+
+def _push_notifications_configured() -> bool:
+    return bool(webpush) and bool(_vapid_public_key()) and bool(_vapid_private_key())
+
+
+def _push_notification_url(type_value: str) -> str:
+    # Where the browser should focus/open the app when the notification is clicked.
+    # Kept coarse on purpose: the frontend doesn't yet have a router for arbitrary
+    # deep links into notification-specific screens.
+    if type_value == "landing_lead":
+        return "/?ownerPage=clients"
+    if type_value == "payment":
+        return "/?ownerPage=finance"
+    return "/"
+
+
+def _remove_push_subscription(store: dict[str, Any], endpoint: str) -> bool:
+    subscriptions = store.get("pushSubscriptions", [])
+    before = len(subscriptions)
+    store["pushSubscriptions"] = [item for item in subscriptions if str(item.get("endpoint")) != endpoint]
+    return len(store["pushSubscriptions"]) != before
+
+
+def _send_web_push_to_user(
+    store: dict[str, Any],
+    *,
+    user_id: str,
+    title: str,
+    body: str,
+    tag: str | None = None,
+    url: str = "/",
+) -> None:
+    """Best-effort browser push for an in-app notification that was just created.
+
+    Never raises: a slow or unreachable push service (FCM/Mozilla) must not break
+    the business action (payment update, new lead, etc.) that triggered it. Stale
+    subscriptions (browser unsubscribed, endpoint expired) are pruned as they're
+    found rather than left to accumulate.
+    """
+    if not _push_notifications_configured():
+        return
+    subscriptions = [item for item in store.get("pushSubscriptions", []) if str(item.get("userId")) == user_id]
+    if not subscriptions:
+        return
+
+    payload = json.dumps({"title": title, "body": body, "tag": tag, "url": url}, ensure_ascii=False)
+    stale_endpoints: list[str] = []
+    for sub in subscriptions:
+        subscription_info = {
+            "endpoint": sub.get("endpoint"),
+            "keys": {"p256dh": (sub.get("keys") or {}).get("p256dh"), "auth": (sub.get("keys") or {}).get("auth")},
+        }
+        try:
+            webpush(
+                subscription_info=subscription_info,
+                data=payload,
+                vapid_private_key=_vapid_private_key(),
+                vapid_claims={"sub": _vapid_subject()},
+                timeout=5,
+            )
+        except WebPushException as error:
+            response = getattr(error, "response", None)
+            status_code = getattr(response, "status_code", None)
+            if status_code in {404, 410}:
+                stale_endpoints.append(str(sub.get("endpoint")))
+        except Exception:
+            continue
+
+    if stale_endpoints:
+        store["pushSubscriptions"] = [
+            item for item in store.get("pushSubscriptions", []) if str(item.get("endpoint")) not in stale_endpoints
+        ]
 
 
 def _telegram_bot_token() -> str:
@@ -5041,10 +5159,29 @@ def _create_chat_message(
     chat["lastMessageAt"] = now
     chat["updatedAt"] = now
 
-    if str(sender_user.get("id")) == str(chat.get("parentUserId")):
+    sender_is_parent = str(sender_user.get("id")) == str(chat.get("parentUserId"))
+    if sender_is_parent:
         chat["employeeUnreadCount"] = int(chat.get("employeeUnreadCount") or 0) + 1
+        recipient_id = str(chat.get("employeeUserId") or "")
+        recipient_roles = ["owner", "admin", "teacher"]
     else:
         chat["parentUnreadCount"] = int(chat.get("parentUnreadCount") or 0) + 1
+        recipient_id = str(chat.get("parentUserId") or "")
+        recipient_roles = ["parent"]
+
+    if recipient_id:
+        sender_name = str(sender_user.get("name") or "Студия").strip() or "Студия"
+        _append_notification(
+            store,
+            user_id=recipient_id,
+            type_value="message",
+            priority="medium",
+            title=f"Новое сообщение от {sender_name}",
+            message=text.strip()[:200],
+            metadata={"chatId": str(chat.get("id")), "messageId": message["id"]},
+            dedup_key=None,
+            for_roles=recipient_roles,
+        )
     return message
 
 
@@ -8447,6 +8584,55 @@ def parent_communication_send_message(
     message = _create_chat_message(store, chat=chat, sender_user=current_user, text=payload.text)
     _write_store(store)
     return _serialize_chat_message(store, message)
+
+
+@app.get("/api/push/vapid-public-key")
+def push_vapid_public_key() -> dict[str, Any]:
+    return {"publicKey": _vapid_public_key(), "configured": _push_notifications_configured()}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(
+    payload: PushSubscribePayload,
+    current_user: dict[str, Any] = Depends(_require_auth),
+) -> dict[str, Any]:
+    store = _read_store()
+    user_id = str(current_user.get("id"))
+    subscriptions = store.setdefault("pushSubscriptions", [])
+    existing = next((item for item in subscriptions if str(item.get("endpoint")) == payload.endpoint), None)
+    now = _utc_now_iso()
+    if existing:
+        existing["userId"] = user_id
+        existing["keys"] = {"p256dh": payload.keys.p256dh, "auth": payload.keys.auth}
+        existing["userAgent"] = payload.userAgent
+        existing["updatedAt"] = now
+    else:
+        subscriptions.append(
+            {
+                "id": _new_id("push"),
+                "userId": user_id,
+                "endpoint": payload.endpoint,
+                "keys": {"p256dh": payload.keys.p256dh, "auth": payload.keys.auth},
+                "userAgent": payload.userAgent,
+                "createdAt": now,
+                "updatedAt": now,
+            }
+        )
+    _write_store(store)
+    return {"ok": True}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(
+    payload: PushUnsubscribePayload,
+    current_user: dict[str, Any] = Depends(_require_auth),
+) -> dict[str, Any]:
+    del current_user
+    store = _read_store()
+    removed = _remove_push_subscription(store, payload.endpoint)
+    if removed:
+        _write_store(store)
+    return {"ok": True, "removed": removed}
 
 
 @app.get("/api/notifications/my")
