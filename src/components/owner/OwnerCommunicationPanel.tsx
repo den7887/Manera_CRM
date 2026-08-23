@@ -175,7 +175,7 @@ export function OwnerCommunicationPanel() {
   };
 
   const renderChatList = (forMobile: boolean) => (
-    <Card className={`border-none soft-shadow ${forMobile ? 'h-[calc(100dvh-12.5rem-env(safe-area-inset-bottom))] min-h-[420px]' : 'h-[74vh] min-h-[580px]'} flex flex-col`}>
+    <Card className={`border-none soft-shadow ${forMobile ? 'h-full min-h-0' : 'h-[74vh] min-h-[580px]'} flex flex-col`}>
       <CardHeader className="space-y-3 border-b border-[#133C2A]/10 p-3 md:p-6">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-[#133C2A] flex items-center gap-2">
@@ -275,7 +275,7 @@ export function OwnerCommunicationPanel() {
   );
 
   const renderThread = (forMobile: boolean) => (
-    <Card className={`border-none soft-shadow ${forMobile ? 'h-[calc(100dvh-12.5rem-env(safe-area-inset-bottom))] min-h-[420px]' : 'h-[74vh] min-h-[580px]'} flex flex-col`}>
+    <Card className={`border-none soft-shadow ${forMobile ? 'h-full min-h-0' : 'h-[74vh] min-h-[580px]'} flex flex-col`}>
       <CardHeader className="border-b border-[#133C2A]/10 py-3">
         {selectedChat ? (
           <div className="flex items-center gap-2">

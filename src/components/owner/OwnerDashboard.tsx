@@ -299,8 +299,14 @@ export function OwnerDashboard({
         onLogout={onLogout}
       />
 
-      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
-        <div className="px-3 py-4 md:p-8 space-y-4 md:space-y-6">
+      <main className={currentPage === 'communication' ? 'md:pl-24 md:pb-8' : 'md:pl-24 mobile-safe-bottom md:pb-8'}>
+        <div
+          className={
+            currentPage === 'communication'
+              ? 'flex h-[calc(100dvh-4.75rem-env(safe-area-inset-bottom))] flex-col overflow-hidden px-2 pt-2 md:h-auto md:overflow-visible md:p-8'
+              : 'px-3 py-4 md:p-8 space-y-4 md:space-y-6'
+          }
+        >
           <ErrorBoundary key={currentPage}>
             {renderPage()}
           </ErrorBoundary>

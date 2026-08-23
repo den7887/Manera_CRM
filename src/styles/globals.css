@@ -507,3 +507,20 @@ body {
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #D4AF37;
 }
+
+/* Setting overflow-y without overflow-x makes the browser compute overflow-x
+   as auto too (CSS overflow spec), so every dialog/drawer body that scrolls
+   vertically (almost all of them -- forms use "overflow-y-auto" to scroll
+   their own content) was also scrollable sideways the moment any inner
+   element (a grid cell, a long unbreakable label) was a hair wider than the
+   sheet. Clip that axis instead of letting it scroll, scoped to modal
+   content only so it doesn't touch intentionally horizontal-scrolling
+   elements like .mobile-scroll-x elsewhere in the app. */
+[data-slot="dialog-content"],
+[data-slot="drawer-content"],
+[data-slot="sheet-content"],
+[data-slot="dialog-content"] .overflow-y-auto,
+[data-slot="drawer-content"] .overflow-y-auto,
+[data-slot="sheet-content"] .overflow-y-auto {
+  overflow-x: hidden;
+}

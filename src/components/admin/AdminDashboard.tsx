@@ -259,8 +259,14 @@ export function AdminDashboard({
         onLogout={onLogout}
       />
       
-      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
-        <div className="p-4 md:p-8">
+      <main className={currentPage === 'communication' ? 'md:pl-24 md:pb-8' : 'md:pl-24 mobile-safe-bottom md:pb-8'}>
+        <div
+          className={
+            currentPage === 'communication'
+              ? 'flex h-[calc(100dvh-4.75rem-env(safe-area-inset-bottom))] flex-col overflow-hidden px-2 pt-2 md:h-auto md:overflow-visible md:p-8'
+              : 'p-4 md:p-8'
+          }
+        >
           {renderPage()}
         </div>
       </main>

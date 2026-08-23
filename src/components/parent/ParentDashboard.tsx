@@ -329,8 +329,8 @@ export function ParentDashboard({
         onLogout={onLogout}
       />
 
-      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
-        <div className="sticky top-0 z-20 border-b border-[#133C2A]/10 bg-[#F8F4E3]/92 backdrop-blur-md">
+      <main className={currentPage === 'communication' ? 'md:pl-24 md:pb-8' : 'md:pl-24 mobile-safe-bottom md:pb-8'}>
+        <div className={`sticky top-0 z-20 border-b border-[#133C2A]/10 bg-[#F8F4E3]/92 backdrop-blur-md ${currentPage === 'communication' ? 'hidden md:block' : ''}`}>
           <div className="max-w-6xl mx-auto px-3 md:px-7 py-3 md:py-4">
             <div className="hidden md:flex items-center gap-2 text-xs text-[#133C2A]/60 mb-2">
               <Home className="w-3.5 h-3.5" />
@@ -408,7 +408,13 @@ export function ParentDashboard({
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-3 md:px-7 py-4 md:py-5 space-y-4">
+        <div
+          className={
+            currentPage === 'communication'
+              ? 'flex h-[calc(100dvh-4.75rem-env(safe-area-inset-bottom))] flex-col overflow-hidden px-2 pt-2 md:mx-auto md:h-auto md:max-w-6xl md:overflow-visible md:px-7 md:py-5'
+              : 'max-w-6xl mx-auto px-3 md:px-7 py-4 md:py-5 space-y-4'
+          }
+        >
           <ErrorBoundary key={currentPage}>
             {renderPage()}
           </ErrorBoundary>
