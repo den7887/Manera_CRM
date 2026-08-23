@@ -30,6 +30,7 @@ import { OwnerCommunicationPanel } from './OwnerCommunicationPanel';
 import { OwnerSettings } from './OwnerSettings';
 import { LandingSettings } from './LandingSettings';
 import { OwnerPricingPanel } from './OwnerPricingPanel';
+import { AttendanceWorkspace } from '../attendance/AttendanceWorkspace';
 import { OwnerPaymentsNavigationContext } from './paymentsNavigation';
 import {
   loadAdminLandingLeads,
@@ -67,7 +68,8 @@ type OwnerPage =
   | 'landing-settings'
   | 'pricing'
   | 'profile'
-  | 'clients';
+  | 'clients'
+  | 'attendance';
 
 const ownerPages = new Set<OwnerPage>([
   'home',
@@ -85,6 +87,7 @@ const ownerPages = new Set<OwnerPage>([
   'pricing',
   'profile',
   'clients',
+  'attendance',
 ]);
 
 function normalizeOwnerPage(page: string): OwnerPage {
@@ -95,6 +98,7 @@ function normalizeOwnerPage(page: string): OwnerPage {
   if (normalized === 'parents') normalized = 'clients';
   if (normalized === 'journal' || normalized === 'payments') normalized = 'finance';
   if (normalized === 'news' || normalized === 'events-management') normalized = 'content';
+  if (normalized === 'attendance-management') normalized = 'attendance';
   return ownerPages.has(normalized as OwnerPage) ? (normalized as OwnerPage) : 'home';
 }
 
@@ -238,6 +242,9 @@ export function OwnerDashboard({
           onNavigateSection={navigate}
         />
       );
+    }
+    if (currentPage === 'attendance') {
+      return <AttendanceWorkspace onOpenClient={() => navigate('clients')} />;
     }
     if (currentPage === 'analytics') {
       return <OwnerAnalyticsPanel />;

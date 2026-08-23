@@ -13,7 +13,7 @@ export function MoneyPricing({
 }: {
   pricingPlans: OwnerPricingPlanDto[];
   onCreateInvoice: () => void;
-  onOpenPricing?: () => void;
+  onOpenPricing?: (plan: OwnerPricingPlanDto) => void;
   onCreatePricing: () => void;
 }) {
   const activePlans = pricingPlans.filter((plan) => plan.is_active);
@@ -78,7 +78,7 @@ export function MoneyPricing({
 
                 {onOpenPricing ? (
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={onOpenPricing}>
+                    <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onOpenPricing?.(plan)}>
                       Редактировать
                     </Button>
                     <Button className="rounded-2xl bg-[#133C2A]" onClick={onCreateInvoice}>

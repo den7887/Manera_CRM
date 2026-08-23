@@ -85,6 +85,7 @@ const ownerPrimaryMenu: SidebarItem[] = [
 
 const ownerSecondaryMenu: SidebarItem[] = [
   { id: 'groups', label: 'Группы', icon: GraduationCap, group: 'Работа' },
+  { id: 'attendance', label: 'Посещаемость', icon: ClipboardCheck, group: 'Работа' },
   { id: 'tasks', label: 'Задачи', icon: CheckSquare, group: 'Работа' },
   { id: 'communication', label: 'Сообщения', icon: MessageSquare, group: 'Работа' },
   { id: 'documents', label: 'Документы', icon: FileText, group: 'Контроль' },

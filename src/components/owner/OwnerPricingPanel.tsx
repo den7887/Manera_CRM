@@ -7,19 +7,22 @@ import {
   loadAdminClients,
   loadOwnerPricing,
   OwnerPricingPlanDto,
+  updateOwnerPricingPlan,
 } from '../../lib/backendApi';
 import { toast } from 'sonner';
 import { CreateInvoiceSheet } from '../money/CreateInvoiceSheet';
-import { CreatePricingDraft, CreatePricingSheet } from '../money/CreatePricingSheet';
+import { CreatePricingSheet } from '../money/CreatePricingSheet';
 import { MoneyPricing } from '../money/MoneyPricing';
-import { MoneyInvoiceDraft, moneyInvoiceTargetLabels } from '../money/moneyTypes';
+import { MoneyInvoiceDraft, MoneyPricingDraft, moneyInvoiceTargetLabels } from '../money/moneyTypes';
 
-const defaultCreateDraft: CreatePricingDraft = {
+const defaultCreateDraft: MoneyPricingDraft = {
   title: '',
   basePrice: '',
   isActive: true,
   hasDiscount: false,
   discountPrice: '',
+  classesTracked: false,
+  classesCount: '',
 };
 
 const defaultInvoiceDraft: MoneyInvoiceDraft = {
@@ -43,8 +46,9 @@ export function OwnerPricingPanel() {
   const [clients, setClients] = useState<AdminClientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatePricingOpen, setIsCreatePricingOpen] = useState(false);
-  const [pricingDraft, setPricingDraft] = useState<CreatePricingDraft>(defaultCreateDraft);
+  const [pricingDraft, setPricingDraft] = useState<MoneyPricingDraft>(defaultCreateDraft);
   const [isPricingSubmitting, setIsPricingSubmitting] = useState(false);
+  const [editingPlanCode, setEditingPlanCode] = useState<string | null>(null);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const [invoiceDraft, setInvoiceDraft] = useState<MoneyInvoiceDraft>(defaultInvoiceDraft);
   const [isInvoiceSubmitting, setIsInvoiceSubmitting] = useState(false);
@@ -85,6 +89,7 @@ export function OwnerPricingPanel() {
     const basePrice = Number(pricingDraft.basePrice);
     const discountPrice = Number(pricingDraft.discountPrice);
     const finalPrice = pricingDraft.hasDiscount ? discountPrice : basePrice;
+    const classesCount = Number(pricingDraft.classesCount);
 
     if (!title) {
       toast.error('Укажите название тарифа');
@@ -94,26 +99,52 @@ export function OwnerPricingPanel() {
       toast.error('Укажите корректную стоимость тарифа');
       return;
     }
+    if (pricingDraft.classesTracked && (!Number.isFinite(classesCount) || classesCount <= 0)) {
+      toast.error('Укажите количество занятий');
+      return;
+    }
+
+    const payload = {
+      title,
+      price: finalPrice,
+      classes_count: pricingDraft.classesTracked ? classesCount : null,
+      classes_tracked: pricingDraft.classesTracked,
+      duration_days: 30,
+      is_active: pricingDraft.isActive,
+    };
 
     setIsPricingSubmitting(true);
     try {
-      await createOwnerPricingPlan({
-        title,
-        price: finalPrice,
-        classes_count: null,
-        classes_tracked: false,
-        duration_days: 30,
-        is_active: pricingDraft.isActive,
-      });
-      toast.success('Тариф создан');
+      if (editingPlanCode) {
+        await updateOwnerPricingPlan(editingPlanCode, payload);
+        toast.success('Тариф обновлён');
+      } else {
+        await createOwnerPricingPlan(payload);
+        toast.success('Тариф создан');
+      }
       setIsCreatePricingOpen(false);
+      setEditingPlanCode(null);
       setPricingDraft(defaultCreateDraft);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось создать тариф');
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить тариф');
     } finally {
       setIsPricingSubmitting(false);
     }
+  };
+
+  const openPricingForEdit = (plan: OwnerPricingPlanDto) => {
+    setEditingPlanCode(plan.code);
+    setPricingDraft({
+      title: plan.title,
+      basePrice: String(plan.price),
+      isActive: plan.is_active,
+      hasDiscount: false,
+      discountPrice: '',
+      classesTracked: plan.classes_tracked,
+      classesCount: plan.classes_count != null ? String(plan.classes_count) : '',
+    });
+    setIsCreatePricingOpen(true);
   };
 
   const submitInvoice = async () => {
@@ -168,16 +199,25 @@ export function OwnerPricingPanel() {
       <MoneyPricing
         pricingPlans={pricingPlans}
         onCreateInvoice={() => setIsCreateInvoiceOpen(true)}
-        onCreatePricing={() => setIsCreatePricingOpen(true)}
+        onCreatePricing={() => {
+          setEditingPlanCode(null);
+          setPricingDraft(defaultCreateDraft);
+          setIsCreatePricingOpen(true);
+        }}
+        onOpenPricing={openPricingForEdit}
       />
 
       <CreatePricingSheet
         open={isCreatePricingOpen}
-        onOpenChange={setIsCreatePricingOpen}
+        onOpenChange={(next) => {
+          setIsCreatePricingOpen(next);
+          if (!next) setEditingPlanCode(null);
+        }}
         draft={pricingDraft}
         onChange={setPricingDraft}
         onSubmit={() => void submitPricing()}
         isSubmitting={isPricingSubmitting}
+        isEditing={Boolean(editingPlanCode)}
       />
 
       <CreateInvoiceSheet

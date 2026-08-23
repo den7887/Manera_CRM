@@ -191,9 +191,26 @@ export function ClientCard({
                   </div>
                   <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
                     <p className="text-xs text-[#133C2A]/45">Занятия</p>
-                    <p className="mt-1 text-[#133C2A]">
-                      {child.lessonsTracked ? `${child.remainingClasses ?? 0} из ${child.totalClasses ?? 0}` : 'Без учета лимита'}
-                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {child.attendanceStatusColor ? (
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${
+                            child.attendanceStatusColor === 'green'
+                              ? 'bg-[#1C8C64]'
+                              : child.attendanceStatusColor === 'yellow'
+                                ? 'bg-[#D4AF37]'
+                                : 'bg-[#D14343]'
+                          }`}
+                          title={child.attendanceStatusLabel}
+                        />
+                      ) : null}
+                      <p className="text-[#133C2A]">
+                        {child.lessonsTracked ? `${child.remainingClasses ?? 0} из ${child.totalClasses ?? 0}` : 'Без учета лимита'}
+                      </p>
+                    </div>
+                    {child.attendanceStatusLabel ? (
+                      <p className="mt-0.5 text-xs text-[#133C2A]/50">{child.attendanceStatusLabel}</p>
+                    ) : null}
                   </div>
                   <div className="rounded-2xl bg-[#F8F4E3]/70 p-3">
                     <p className="text-xs text-[#133C2A]/45">Источник</p>

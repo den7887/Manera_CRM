@@ -108,6 +108,8 @@ export interface MoneyPricingDraft {
   isActive: boolean;
   hasDiscount: boolean;
   discountPrice: string;
+  classesTracked: boolean;
+  classesCount: string;
 }
 
 export interface MoneyWorkspaceData {

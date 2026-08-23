@@ -145,6 +145,8 @@ export interface Child {
   attendedClasses: number;
   purchaseDate: Date;
   adminNotes?: string; // Заметки администратора, видимые родителям
+  attendanceStatusColor?: 'green' | 'yellow' | 'red';
+  attendanceStatusLabel?: string;
 }
 
 export interface Group {

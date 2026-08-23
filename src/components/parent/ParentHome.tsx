@@ -73,6 +73,28 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
                   </p>
                 </div>
               </div>
+              {primaryChild?.attendanceStatusColor ? (
+                <div
+                  className={`mt-2 flex items-center gap-2 rounded-2xl border p-3 ${
+                    primaryChild.attendanceStatusColor === 'green'
+                      ? 'border-[#1C8C64]/25 bg-[#1C8C64]/8'
+                      : primaryChild.attendanceStatusColor === 'yellow'
+                        ? 'border-[#D4AF37]/30 bg-[#D4AF37]/10'
+                        : 'border-[#D14343]/25 bg-[#D14343]/8'
+                  }`}
+                >
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                      primaryChild.attendanceStatusColor === 'green'
+                        ? 'bg-[#1C8C64]'
+                        : primaryChild.attendanceStatusColor === 'yellow'
+                          ? 'bg-[#D4AF37]'
+                          : 'bg-[#D14343]'
+                    }`}
+                  />
+                  <p className="text-sm text-[#133C2A]">{primaryChild.attendanceStatusLabel}</p>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-3xl border border-[#133C2A]/10 bg-[#fbf7e8] p-4">

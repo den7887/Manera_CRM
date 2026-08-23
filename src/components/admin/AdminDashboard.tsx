@@ -16,7 +16,7 @@ import { PricingManagement } from './PricingManagement';
 import { PricingForm } from './PricingForm';
 import { EventsManagement } from './EventsManagement';
 import { DocumentsManagement } from './DocumentsManagement';
-import { AttendanceManagement } from './AttendanceManagement';
+import { AttendanceWorkspace } from '../attendance/AttendanceWorkspace';
 import { ClientsManagement } from './ClientsManagement';
 import { ScheduleManagement } from './ScheduleManagement';
 import { AdminPayments, AdminPaymentsNavigationContext } from './AdminPayments';
@@ -221,7 +221,7 @@ export function AdminDashboard({
           onDeleteDocument={onDeleteDocument || (() => {})} 
         />; 
       case 'attendance-management':
-        return <AttendanceManagement />;
+        return <AttendanceWorkspace onOpenClient={() => setCurrentPage('clients-management')} />;
       case 'clients-management':
         return (
           <ClientsManagement

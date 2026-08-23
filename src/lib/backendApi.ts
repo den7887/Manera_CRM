@@ -229,6 +229,8 @@ export interface AdminChildRecord {
   attendedClasses?: number;
   remainingClasses?: number;
   progressPercent?: number;
+  attendanceStatusColor?: 'green' | 'yellow' | 'red';
+  attendanceStatusLabel?: string;
   profile?: {
     internalComment: string;
     healthNotes: string;
@@ -556,9 +558,13 @@ function mapParentChild(child: any): Child {
   if (!Number.isFinite(remainingClasses)) {
     remainingClasses = 0;
   }
-  if (totalClasses > 0 && remainingClasses <= 0 && paymentStatus === 'paid') {
-    remainingClasses = totalClasses;
-  }
+  // Used to also reset remainingClasses back to the full total whenever it
+  // hit 0 for a paid client -- that was compensating for the backend never
+  // correctly computing real usage (see the matching fix in
+  // _compute_child_lesson_status / _serialize_parent_child on the server).
+  // Now that the server always sends a real, trustworthy number here, doing
+  // that here too would silently paper over a genuinely exhausted Хобби
+  // subscription and show "8 of 8" for a client with 0 classes left.
   remainingClasses = Math.max(0, Math.min(totalClasses > 0 ? totalClasses : remainingClasses, remainingClasses));
   const normalizedAttended = totalClasses > 0 ? Math.max(0, Math.min(attendedClasses, totalClasses)) : attendedClasses;
   const progress = totalClasses > 0 ? Math.round((normalizedAttended / totalClasses) * 100) : 0;
@@ -578,6 +584,8 @@ function mapParentChild(child: any): Child {
     attendedClasses: normalizedAttended,
     purchaseDate: toDate(child.client?.createdAt || child.createdAt),
     adminNotes: child.client?.notes || undefined,
+    attendanceStatusColor: child.attendanceStatusColor,
+    attendanceStatusLabel: child.attendanceStatusLabel,
   };
 }
 
@@ -1360,6 +1368,82 @@ export async function loadParentEvents(): Promise<Event[]> {
 export async function loadOwnerGroups(): Promise<Group[]> {
   const groups = await request<any[]>('/api/owner/groups');
   return groups.map(mapOwnerGroup);
+}
+
+export interface AttendanceDayGroupDto {
+  groupId: string;
+  groupName: string;
+  teacherName: string | null;
+  time: string;
+  studentCount: number;
+  markedCount: number;
+}
+
+export interface AttendanceStudentDto {
+  childId: string;
+  clientId: string | null;
+  fullName: string;
+  parentUserId: string;
+  parentName: string | null;
+  parentPhone: string | null;
+  status: 'present' | 'absent' | null;
+  markedAt: string | null;
+  attendanceStatusColor: 'green' | 'yellow' | 'red';
+  attendanceStatusLabel: string;
+  remainingClasses: number | null;
+}
+
+export interface AttendanceGroupRosterDto {
+  groupId: string;
+  groupName: string;
+  date: string;
+  students: AttendanceStudentDto[];
+}
+
+export async function loadAttendanceDay(dateStr: string): Promise<AttendanceDayGroupDto[]> {
+  const rows = await request<any[]>(`/api/staff/attendance/day?${new URLSearchParams({ date: dateStr })}`);
+  return rows.map((row) => ({
+    groupId: String(row.groupId),
+    groupName: String(row.groupName || ''),
+    teacherName: row.teacherName ?? null,
+    time: String(row.time || ''),
+    studentCount: Number(row.studentCount || 0),
+    markedCount: Number(row.markedCount || 0),
+  }));
+}
+
+export async function loadAttendanceGroupRoster(groupId: string, dateStr: string): Promise<AttendanceGroupRosterDto> {
+  const row = await request<any>(`/api/staff/attendance/group/${encodeURIComponent(groupId)}?${new URLSearchParams({ date: dateStr })}`);
+  return {
+    groupId: String(row.groupId),
+    groupName: String(row.groupName || ''),
+    date: String(row.date),
+    students: (row.students || []).map((s: any) => ({
+      childId: String(s.childId),
+      clientId: s.clientId ?? null,
+      fullName: String(s.fullName || 'Ученик'),
+      parentUserId: String(s.parentUserId || ''),
+      parentName: s.parentName ?? null,
+      parentPhone: s.parentPhone ?? null,
+      status: s.status ?? null,
+      markedAt: s.markedAt ?? null,
+      attendanceStatusColor: s.attendanceStatusColor,
+      attendanceStatusLabel: String(s.attendanceStatusLabel || ''),
+      remainingClasses: s.remainingClasses ?? null,
+    })),
+  };
+}
+
+export async function markAttendance(payload: {
+  group_id: string;
+  child_id: string;
+  date: string;
+  status: 'present' | 'absent' | 'unmarked';
+}): Promise<{ ok: boolean; status: 'present' | 'absent' | null; remainingClasses: number | null; attendanceStatusColor: string; attendanceStatusLabel: string }> {
+  return request('/api/staff/attendance/mark', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function createOwnerGroup(payload: {

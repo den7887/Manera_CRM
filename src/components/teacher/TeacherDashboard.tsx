@@ -5,6 +5,7 @@ import { TeacherGroups } from './TeacherGroups';
 import { TeacherSchedule } from './TeacherSchedule';
 import { TeacherStudents } from './TeacherStudents';
 import { TeacherProfile } from './TeacherProfile';
+import { AttendanceWorkspace } from '../attendance/AttendanceWorkspace';
 import { MobileNav } from '../layout/MobileNav';
 import { DesktopSidebar } from '../layout/DesktopSidebar';
 import { FeatureInDevelopment } from '../FeatureInDevelopment';
@@ -26,7 +27,7 @@ export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDash
       case 'groups':
         return <TeacherGroups groups={groups} />;
       case 'attendance':
-        return <TeacherSchedule events={events} />;
+        return <AttendanceWorkspace onOpenClient={() => setCurrentPage('students')} />;
       case 'communication':
         return <FeatureInDevelopment sectionName="Сообщения" roleLabel="Преподаватель" description="Чат преподавателя будет подключен к общей системе коммуникаций после backend-доступа для роли teacher." />;
       case 'schedule':
