@@ -5389,9 +5389,28 @@ def _recalculate_parent_access_from_clients(store: dict[str, Any], parent_user_i
         return None
     if str(parent_user.get("role")) != "parent":
         return parent_user
+
+    # An already-paying client must not be locked out of the portal just because
+    # the next invoice was billed ahead of time (a new "pending" invoice used to
+    # overwrite client.paymentStatus and re-lock access immediately — see the
+    # incident where issuing a renewal invoice for an active client dropped them
+    # back to payment_only even though their current period was still valid).
+    # A currently-active, unexpired subscription is the real signal for "this
+    # family should have full access right now"; client.paymentStatus only ever
+    # reflects the *latest* invoice and is kept as a fallback for payments that
+    # didn't provision a subscription (e.g. a custom plan not in the catalog).
+    now_dt = datetime.now(timezone.utc)
+    has_active_subscription = any(
+        str(item.get("parent_id")) == parent_user_id
+        and str(item.get("status")) == "active"
+        and (_parse_datetime_safe(item.get("expires_at")) or now_dt) > now_dt
+        for item in store.get("subscriptions", [])
+    )
+
     parent_clients = [item for item in store.get("clients", []) if str(item.get("parentUserId")) == parent_user_id]
-    has_paid = any(str(item.get("paymentStatus")) == "paid" for item in parent_clients)
-    if has_paid:
+    has_paid_client = any(str(item.get("paymentStatus")) == "paid" for item in parent_clients)
+
+    if has_active_subscription or has_paid_client:
         parent_user["access_level"] = "full"
         parent_user["account_status"] = "active"
     else:

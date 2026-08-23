@@ -196,3 +196,88 @@ def test_online_payment_for_unlimited_plan_creates_subscription_without_lesson_c
     body = my_subscriptions.json()
     assert len(body) == 1
     assert body[0]["plan_title"] == "Про"
+
+
+def test_advance_renewal_invoice_does_not_lock_an_already_paying_client(client: TestClient):
+    """Reproduces a real production incident: an active, paying client got
+    locked out of their portal the moment the owner pre-billed their next
+    period. client.paymentStatus only ever reflects the *latest* invoice, so
+    a fresh "pending" renewal was overwriting the fact that the current
+    period was already paid and active."""
+    owner, owner_headers = _auth_client(main.OWNER_PHONE)
+
+    created = owner.post(
+        "/api/admin/clients",
+        json={
+            "parent_full_name": "Соколова Инна",
+            "child_full_name": "Соколова Ева",
+            "child_birth_date": "2016-03-01",
+            "parent_phone": "+79996665544",
+            "subscription_name": "Хобби",
+            "subscription_amount": 5000,
+            "payment_method": "cash",
+        },
+        headers=owner_headers,
+    )
+    assert created.status_code == 200, created.text
+    client_id = created.json()["client"]["id"]
+    parent_user_id = created.json()["client"]["parentUserId"]
+    payment_id = created.json()["payment"]["id"]
+
+    confirm = owner.post(
+        f"/api/admin/payments/{payment_id}/confirm-cash",
+        json={"paid_amount": 5000},
+        headers=owner_headers,
+    )
+    assert confirm.status_code == 200, confirm.text
+
+    store = json.loads(main.DATA_FILE.read_text(encoding="utf-8"))
+    parent_before = next(u for u in store["users"] if u["id"] == parent_user_id)
+    assert parent_before["access_level"] == "full"
+    assert parent_before["account_status"] == "active"
+
+    # Owner bills the next period ahead of time, while the current one is still active.
+    renewal = owner.post(
+        "/api/admin/payments/invoices",
+        json={
+            "client_id": client_id,
+            "subscription_name": "Хобби",
+            "amount": 5000,
+            "payment_method": "online",
+            "due_date": "2026-09-30",
+        },
+        headers=owner_headers,
+    )
+    assert renewal.status_code == 200, renewal.text
+
+    store_after = json.loads(main.DATA_FILE.read_text(encoding="utf-8"))
+    parent_after = next(u for u in store_after["users"] if u["id"] == parent_user_id)
+    assert parent_after["access_level"] == "full", "an active client must not be locked out by a pre-billed renewal"
+    assert parent_after["account_status"] == "active"
+
+    client_after = next(c for c in store_after["clients"] if c["id"] == client_id)
+    assert client_after["paymentStatus"] == "pending", "the new invoice should still show as outstanding"
+
+    # And the parent's own view of their access must agree.
+    from urllib.parse import urlparse
+
+    link = owner.post(
+        f"/api/admin/clients/{client_id}/activation-link",
+        json={"purpose": "after_cash_payment"},
+        headers=owner_headers,
+    )
+    assert link.status_code == 200, link.text
+    token = urlparse(link.json()["activation_url"]).path.rstrip("/").split("/")[-1]
+    parent = TestClient(main.app)
+    ph = _csrf_headers(parent)
+    set_pin = parent.post(
+        f"/api/auth/activation/{token}/set-pin",
+        json={"pin": "936275", "pin_repeat": "936275"},
+        headers=ph,
+    )
+    assert set_pin.status_code == 200, set_pin.text
+
+    access = parent.get("/api/parent/access", headers=_csrf_headers(parent))
+    assert access.status_code == 200
+    assert access.json()["canUseDashboard"] is True
+    assert len(access.json()["pendingPayments"]) >= 1, "the renewal should still surface as a pending payment/notification"
