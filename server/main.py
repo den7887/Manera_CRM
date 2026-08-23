@@ -8,14 +8,14 @@ import threading
 import hashlib
 import html
 from base64 import b64encode
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
-from fastapi import Depends, FastAPI, HTTPException, Request as FastAPIRequest, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request as FastAPIRequest, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -91,6 +91,7 @@ POSTGRES_GENERIC_COLLECTION_KEYS: tuple[str, ...] = (
     "communicationChats",
     "communicationMessages",
     "pushSubscriptions",
+    "attendance",
 )
 POSTGRES_GENERIC_COLLECTION_TABLES: dict[str, str] = {
     "tasks": "crm_tasks",
@@ -108,6 +109,7 @@ POSTGRES_GENERIC_COLLECTION_TABLES: dict[str, str] = {
     "pushSubscriptions": "crm_push_subscriptions",
     "communicationChats": "crm_communication_chats",
     "communicationMessages": "crm_communication_messages",
+    "attendance": "crm_attendance",
 }
 POSTGRES_COLLECTION_KEYS: tuple[str, ...] = (*POSTGRES_DEDICATED_COLLECTION_KEYS, *POSTGRES_GENERIC_COLLECTION_KEYS)
 POSTGRES_DIRECT_ENTITY_KEYS: tuple[str, ...] = (
@@ -321,6 +323,13 @@ class OwnerGroupPayload(BaseModel):
 
 class OwnerAssignChildGroupPayload(BaseModel):
     group_id: str | None = Field(default=None, max_length=120)
+
+
+class AttendanceMarkPayload(BaseModel):
+    group_id: str = Field(max_length=120)
+    child_id: str = Field(max_length=120)
+    date: str = Field(max_length=10)  # YYYY-MM-DD
+    status: Literal["present", "absent", "unmarked"]
 
 
 class AdminChildProfilePayload(BaseModel):
@@ -1338,6 +1347,7 @@ def _default_store() -> dict[str, Any]:
         "communicationChats": [],
         "communicationMessages": [],
         "pushSubscriptions": [],
+        "attendance": [],
         "securityAuditLog": [],
         "appState": {"statsResetAt": None},
         "ownerSettings": _default_owner_settings(),
@@ -5485,24 +5495,43 @@ def _serialize_admin_client(store: dict[str, Any], client: dict[str, Any]) -> di
     }
 
 
-def _serialize_admin_child_row(store: dict[str, Any], child: dict[str, Any]) -> dict[str, Any]:
-    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == str(child.get("id"))), None)
-    parent = _find_user_by_id(store, str(child.get("parentUserId") or ""))
-    group = _find_group_by_id(store, str(child.get("groupId") or ""))
-    payment = _find_latest_payment_for_client(store, str((client or {}).get("id") or ""))
-    parent_id = str(child.get("parentUserId") or "")
-    child_id = str(child.get("id") or "")
-
-    active_subscription = next(
+def _find_active_subscription_for_client(store: dict[str, Any], parent_id: str, client_id: str) -> dict[str, Any] | None:
+    # _ensure_active_subscription_for_payment only ever writes "client_id"
+    # (the `clients` collection row's id) onto a subscription record, never
+    # a "child_id" -- this used to be matched against child_id here (and,
+    # before this fix, in both _serialize_admin_child_row and
+    # _serialize_parent_child directly), which never matched anything since
+    # that field was never populated. That silently broke every
+    # active-subscription lookup: "remaining lessons" always fell through to
+    # the plan/regex-based fallback instead of reflecting real usage, which
+    # is exactly why used_lessons could never visibly move no matter what
+    # wrote to it.
+    if not client_id:
+        return None
+    return next(
         (
             item
             for item in store.get("subscriptions", [])
             if str(item.get("parent_id")) == parent_id
-            and str(item.get("child_id") or "") == child_id
+            and str(item.get("client_id") or "") == client_id
             and str(item.get("status")) == "active"
         ),
         None,
     )
+
+
+def _compute_child_lesson_status(
+    store: dict[str, Any],
+    child: dict[str, Any],
+    client: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Shared by both the admin and parent child serializers (they used to
+    duplicate this exact computation). Returns lesson tracking state plus the
+    active subscription record itself, since the attendance-status badge and
+    attendance-marking endpoints both need it too."""
+    parent_id = str(child.get("parentUserId") or "")
+    client_id = str((client or {}).get("id") or "")
+    active_subscription = _find_active_subscription_for_client(store, parent_id, client_id)
 
     lessons_tracked = True
     total_classes = 0
@@ -5539,12 +5568,104 @@ def _serialize_admin_child_row(store: dict[str, Any], child: dict[str, Any]) -> 
                     total_classes = max(int(match.group(1)), 0)
                     attended_classes = max(min(attended_classes, total_classes), 0)
                     remaining_classes = max(total_classes - attended_classes, 0)
-        if total_classes > 0 and remaining_classes <= 0 and str(client.get("paymentStatus")) == "paid":
+        # Only trust this "assume a fresh allotment" fallback when there's no
+        # real subscription record to read from -- total_classes/remaining
+        # in that branch came from a regex/plan-catalog guess, not an actual
+        # used_lessons count, so a paid client showing 0 there just means
+        # the guess found nothing yet. If active_subscription IS set, 0
+        # remaining is real (the lessons were actually used) and must not be
+        # papered over.
+        if active_subscription is None and total_classes > 0 and remaining_classes <= 0 and str(client.get("paymentStatus")) == "paid":
             remaining_classes = total_classes
 
     progress_percent = 0
     if lessons_tracked and total_classes > 0:
         progress_percent = max(0, min(100, round((attended_classes / total_classes) * 100)))
+
+    return {
+        "active_subscription": active_subscription,
+        "lessons_tracked": lessons_tracked,
+        "total_classes": total_classes,
+        "attended_classes": attended_classes,
+        "remaining_classes": remaining_classes,
+        "progress_percent": progress_percent,
+    }
+
+
+def _compute_attendance_status_badge(lesson_status: dict[str, Any]) -> dict[str, str]:
+    """The color/label shown as a dot next to each student in the attendance
+    roster, on the client card, and as the parent-portal status bar.
+
+    Хобби-style plans (lessons_tracked): green while there's a healthy
+    buffer of remaining classes, yellow as the count gets low, red once
+    they're used up or there's no active subscription at all -- a no-show
+    doesn't burn a class (see _apply_attendance_lesson_effect), so this only
+    moves when a class is actually attended.
+
+    Про-style plans (not lessons_tracked, billed monthly): color tracks days
+    left until the subscription's expires_at instead of a lesson count --
+    green with plenty of runway, yellow at 8 days out, red at 3 days out or
+    once it's already expired/cancelled.
+    """
+    active_subscription = lesson_status.get("active_subscription")
+    lessons_tracked = bool(lesson_status.get("lessons_tracked"))
+
+    if active_subscription is None:
+        return {"color": "red", "label": "Абонемент не активен"}
+
+    if lessons_tracked:
+        remaining = int(lesson_status.get("remaining_classes") or 0)
+        if remaining <= 0:
+            return {"color": "red", "label": "Занятия закончились"}
+        if remaining <= 2:
+            return {"color": "yellow", "label": f"Осталось занятий: {remaining}"}
+        return {"color": "green", "label": f"Осталось занятий: {remaining}"}
+
+    expires_at = _parse_datetime_safe(active_subscription.get("expires_at"))
+    if expires_at is None:
+        return {"color": "green", "label": "Абонемент активен"}
+    days_left = (expires_at - datetime.now(timezone.utc)).days
+    if days_left <= 3:
+        return {"color": "red", "label": "Истекает" if days_left >= 0 else "Истёк"}
+    if days_left <= 8:
+        return {"color": "yellow", "label": f"Осталось дней: {days_left}"}
+    return {"color": "green", "label": f"Осталось дней: {days_left}"}
+
+
+def _apply_attendance_lesson_effect(subscription: dict[str, Any] | None, old_status: str | None, new_status: str) -> None:
+    """Only a Хобби-style subscription (an int total_lessons) has a class
+    count to spend; Про subscriptions are untracked and this is a no-op for
+    them. Only "present" ever burns a class -- a no-show costs nothing, and
+    correcting a mistaken "present" back to absent/unmarked gives the class
+    back, clamped so repeated corrections can't push used_lessons negative
+    or above the total."""
+    if subscription is None or not isinstance(subscription.get("total_lessons"), int):
+        return
+    total = max(int(subscription["total_lessons"]), 0)
+    used = int(subscription.get("used_lessons", 0) or 0)
+    was_present = old_status == "present"
+    is_present = new_status == "present"
+    if was_present and not is_present:
+        used -= 1
+    elif is_present and not was_present:
+        used += 1
+    subscription["used_lessons"] = max(0, min(used, total))
+    subscription["updatedAt"] = _utc_now_iso()
+
+
+def _serialize_admin_child_row(store: dict[str, Any], child: dict[str, Any]) -> dict[str, Any]:
+    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == str(child.get("id"))), None)
+    parent = _find_user_by_id(store, str(child.get("parentUserId") or ""))
+    group = _find_group_by_id(store, str(child.get("groupId") or ""))
+    payment = _find_latest_payment_for_client(store, str((client or {}).get("id") or ""))
+
+    lesson_status = _compute_child_lesson_status(store, child, client)
+    lessons_tracked = lesson_status["lessons_tracked"]
+    total_classes = lesson_status["total_classes"]
+    attended_classes = lesson_status["attended_classes"]
+    remaining_classes = lesson_status["remaining_classes"]
+    progress_percent = lesson_status["progress_percent"]
+    attendance_badge = _compute_attendance_status_badge(lesson_status)
 
     profile_raw = (client or {}).get("profile") if isinstance((client or {}).get("profile"), dict) else {}
     landing_lead = _find_latest_landing_lead_by_phone(store, str((parent or {}).get("phone") or (client or {}).get("parentPhone") or ""))
@@ -5595,6 +5716,8 @@ def _serialize_admin_child_row(store: dict[str, Any], child: dict[str, Any]) -> 
         "attendedClasses": attended_classes,
         "remainingClasses": remaining_classes,
         "progressPercent": progress_percent,
+        "attendanceStatusColor": attendance_badge["color"],
+        "attendanceStatusLabel": attendance_badge["label"],
         "profile": profile,
         "landingLead": {
             "id": landing_lead.get("id"),
@@ -5847,45 +5970,9 @@ def _serialize_parent_child(store: dict[str, Any], child: dict[str, Any]) -> dic
     client = next((item for item in store["clients"] if str(item.get("childId")) == str(child.get("id"))), None)
     payment = _find_latest_payment_for_client(store, str(client.get("id"))) if client else None
     group = _find_group_by_id(store, str(child.get("groupId") or ""))
-    parent_id = str(child.get("parentUserId") or "")
-    child_id = str(child.get("id") or "")
 
-    active_subscription = next(
-        (
-            item
-            for item in store.get("subscriptions", [])
-            if str(item.get("parent_id")) == parent_id
-            and str(item.get("child_id") or "") == child_id
-            and str(item.get("status")) == "active"
-        ),
-        None,
-    )
-
-    lessons_tracked = True
-    total_classes = 0
-    attended_classes = 0
-    remaining_classes = 0
-
-    if active_subscription is not None:
-        total_lessons = active_subscription.get("total_lessons")
-        used_lessons = int(active_subscription.get("used_lessons", 0) or 0)
-        if isinstance(total_lessons, int):
-            total_classes = max(total_lessons, 0)
-            attended_classes = max(used_lessons, 0)
-            remaining_classes = max(total_classes - attended_classes, 0)
-        else:
-            lessons_tracked = False
-
-    if total_classes <= 0 and client:
-        subscription_name = str(client.get("subscriptionName") or "")
-        match = re.search(r"(\d{1,3})\s*занят", subscription_name.lower())
-        if match:
-            total_classes = max(int(match.group(1)), 0)
-            attended_classes = max(min(attended_classes, total_classes), 0)
-            remaining_classes = max(total_classes - attended_classes, 0)
-
-        if total_classes > 0 and remaining_classes <= 0 and str(client.get("paymentStatus")) == "paid":
-            remaining_classes = total_classes
+    lesson_status = _compute_child_lesson_status(store, child, client)
+    attendance_badge = _compute_attendance_status_badge(lesson_status)
 
     return {
         **child,
@@ -5894,10 +5981,12 @@ def _serialize_parent_child(store: dict[str, Any], child: dict[str, Any]) -> dic
         "groupTime": (group or {}).get("time"),
         "client": client,
         "payment": payment,
-        "lessonsTracked": lessons_tracked,
-        "totalClasses": total_classes,
-        "attendedClasses": attended_classes,
-        "remainingClasses": remaining_classes,
+        "lessonsTracked": lesson_status["lessons_tracked"],
+        "totalClasses": lesson_status["total_classes"],
+        "attendedClasses": lesson_status["attended_classes"],
+        "remainingClasses": lesson_status["remaining_classes"],
+        "attendanceStatusColor": attendance_badge["color"],
+        "attendanceStatusLabel": attendance_badge["label"],
     }
 
 
@@ -8924,6 +9013,174 @@ def owner_delete_group(
     _recalculate_group_student_counts(store)
     _write_store(store)
     return {"ok": True}
+
+
+def _parse_iso_date_or_400(date_str: str):
+    try:
+        return date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Некорректная дата, ожидается YYYY-MM-DD")
+
+
+def _children_in_group(store: dict[str, Any], group_id: str) -> list[dict[str, Any]]:
+    return [item for item in store.get("children", []) if str(item.get("groupId") or "") == group_id]
+
+
+def _find_attendance_record(store: dict[str, Any], group_id: str, child_id: str, date_str: str) -> dict[str, Any] | None:
+    return next(
+        (
+            item
+            for item in store.get("attendance", [])
+            if str(item.get("groupId")) == group_id
+            and str(item.get("childId")) == child_id
+            and str(item.get("date")) == date_str
+        ),
+        None,
+    )
+
+
+@app.get("/api/staff/attendance/day")
+def staff_attendance_day(
+    date_str: str = Query(alias="date"),
+    current_user: dict[str, Any] = Depends(_require_staff),
+) -> list[dict[str, Any]]:
+    """Which groups meet on a given date, for the attendance section's
+    date -> group picker. A group "meets" that day if the weekday parsed out
+    of its free-text schedule matches -- see _parse_schedule_weekdays."""
+    del current_user
+    target_date = _parse_iso_date_or_400(date_str)
+    weekday = target_date.weekday()
+    store = _read_store()
+
+    rows: list[dict[str, Any]] = []
+    for group in store.get("ownerGroups", []):
+        schedule_text = str(group.get("schedule") or "")
+        if weekday not in _parse_schedule_weekdays(schedule_text):
+            continue
+        roster = _children_in_group(store, str(group.get("id") or ""))
+        marked_count = sum(
+            1 for child in roster
+            if _find_attendance_record(store, str(group.get("id") or ""), str(child.get("id") or ""), date_str) is not None
+        )
+        time_range = _parse_schedule_time_range(group.get("time"), schedule_text)
+        rows.append({
+            "groupId": str(group.get("id") or ""),
+            "groupName": str(group.get("name") or ""),
+            "teacherName": group.get("teacherName"),
+            "time": time_range[0] if time_range else str(group.get("time") or ""),
+            "studentCount": len(roster),
+            "markedCount": marked_count,
+        })
+
+    rows.sort(key=lambda item: (item["time"] or "99:99", item["groupName"]))
+    return rows
+
+
+@app.get("/api/staff/attendance/group/{group_id}")
+def staff_attendance_group(
+    group_id: str,
+    date_str: str = Query(alias="date"),
+    current_user: dict[str, Any] = Depends(_require_staff),
+) -> dict[str, Any]:
+    """The minimalist per-student roster for one group on one date: current
+    mark (if any), the same green/yellow/red subscription badge shown on the
+    parent portal and client card, and enough contact info for the
+    three-dot quick actions (open card, call parent)."""
+    del current_user
+    _parse_iso_date_or_400(date_str)
+    store = _read_store()
+    group = _find_group_by_id(store, group_id)
+    if group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+
+    roster = []
+    for child in _children_in_group(store, group_id):
+        child_id = str(child.get("id") or "")
+        client = next((item for item in store.get("clients", []) if str(item.get("childId")) == child_id), None)
+        parent = _find_user_by_id(store, str(child.get("parentUserId") or ""))
+        lesson_status = _compute_child_lesson_status(store, child, client)
+        badge = _compute_attendance_status_badge(lesson_status)
+        record = _find_attendance_record(store, group_id, child_id, date_str)
+        roster.append({
+            "childId": child_id,
+            "clientId": (client or {}).get("id"),
+            "fullName": str(child.get("fullName") or "Ученик"),
+            "parentUserId": str((parent or {}).get("id") or child.get("parentUserId") or ""),
+            "parentName": (parent or {}).get("name"),
+            "parentPhone": (parent or {}).get("phone"),
+            "status": str(record.get("status")) if record else None,
+            "markedAt": record.get("updatedAt") if record else None,
+            "attendanceStatusColor": badge["color"],
+            "attendanceStatusLabel": badge["label"],
+            "remainingClasses": lesson_status["remaining_classes"] if lesson_status["lessons_tracked"] else None,
+        })
+    roster.sort(key=lambda item: item["fullName"])
+
+    return {
+        "groupId": group_id,
+        "groupName": str(group.get("name") or ""),
+        "date": date_str,
+        "students": roster,
+    }
+
+
+@app.post("/api/staff/attendance/mark")
+def staff_attendance_mark(
+    payload: AttendanceMarkPayload,
+    current_user: dict[str, Any] = Depends(_require_staff),
+) -> dict[str, Any]:
+    store = _read_store()
+    group = _find_group_by_id(store, payload.group_id)
+    if group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+    child = _find_child_by_id(store, payload.child_id)
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+    _parse_iso_date_or_400(payload.date)
+
+    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == payload.child_id), None)
+    lesson_status = _compute_child_lesson_status(store, child, client)
+    subscription = lesson_status["active_subscription"]
+
+    existing = _find_attendance_record(store, payload.group_id, payload.child_id, payload.date)
+    old_status = str(existing.get("status")) if existing else None
+    now = _utc_now_iso()
+
+    if payload.status == "unmarked":
+        if existing is not None:
+            _apply_attendance_lesson_effect(subscription, old_status, "unmarked")
+            store["attendance"] = [item for item in store.get("attendance", []) if item is not existing]
+    elif existing is not None:
+        _apply_attendance_lesson_effect(subscription, old_status, payload.status)
+        existing["status"] = payload.status
+        existing["updatedAt"] = now
+        existing["markedByUserId"] = str(current_user.get("id") or "")
+    else:
+        _apply_attendance_lesson_effect(subscription, None, payload.status)
+        store.setdefault("attendance", []).append({
+            "id": _new_id("attendance"),
+            "groupId": payload.group_id,
+            "childId": payload.child_id,
+            "parentUserId": str(child.get("parentUserId") or ""),
+            "date": payload.date,
+            "status": payload.status,
+            "markedByUserId": str(current_user.get("id") or ""),
+            "createdAt": now,
+            "updatedAt": now,
+        })
+
+    _write_store(store)
+
+    refreshed_lesson_status = _compute_child_lesson_status(store, child, client)
+    badge = _compute_attendance_status_badge(refreshed_lesson_status)
+    return {
+        "ok": True,
+        "childId": payload.child_id,
+        "status": None if payload.status == "unmarked" else payload.status,
+        "remainingClasses": refreshed_lesson_status["remaining_classes"] if refreshed_lesson_status["lessons_tracked"] else None,
+        "attendanceStatusColor": badge["color"],
+        "attendanceStatusLabel": badge["label"],
+    }
 
 
 @app.get("/api/owner/employees")
