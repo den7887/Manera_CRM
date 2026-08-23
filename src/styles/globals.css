@@ -524,3 +524,18 @@ body {
 [data-slot="sheet-content"] .overflow-y-auto {
   overflow-x: hidden;
 }
+
+/* DrawerContent (vaul) used to scroll itself directly, but that DOM node
+   also handles vaul's swipe-to-dismiss drag gesture. Combined with the
+   body's own overflow-y-auto div nested inside it, the two competing
+   scroll/gesture regions let a drag keep "revealing" scroll room past the
+   actual content -- you could drag forever past the footer buttons into
+   empty space. DrawerContent itself now only clips (overflow-hidden); this
+   makes its direct-child body wrapper (every consumer already marks it
+   overflow-y-auto to scroll its own form content) the single real scroll
+   region, sized to fill exactly what's left between the header and footer
+   -- same fixed-header/fixed-footer/scrolling-middle shape as the chat. */
+[data-slot="drawer-content"] > .overflow-y-auto {
+  flex: 1 1 0%;
+  min-height: 0;
+}
