@@ -418,6 +418,15 @@ def test_selfwork_provider_create_returns_local_form(client: TestClient, monkeyp
     assert payment["payment_reference"] in form_response.text
     assert "manera_pending_provider_payment_id" in form_response.text
 
+    # Regression: this page used to unconditionally auto-submit its redirect
+    # form on every load. If the browser restored it from history/bfcache
+    # after the user already went to Selfwork once (closing that tab, or
+    # pressing back), the script re-ran and silently bounced them back to
+    # Selfwork again. A sessionStorage guard must gate the auto-submit so it
+    # only fires once per payment attempt.
+    assert "sessionStorage" in form_response.text
+    assert f"manera_selfwork_autosubmitted_{payment_id}" in form_response.text
+
 
 def test_selfwork_status_sync_marks_parent_payment_paid(client: TestClient, monkeypatch):
     monkeypatch.setenv("PAYMENT_METHOD", "online")

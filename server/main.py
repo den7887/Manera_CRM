@@ -3229,8 +3229,9 @@ def _render_selfwork_form_html(*, payment_id: str, action_url: str, fields: dict
         f'<input type="hidden" name="{html.escape(key)}" value="{html.escape(value)}" />'
         for key, value in fields.items()
     )
-    escaped_payment_id = html.escape(payment_id)
     escaped_action = html.escape(action_url)
+    js_payment_id = json.dumps(payment_id)
+    js_autosubmit_key = json.dumps(f"manera_selfwork_autosubmitted_{payment_id}")
     return f"""<!doctype html>
 <html lang="ru">
   <head>
@@ -3286,16 +3287,35 @@ def _render_selfwork_form_html(*, payment_id: str, action_url: str, fields: dict
     </div>
     <script>
       try {{
-        window.localStorage.setItem('manera_pending_provider_payment_id', '{escaped_payment_id}');
+        window.localStorage.setItem('manera_pending_provider_payment_id', {js_payment_id});
       }} catch (error) {{
         console.warn('Unable to store pending payment id', error);
       }}
-      window.setTimeout(function () {{
-        var form = document.getElementById('selfwork-payment-form');
-        if (form) {{
-          form.submit();
+      // Guards against a redirect loop: if the browser restores this page from
+      // history/bfcache after the user has already been sent to Selfwork once
+      // (closing the widget tab, pressing back), the script re-runs on that
+      // restore. Without this flag it would silently re-submit the form and
+      // bounce the user straight back to the Selfwork widget.
+      var autoSubmitKey = {js_autosubmit_key};
+      var alreadyAutoSubmitted = false;
+      try {{
+        alreadyAutoSubmitted = window.sessionStorage.getItem(autoSubmitKey) === '1';
+      }} catch (error) {{
+        alreadyAutoSubmitted = false;
+      }}
+      if (!alreadyAutoSubmitted) {{
+        try {{
+          window.sessionStorage.setItem(autoSubmitKey, '1');
+        }} catch (error) {{
+          // ignore -- worst case the guard just won't persist
         }}
-      }}, 150);
+        window.setTimeout(function () {{
+          var form = document.getElementById('selfwork-payment-form');
+          if (form) {{
+            form.submit();
+          }}
+        }}, 150);
+      }}
     </script>
   </body>
 </html>"""

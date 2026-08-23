@@ -241,12 +241,18 @@ export default function App() {
   const openLogin = () => navigateToState('login', '/login');
   const openDashboard = () => navigateToState('dashboard', '/');
 
-  const syncParentState = async () => {
+  const syncParentState = async (options?: { silent?: boolean }) => {
     if (parentSyncInFlightRef.current) {
       return;
     }
     parentSyncInFlightRef.current = true;
-    setIsParentStateLoading(true);
+    const silent = options?.silent ?? false;
+    // Background refreshes (30s poll, tab refocus, post-payment return) must not
+    // swap the whole dashboard for a "Проверяем доступ к кабинету..." loader --
+    // only the very first load after login should ever show it.
+    if (!silent) {
+      setIsParentStateLoading(true);
+    }
     try {
       const [
         serverUser,
@@ -425,7 +431,7 @@ export default function App() {
           return;
         }
         if (result.synced && currentUserRole === 'parent' && appState === 'dashboard') {
-          await syncParentState();
+          await syncParentState({ silent: true });
         }
       } catch {
         // Если status-sync еще не настроен полностью, не блокируем возврат в приложение.
@@ -449,7 +455,7 @@ export default function App() {
     }
 
     const refresh = () => {
-      void syncParentState();
+      void syncParentState({ silent: true });
     };
 
     const handleVisibility = () => {
@@ -689,7 +695,7 @@ export default function App() {
           mode: 'auto-confirm',
         },
       });
-      await syncParentState();
+      await syncParentState({ silent: true });
       return;
     }
 
@@ -711,7 +717,7 @@ export default function App() {
       setNotifications((prev) => prev.map((item) => (item.id === notificationId ? updated : item)));
     } catch {
       // При ошибке синхронизируем состояние с backend
-      await syncParentState();
+      await syncParentState({ silent: true });
     }
   };
 
@@ -720,7 +726,7 @@ export default function App() {
     try {
       await markAllNotificationsRead();
     } catch {
-      await syncParentState();
+      await syncParentState({ silent: true });
     }
   };
 
