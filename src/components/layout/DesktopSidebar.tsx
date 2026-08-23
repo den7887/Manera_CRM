@@ -23,7 +23,30 @@ import {
 import { UserRole, User } from '../../types';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
+import { hasPermission } from '../../lib/permissions';
 import logoImage from 'figma:asset/580482af71d4ad8de5d55c498eda06ff734efd66.png';
+
+// Only admin/teacher nav items need a gate -- owner sees everything
+// unconditionally (hasPermission always passes for role: 'owner'), and
+// parent has its own separate menu with no permission concept. An item
+// missing from this map has no specific permission tied to it (e.g.
+// "Настройки"/"Профиль") and stays visible to any admin/teacher.
+const sidebarItemPermission: Record<string, string> = {
+  home: 'dashboard.view',
+  'clients-management': 'clients.view',
+  clients: 'clients.view',
+  schedule: 'groups.view',
+  payments: 'finance.view',
+  communication: 'communications.view',
+  groups: 'groups.view',
+  'attendance-management': 'groups.attendance',
+  attendance: 'groups.attendance',
+  pricing: 'finance.view',
+  'events-management': 'content.view',
+  'documents-management': 'documents.view',
+  'tasks-management': 'tasks.view',
+  students: 'clients.view',
+};
 
 interface DesktopSidebarProps {
   currentPage: string;
@@ -105,7 +128,7 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
 
-  const primaryMenu =
+  const rawPrimaryMenu =
     role === 'parent'
       ? parentPrimaryMenu
       : role === 'teacher'
@@ -114,7 +137,17 @@ export function DesktopSidebar({ currentPage, onNavigate, role, user, onLogout }
           ? adminPrimaryMenu
           : ownerPrimaryMenu;
 
-  const secondaryMenu = role === 'admin' ? adminSecondaryMenu : role === 'owner' ? ownerSecondaryMenu : [];
+  const rawSecondaryMenu = role === 'admin' ? adminSecondaryMenu : role === 'owner' ? ownerSecondaryMenu : [];
+
+  // "нет раздела" -- an admin/teacher without the matching permission
+  // never sees the nav item at all, not just a disabled one.
+  const visibleForUser = (item: SidebarItem) => {
+    const requiredPermission = sidebarItemPermission[item.id];
+    if (!requiredPermission) return true;
+    return hasPermission(user, requiredPermission);
+  };
+  const primaryMenu = rawPrimaryMenu.filter(visibleForUser);
+  const secondaryMenu = rawSecondaryMenu.filter(visibleForUser);
   const hasActiveSecondary = secondaryMenu.some((item) => isItemActive(currentPage, item.id));
 
   const secondaryGroups = useMemo(() => {

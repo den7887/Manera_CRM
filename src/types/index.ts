@@ -7,6 +7,10 @@ export interface User {
   email?: string;
   role: UserRole;
   avatar?: string;
+  /** Granted permission keys for admin/teacher accounts (see OwnerTeamPanel's
+   * permissionSections and server/main.py's _require_permission). Owner
+   * always has full access regardless of this field -- see hasPermission(). */
+  permissions?: string[];
 }
 
 // Landing Settings Types

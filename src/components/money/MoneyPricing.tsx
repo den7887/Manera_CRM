@@ -12,9 +12,9 @@ export function MoneyPricing({
   onCreatePricing,
 }: {
   pricingPlans: OwnerPricingPlanDto[];
-  onCreateInvoice: () => void;
+  onCreateInvoice?: () => void;
   onOpenPricing?: (plan: OwnerPricingPlanDto) => void;
-  onCreatePricing: () => void;
+  onCreatePricing?: () => void;
 }) {
   const activePlans = pricingPlans.filter((plan) => plan.is_active);
   const averagePrice = pricingPlans.length
@@ -28,10 +28,12 @@ export function MoneyPricing({
           <h1 className="text-[#133C2A]">Прайс</h1>
           <p className="mt-1 text-sm text-[#133C2A]/60">Только тарифы: что продаем, по какой цене и на каких условиях.</p>
         </div>
-        <Button className="rounded-2xl bg-[#133C2A]" onClick={onCreatePricing}>
-          <Plus className="mr-2 h-4 w-4" />
-          Создать тариф
-        </Button>
+        {onCreatePricing ? (
+          <Button className="rounded-2xl bg-[#133C2A]" onClick={onCreatePricing}>
+            <Plus className="mr-2 h-4 w-4" />
+            Создать тариф
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -76,20 +78,24 @@ export function MoneyPricing({
                   </div>
                 </div>
 
-                {onOpenPricing ? (
+                {onOpenPricing && onCreateInvoice ? (
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onOpenPricing?.(plan)}>
+                    <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onOpenPricing(plan)}>
                       Редактировать
                     </Button>
                     <Button className="rounded-2xl bg-[#133C2A]" onClick={onCreateInvoice}>
                       Продать
                     </Button>
                   </div>
-                ) : (
+                ) : onOpenPricing ? (
+                  <Button variant="outline" className="w-full rounded-2xl border-[#133C2A]/15" onClick={() => onOpenPricing(plan)}>
+                    Редактировать
+                  </Button>
+                ) : onCreateInvoice ? (
                   <Button className="w-full rounded-2xl bg-[#133C2A]" onClick={onCreateInvoice}>
                     Продать
                   </Button>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           ))}

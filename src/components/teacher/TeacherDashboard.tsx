@@ -57,7 +57,7 @@ export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDash
         </div>
       </main>
 
-      <MobileNav currentPage={currentPage} onNavigate={setCurrentPage} role="teacher" />
+      <MobileNav currentPage={currentPage} onNavigate={setCurrentPage} role="teacher" permissions={user.permissions} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Home, Users, Calendar, CreditCard, Settings, GraduationCap, MessageSqua
 import { UserRole } from '../../types';
 import { useState } from 'react';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
+import { hasPermission } from '../../lib/permissions';
 
 interface MobileNavProps {
   currentPage: string;
@@ -9,9 +10,36 @@ interface MobileNavProps {
   role: UserRole;
   /** Map of tab/menu item id -> whether it should show an unread dot. */
   badges?: Record<string, boolean>;
+  /** The current admin/teacher's granted permission keys (owner ignores this -- always sees everything). */
+  permissions?: string[];
 }
 
-export function MobileNav({ currentPage, onNavigate, role, badges }: MobileNavProps) {
+// Same mapping as DesktopSidebar's sidebarItemPermission -- an id missing
+// here has no specific permission tied to it and stays visible.
+const navItemPermission: Record<string, string> = {
+  home: 'dashboard.view',
+  'clients-management': 'clients.view',
+  clients: 'clients.view',
+  schedule: 'groups.view',
+  payments: 'finance.view',
+  finance: 'finance.view',
+  communication: 'communications.view',
+  groups: 'groups.view',
+  'attendance-management': 'groups.attendance',
+  attendance: 'groups.attendance',
+  pricing: 'finance.view',
+  'events-management': 'content.view',
+  content: 'content.view',
+  'documents-management': 'documents.view',
+  documents: 'documents.view',
+  'tasks-management': 'tasks.view',
+  tasks: 'tasks.view',
+  students: 'clients.view',
+  automations: 'automations.view',
+  team: 'team.view',
+};
+
+export function MobileNav({ currentPage, onNavigate, role, badges, permissions }: MobileNavProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const parentMainTabs = [
@@ -85,17 +113,28 @@ export function MobileNav({ currentPage, onNavigate, role, badges }: MobileNavPr
     { id: 'profile', label: 'Профиль', icon: Settings, group: 'Аккаунт' },
   ];
 
-  const mainTabs = 
+  const rawMainTabs =
     role === 'parent' ? parentMainTabs :
     role === 'teacher' ? teacherMainTabs :
     role === 'admin' ? adminMainTabs :
     ownerMainTabs;
 
-  const menuItems = 
+  const rawMenuItems =
     role === 'parent' ? parentMenuItems :
     role === 'teacher' ? teacherMenuItems :
     role === 'admin' ? adminMenuItems :
     ownerMenuItems;
+
+  // "нет раздела" -- an admin/teacher without the matching permission never
+  // sees the tab/menu item at all. Owner (and parent, which has no entries
+  // in navItemPermission) is unaffected.
+  const visibleForUser = (item: { id: string }) => {
+    const requiredPermission = navItemPermission[item.id];
+    if (!requiredPermission) return true;
+    return hasPermission({ role, permissions }, requiredPermission);
+  };
+  const mainTabs = rawMainTabs.filter(visibleForUser);
+  const menuItems = rawMenuItems.filter(visibleForUser);
   const hasMenu = menuItems.some((item) => !item.desktopOnly);
   const visibleMainTabs = hasMenu ? mainTabs.slice(0, 4) : mainTabs.slice(0, 5);
   const columnCount = visibleMainTabs.length + (hasMenu ? 1 : 0);

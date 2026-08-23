@@ -145,7 +145,7 @@ export function MobileClientsWorkspace({
   isInvoicingChildId: string | null;
   isReminderPaymentId: string | null;
   onNavigateSection?: (page: string) => void;
-  onAddClient: () => void;
+  onAddClient?: () => void;
 }) {
   const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base' | 'clients'>('today');
   const [todayFocus, setTodayFocus] = useState<'all' | 'new' | 'trials' | 'after' | 'waiting' | 'risk' | 'no-action'>('all');
@@ -299,15 +299,17 @@ export function MobileClientsWorkspace({
               Сегодня нужно обработать: {todaySummary.newRequests + todaySummary.waitingPayment + todaySummary.risk}
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            className="flex-shrink-0 rounded-2xl bg-white text-[#133C2A] hover:bg-white/90"
-            onClick={onAddClient}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Добавить
-          </Button>
+          {onAddClient ? (
+            <Button
+              type="button"
+              size="sm"
+              className="flex-shrink-0 rounded-2xl bg-white text-[#133C2A] hover:bg-white/90"
+              onClick={onAddClient}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Добавить
+            </Button>
+          ) : null}
         </div>
       </div>
 

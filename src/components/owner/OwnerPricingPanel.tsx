@@ -10,6 +10,8 @@ import {
   updateOwnerPricingPlan,
 } from '../../lib/backendApi';
 import { toast } from 'sonner';
+import { User } from '../../types';
+import { hasPermission } from '../../lib/permissions';
 import { CreateInvoiceSheet } from '../money/CreateInvoiceSheet';
 import { CreatePricingSheet } from '../money/CreatePricingSheet';
 import { MoneyPricing } from '../money/MoneyPricing';
@@ -41,7 +43,9 @@ const defaultInvoiceDraft: MoneyInvoiceDraft = {
   comment: '',
 };
 
-export function OwnerPricingPanel() {
+export function OwnerPricingPanel({ currentUser }: { currentUser?: User } = {}) {
+  const canManagePricing = hasPermission(currentUser, 'finance.pricing_manage');
+  const canCreateInvoice = hasPermission(currentUser, 'finance.invoice_create');
   const [pricingPlans, setPricingPlans] = useState<OwnerPricingPlanDto[]>([]);
   const [clients, setClients] = useState<AdminClientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -198,13 +202,17 @@ export function OwnerPricingPanel() {
     <div className="space-y-4 md:space-y-6">
       <MoneyPricing
         pricingPlans={pricingPlans}
-        onCreateInvoice={() => setIsCreateInvoiceOpen(true)}
-        onCreatePricing={() => {
-          setEditingPlanCode(null);
-          setPricingDraft(defaultCreateDraft);
-          setIsCreatePricingOpen(true);
-        }}
-        onOpenPricing={openPricingForEdit}
+        onCreateInvoice={canCreateInvoice ? () => setIsCreateInvoiceOpen(true) : undefined}
+        onCreatePricing={
+          canManagePricing
+            ? () => {
+                setEditingPlanCode(null);
+                setPricingDraft(defaultCreateDraft);
+                setIsCreatePricingOpen(true);
+              }
+            : undefined
+        }
+        onOpenPricing={canManagePricing ? openPricingForEdit : undefined}
       />
 
       <CreatePricingSheet

@@ -494,6 +494,7 @@ function mapUser(user: any): BackendUser {
     portalActivatedAt: user.portal_activated_at || user.portalActivatedAt || null,
     portalBlockedAt: user.portal_blocked_at || user.portalBlockedAt || null,
     lastLoginAt: user.last_login_at || user.lastLoginAt || null,
+    permissions: Array.isArray(user.permissions) ? user.permissions.map(String) : undefined,
   };
 }
 

@@ -291,7 +291,7 @@ export function OwnerDashboard({
       return <OwnerDocumentsPanel />;
     }
     if (currentPage === 'pricing') {
-      return <OwnerPricingPanel />;
+      return <OwnerPricingPanel currentUser={user} />;
     }
     return renderStub('Раздел');
   };

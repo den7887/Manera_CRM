@@ -59,6 +59,7 @@ import { ClientTemperatureBadge } from '../clients/ClientTemperatureBadge';
 import { MobileClientsWorkspace } from '../clients/MobileClientsWorkspace';
 import { MobileClientDetails } from '../clients/MobileClientDetails';
 import { accountStatusLabel, portalStatusLabel } from '../../lib/portalStatus';
+import { hasPermission } from '../../lib/permissions';
 import {
   ClientStage,
   TrialWorkspaceStage,
@@ -422,6 +423,7 @@ export function ClientsManagement({
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const canCreateClient = hasPermission(currentUser, 'clients.create');
   const [isAssigningChildId, setIsAssigningChildId] = useState<string | null>(null);
   const [isInvoicingChildId, setIsInvoicingChildId] = useState<string | null>(null);
   const [isReminderPaymentId, setIsReminderPaymentId] = useState<string | null>(null);
@@ -1306,7 +1308,7 @@ export function ClientsManagement({
           isInvoicingChildId={isInvoicingChildId}
           isReminderPaymentId={isReminderPaymentId}
           onNavigateSection={onNavigateSection}
-          onAddClient={() => setIsAddDialogOpen(true)}
+          onAddClient={canCreateClient ? () => setIsAddDialogOpen(true) : undefined}
         />
       ) : (
         <>
@@ -1320,10 +1322,12 @@ export function ClientsManagement({
             <RefreshCw className="mr-2 h-4 w-4" />
             {isRefreshing ? 'Обновляем...' : 'Обновить'}
           </Button>
-          <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить ученика
-          </Button>
+          {canCreateClient ? (
+            <Button className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]" onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Добавить ученика
+            </Button>
+          ) : null}
         </div>
       </div>
 

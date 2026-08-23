@@ -5267,19 +5267,40 @@ def _require_auth(request: FastAPIRequest) -> dict[str, Any]:
 
 
 def _require_admin_or_owner(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
+    """Role-only gate, no permission check -- reserved for studio-wide
+    configuration (site settings, landing page settings) that stays owner+
+    admin only regardless of what an admin's permissions list says. Every
+    other admin/teacher-reachable endpoint should use _require_permission
+    instead, so what an employee can actually do matches what the owner
+    granted them in Команда, not just their role."""
     if current_user.get("role") not in {"admin", "owner"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return current_user
 
 
-def _require_staff(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
-    """Broader than _require_admin_or_owner: also allows teacher, for the
-    handful of read-only endpoints (groups, employee directory) a teacher's
-    cabinet needs to render its schedule. Write endpoints should keep using
-    _require_admin_or_owner."""
-    if current_user.get("role") not in {"admin", "owner", "teacher"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return current_user
+def _require_permission(permission_key: str):
+    """The real enforcement behind OwnerTeamPanel's permission checkboxes,
+    which used to be pure metadata -- `permissions` was stored on an
+    employee's record but nothing ever read it back. Owner always passes
+    (studio owner is not an "employee" with a grantable permission list).
+    Admin/teacher must have permission_key in their own permissions array;
+    anyone else (including a plain parent session) is rejected outright.
+    Subsumes the old role-only _require_staff -- since whether admin or
+    teacher gets through now depends purely on whether that permission was
+    granted, not on a second, separate role allowlist per endpoint."""
+
+    def _dependency(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
+        role = str(current_user.get("role") or "")
+        if role == "owner":
+            return current_user
+        if role not in {"admin", "teacher"}:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        granted = {str(item) for item in (current_user.get("permissions") or [])}
+        if permission_key not in granted:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав для этого действия")
+        return current_user
+
+    return _dependency
 
 
 def _require_parent(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
@@ -6813,7 +6834,7 @@ def admin_create_client_activation_link(
     client_id: str,
     payload: AdminActivationLinkPayload,
     request: FastAPIRequest,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
 ) -> dict[str, Any]:
     store = _read_store()
     client = _find_client_by_id(store, client_id)
@@ -6853,7 +6874,7 @@ def admin_create_client_activation_link(
 def admin_reset_client_pin(
     client_id: str,
     request: FastAPIRequest,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
 ) -> dict[str, Any]:
     store = _read_store()
     client = _find_client_by_id(store, client_id)
@@ -6890,7 +6911,7 @@ def admin_reset_client_pin(
 def admin_suspend_client_portal(
     client_id: str,
     request: FastAPIRequest,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
 ) -> dict[str, Any]:
     store = _read_store()
     client = _find_client_by_id(store, client_id)
@@ -6926,7 +6947,7 @@ def admin_suspend_client_portal(
 def admin_resume_client_portal(
     client_id: str,
     request: FastAPIRequest,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
 ) -> dict[str, Any]:
     store = _read_store()
     client = _find_client_by_id(store, client_id)
@@ -6962,7 +6983,7 @@ def admin_client_cash_payment(
     client_id: str,
     payload: AdminCashPortalPaymentPayload,
     request: FastAPIRequest,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.cash_confirm")),
 ) -> dict[str, Any]:
     store = _read_store()
     client = _find_client_by_id(store, client_id)
@@ -7377,7 +7398,7 @@ def subscriptions_my(current_user: dict[str, Any] = Depends(_require_parent)) ->
 @app.post("/api/admin/clients")
 def admin_create_client(
     payload: AdminCreateClientPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.create")),
 ) -> dict[str, Any]:
     store = _read_store()
     now = _utc_now_iso()
@@ -7627,7 +7648,7 @@ def admin_create_client(
 
 @app.get("/api/admin/clients")
 def admin_list_clients(
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -7638,7 +7659,7 @@ def admin_list_clients(
 def admin_list_children(
     group_id: str | None = None,
     payment_status: PaymentStatus | None = None,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -7653,7 +7674,7 @@ def admin_list_children(
 
 @app.get("/api/admin/landing-leads")
 def admin_list_landing_leads(
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -7683,7 +7704,7 @@ def admin_list_landing_leads(
 def admin_sync_landing_leads(
     send_telegram: bool = True,
     limit: int | None = None,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -7699,7 +7720,7 @@ def admin_sync_landing_leads(
 @app.get("/api/admin/children/{child_id}")
 def admin_get_child(
     child_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.view")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -7713,7 +7734,7 @@ def admin_get_child(
 def admin_update_child_profile(
     child_id: str,
     payload: AdminChildProfilePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.private_notes")),
 ) -> dict[str, Any]:
     store = _read_store()
     child = _find_child_by_id(store, child_id)
@@ -7762,7 +7783,7 @@ def admin_update_child_profile(
 def admin_assign_child_group(
     child_id: str,
     payload: OwnerAssignChildGroupPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("clients.group_assign")),
 ) -> dict[str, Any]:
     store = _read_store()
     child = _find_child_by_id(store, child_id)
@@ -7798,7 +7819,7 @@ def admin_assign_child_group(
 def admin_list_payments(
     status_filter: PaymentStatus | None = None,
     method_filter: PaymentMethod | None = None,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -7835,7 +7856,7 @@ def admin_list_payments(
 @app.post("/api/admin/payments/invoices")
 def admin_create_invoice(
     payload: AdminCreateInvoicePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.invoice_create")),
 ) -> dict[str, Any]:
     store = _read_store()
     resolved_client_id = str(payload.client_id or "").strip()
@@ -8018,7 +8039,7 @@ def admin_create_invoice(
 def admin_send_payment_reminder(
     payment_id: str,
     payload: PaymentReminderPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.reminders")),
 ) -> dict[str, Any]:
     store = _read_store()
     payment = _find_payment_by_id(store, payment_id)
@@ -8086,7 +8107,7 @@ def run_due_payment_reminders(
 
 @app.post("/api/admin/payments/reminders/run")
 def admin_run_payment_reminders(
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.reminders")),
 ) -> dict[str, Any]:
     store = _read_store()
     processed, changed = run_due_payment_reminders(
@@ -8103,7 +8124,7 @@ def admin_run_payment_reminders(
 def admin_update_payment_status(
     payment_id: str,
     payload: PaymentStatusUpdatePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.status_update")),
 ) -> dict[str, Any]:
     store = _read_store()
     payment = _find_payment_by_id(store, payment_id)
@@ -8168,7 +8189,7 @@ def admin_update_payment_status(
 def admin_change_payment_due_date(
     payment_id: str,
     payload: PaymentDueDatePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.status_update")),
 ) -> dict[str, Any]:
     store = _read_store()
     payment = _find_payment_by_id(store, payment_id)
@@ -8219,7 +8240,7 @@ def admin_change_payment_due_date(
 def admin_confirm_cash_payment(
     payment_id: str,
     payload: CashPaymentConfirmPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.cash_confirm")),
 ) -> dict[str, Any]:
     store = _read_store()
     payment = _find_payment_by_id(store, payment_id)
@@ -8273,7 +8294,7 @@ def admin_confirm_cash_payment(
 def admin_change_payment_method(
     payment_id: str,
     payload: PaymentMethodChangePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.status_update")),
 ) -> dict[str, Any]:
     store = _read_store()
     payment = _find_payment_by_id(store, payment_id)
@@ -8544,7 +8565,7 @@ def payment_provider_status_sync(
 
 
 @app.get("/api/payments/journal")
-def payment_journal(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def payment_journal(current_user: dict[str, Any] = Depends(_require_permission("finance.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     return list(store["paymentJournal"])
@@ -8832,7 +8853,7 @@ def owner_notifications_journal(
     created_from: str | None = None,
     created_to: str | None = None,
     limit: int = 200,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("dashboard.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -8883,7 +8904,7 @@ def owner_notifications_journal(
 @app.get("/api/owner/security-audit")
 def owner_security_audit(
     limit: int = 200,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("team.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -8895,7 +8916,7 @@ def owner_security_audit(
 def owner_communications_chats(
     status_filter: Literal["all", "unread", "waiting_reply"] = "all",
     employee_id: str | None = None,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("communications.view")),
 ) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
@@ -8914,7 +8935,7 @@ def owner_communications_chats(
 @app.get("/api/owner/communications/chats/{chat_id}/messages")
 def owner_communication_messages(
     chat_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("communications.view")),
 ) -> list[dict[str, Any]]:
     store = _read_store()
     chat = _find_chat_by_id(store, chat_id)
@@ -8935,7 +8956,7 @@ def owner_communication_messages(
 def owner_communication_send_message(
     chat_id: str,
     payload: CreateCommunicationMessagePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("communications.reply")),
 ) -> dict[str, Any]:
     store = _read_store()
     chat = _find_chat_by_id(store, chat_id)
@@ -8948,7 +8969,7 @@ def owner_communication_send_message(
 
 
 @app.get("/api/owner/groups")
-def owner_list_groups(current_user: dict[str, Any] = Depends(_require_staff)) -> list[dict[str, Any]]:
+def owner_list_groups(current_user: dict[str, Any] = Depends(_require_permission("groups.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     return list(store.get("ownerGroups", []))
@@ -8957,7 +8978,7 @@ def owner_list_groups(current_user: dict[str, Any] = Depends(_require_staff)) ->
 @app.post("/api/owner/groups")
 def owner_create_group(
     payload: OwnerGroupPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.edit")),
 ) -> dict[str, Any]:
     store = _read_store()
     now = _utc_now_iso()
@@ -8979,7 +9000,7 @@ def owner_create_group(
 def owner_update_group(
     group_id: str,
     payload: OwnerGroupPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.edit")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -8997,7 +9018,7 @@ def owner_update_group(
 @app.delete("/api/owner/groups/{group_id}")
 def owner_delete_group(
     group_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.edit")),
 ) -> dict[str, bool]:
     del current_user
     store = _read_store()
@@ -9042,7 +9063,7 @@ def _find_attendance_record(store: dict[str, Any], group_id: str, child_id: str,
 @app.get("/api/staff/attendance/day")
 def staff_attendance_day(
     date_str: str = Query(alias="date"),
-    current_user: dict[str, Any] = Depends(_require_staff),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.attendance")),
 ) -> list[dict[str, Any]]:
     """Which groups meet on a given date, for the attendance section's
     date -> group picker. A group "meets" that day if the weekday parsed out
@@ -9080,7 +9101,7 @@ def staff_attendance_day(
 def staff_attendance_group(
     group_id: str,
     date_str: str = Query(alias="date"),
-    current_user: dict[str, Any] = Depends(_require_staff),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.attendance")),
 ) -> dict[str, Any]:
     """The minimalist per-student roster for one group on one date: current
     mark (if any), the same green/yellow/red subscription badge shown on the
@@ -9127,7 +9148,7 @@ def staff_attendance_group(
 @app.post("/api/staff/attendance/mark")
 def staff_attendance_mark(
     payload: AttendanceMarkPayload,
-    current_user: dict[str, Any] = Depends(_require_staff),
+    current_user: dict[str, Any] = Depends(_require_permission("groups.attendance")),
 ) -> dict[str, Any]:
     store = _read_store()
     group = _find_group_by_id(store, payload.group_id)
@@ -9184,7 +9205,7 @@ def staff_attendance_mark(
 
 
 @app.get("/api/owner/employees")
-def owner_list_employees(current_user: dict[str, Any] = Depends(_require_staff)) -> list[dict[str, Any]]:
+def owner_list_employees(current_user: dict[str, Any] = Depends(_require_permission("team.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     employees = [user for user in store["users"] if user.get("role") in {"teacher", "admin"}]
@@ -9195,7 +9216,7 @@ def owner_list_employees(current_user: dict[str, Any] = Depends(_require_staff))
 @app.post("/api/owner/employees")
 def owner_create_employee(
     payload: OwnerEmployeePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("team.create")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9229,7 +9250,7 @@ def owner_create_employee(
 def owner_update_employee(
     employee_id: str,
     payload: OwnerEmployeePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("team.edit")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9259,7 +9280,7 @@ def owner_update_employee(
 @app.delete("/api/owner/employees/{employee_id}")
 def owner_delete_employee(
     employee_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("team.delete")),
 ) -> dict[str, bool]:
     del current_user
     store = _read_store()
@@ -9272,7 +9293,7 @@ def owner_delete_employee(
 
 
 @app.get("/api/owner/expenses")
-def owner_list_expenses(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def owner_list_expenses(current_user: dict[str, Any] = Depends(_require_permission("finance.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     return list(store.get("ownerExpenses", []))
@@ -9281,7 +9302,7 @@ def owner_list_expenses(current_user: dict[str, Any] = Depends(_require_admin_or
 @app.post("/api/owner/expenses")
 def owner_create_expense(
     payload: OwnerExpensePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.expenses")),
 ) -> dict[str, Any]:
     store = _read_store()
     now = _utc_now_iso()
@@ -9307,7 +9328,7 @@ def owner_create_expense(
 def owner_update_expense(
     expense_id: str,
     payload: OwnerExpensePayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.expenses")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9330,7 +9351,7 @@ def owner_update_expense(
 @app.delete("/api/owner/expenses/{expense_id}")
 def owner_delete_expense(
     expense_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.expenses")),
 ) -> dict[str, bool]:
     del current_user
     store = _read_store()
@@ -9344,7 +9365,7 @@ def owner_delete_expense(
 
 
 @app.get("/api/owner/finance/summary")
-def owner_finance_summary(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def owner_finance_summary(current_user: dict[str, Any] = Depends(_require_permission("finance.view"))) -> dict[str, Any]:
     del current_user
     store = _read_store()
     now = datetime.now(timezone.utc)
@@ -9530,7 +9551,7 @@ def owner_update_landing_settings(
 
 
 @app.get("/api/owner/pricing")
-def owner_get_pricing(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def owner_get_pricing(current_user: dict[str, Any] = Depends(_require_permission("finance.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     plans = list(store.get("ownerPricingPlans", []))
@@ -9541,7 +9562,7 @@ def owner_get_pricing(current_user: dict[str, Any] = Depends(_require_admin_or_o
 @app.post("/api/owner/pricing")
 def owner_create_pricing_plan(
     payload: OwnerPricingPlanPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.pricing_manage")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9577,7 +9598,7 @@ def owner_create_pricing_plan(
 def owner_update_pricing_plan(
     plan_code: str,
     payload: OwnerPricingPlanPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("finance.pricing_manage")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9609,7 +9630,7 @@ def owner_update_pricing_plan(
 
 
 @app.get("/api/owner/automations")
-def owner_list_automations(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def owner_list_automations(current_user: dict[str, Any] = Depends(_require_permission("automations.view"))) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     return list(store.get("automationRules", []))
@@ -9618,7 +9639,7 @@ def owner_list_automations(current_user: dict[str, Any] = Depends(_require_admin
 @app.post("/api/owner/automations")
 def owner_create_automation(
     payload: OwnerAutomationPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("automations.create")),
 ) -> dict[str, Any]:
     store = _read_store()
     now = _utc_now_iso()
@@ -9642,7 +9663,7 @@ def owner_create_automation(
 def owner_update_automation(
     rule_id: str,
     payload: OwnerAutomationPayload,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("automations.edit")),
 ) -> dict[str, Any]:
     del current_user
     store = _read_store()
@@ -9663,7 +9684,7 @@ def owner_update_automation(
 @app.delete("/api/owner/automations/{rule_id}")
 def owner_delete_automation(
     rule_id: str,
-    current_user: dict[str, Any] = Depends(_require_admin_or_owner),
+    current_user: dict[str, Any] = Depends(_require_permission("automations.delete")),
 ) -> dict[str, bool]:
     del current_user
     store = _read_store()
@@ -9677,22 +9698,22 @@ def owner_delete_automation(
 
 
 @app.get("/api/tasks")
-def list_tasks(_: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def list_tasks(_: dict[str, Any] = Depends(_require_permission("tasks.view"))) -> list[dict[str, Any]]:
     return _entity_list("tasks")
 
 
 @app.post("/api/tasks")
-def create_task(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def create_task(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_permission("tasks.create"))) -> dict[str, Any]:
     return _create_entity("tasks", payload)
 
 
 @app.patch("/api/tasks/{task_id}")
-def update_task(task_id: str, payload: dict[str, Any], _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def update_task(task_id: str, payload: dict[str, Any], _: dict[str, Any] = Depends(_require_permission("tasks.assign"))) -> dict[str, Any]:
     return _update_entity("tasks", task_id, payload)
 
 
 @app.delete("/api/tasks/{task_id}")
-def delete_task(task_id: str, _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, bool]:
+def delete_task(task_id: str, _: dict[str, Any] = Depends(_require_permission("tasks.close"))) -> dict[str, bool]:
     _delete_entity("tasks", task_id)
     return {"ok": True}
 
@@ -9704,7 +9725,7 @@ def list_news(current_user: dict[str, Any] = Depends(_require_auth)) -> list[dic
 
 
 @app.post("/api/news")
-def create_news(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def create_news(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_permission("content.create"))) -> dict[str, Any]:
     created = _create_entity("news", payload)
     store = _read_store()
     target = next((item for item in store.get("news", []) if str(item.get("id")) == str(created.get("id"))), None)
@@ -9715,7 +9736,7 @@ def create_news(payload: dict[str, Any], _: dict[str, Any] = Depends(_require_ad
 
 
 @app.patch("/api/news/{news_id}")
-def update_news(news_id: str, payload: dict[str, Any], _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def update_news(news_id: str, payload: dict[str, Any], _: dict[str, Any] = Depends(_require_permission("content.publish"))) -> dict[str, Any]:
     updated = _update_entity("news", news_id, payload)
     store = _read_store()
     target = next((item for item in store.get("news", []) if str(item.get("id")) == str(updated.get("id"))), None)
@@ -9726,7 +9747,7 @@ def update_news(news_id: str, payload: dict[str, Any], _: dict[str, Any] = Depen
 
 
 @app.delete("/api/news/{news_id}")
-def delete_news(news_id: str, _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, bool]:
+def delete_news(news_id: str, _: dict[str, Any] = Depends(_require_permission("content.create"))) -> dict[str, bool]:
     _delete_entity("news", news_id)
     return {"ok": True}
 
@@ -9738,7 +9759,7 @@ def list_documents(current_user: dict[str, Any] = Depends(_require_auth)) -> lis
 
 
 @app.post("/api/documents")
-def create_document(payload: DocumentCreatePayload, _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, Any]:
+def create_document(payload: DocumentCreatePayload, _: dict[str, Any] = Depends(_require_permission("documents.upload"))) -> dict[str, Any]:
     created = _create_entity("documents", payload.model_dump(exclude_none=True))
     store = _read_store()
     target = next((item for item in store.get("documents", []) if str(item.get("id")) == str(created.get("id"))), None)
@@ -9752,7 +9773,7 @@ def create_document(payload: DocumentCreatePayload, _: dict[str, Any] = Depends(
 def update_document(
     document_id: str,
     payload: dict[str, Any],
-    _: dict[str, Any] = Depends(_require_admin_or_owner),
+    _: dict[str, Any] = Depends(_require_permission("documents.access_manage")),
 ) -> dict[str, Any]:
     updated = _update_entity("documents", document_id, payload)
     store = _read_store()
@@ -9764,6 +9785,6 @@ def update_document(
 
 
 @app.delete("/api/documents/{document_id}")
-def delete_document(document_id: str, _: dict[str, Any] = Depends(_require_admin_or_owner)) -> dict[str, bool]:
+def delete_document(document_id: str, _: dict[str, Any] = Depends(_require_permission("documents.delete"))) -> dict[str, bool]:
     _delete_entity("documents", document_id)
     return {"ok": True}

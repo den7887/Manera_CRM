@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Group, Event, Task, AutomationRule, Child, Notification, Product, News, Document } from '../../types';
+import { User, Group, Event, Task, AutomationRule, Child, Notification, News, Document } from '../../types';
 import { AdminHome } from './AdminHome';
 import { AdminStudents } from './AdminStudents';
 import { AdminParents } from './AdminParents';
@@ -12,8 +12,7 @@ import { AdminTasks } from './AdminTasks';
 import { TasksManagement } from './TasksManagement';
 import { AdminAutomations } from './AdminAutomations';
 import { AdminSettings } from './AdminSettings';
-import { PricingManagement } from './PricingManagement';
-import { PricingForm } from './PricingForm';
+import { OwnerPricingPanel } from '../owner/OwnerPricingPanel';
 import { EventsManagement } from './EventsManagement';
 import { DocumentsManagement } from './DocumentsManagement';
 import { AttendanceWorkspace } from '../attendance/AttendanceWorkspace';
@@ -36,7 +35,6 @@ interface AdminDashboardProps {
   employees?: User[];
   clients?: User[];
   children?: Child[];
-  products?: Product[];
   newsEvents: News[]; // Добавляем мероприятия
   documents: Document[];
   onLogout: () => void;
@@ -58,7 +56,6 @@ export function AdminDashboard({
   employees = [],
   clients = [],
   children = [],
-  products = [],
   newsEvents,
   documents,
   onLogout,
@@ -71,7 +68,6 @@ export function AdminDashboard({
   onDeleteDocument
 }: AdminDashboardProps) {
   const [currentPage, setCurrentPage] = useState('home');
-  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<AdminPaymentsNavigationContext | null>(null);
   const [clientsNavigationContext, setClientsNavigationContext] = useState<{ requestId: number; searchQuery?: string; sourceLabel?: string } | null>(null);
   const [chatUnreadMessagesCount, setChatUnreadMessagesCount] = useState(0);
@@ -98,7 +94,6 @@ export function AdminDashboard({
   }, []);
 
   const inDevelopmentPages: Record<string, string> = {
-    'pricing-form': 'Прайс',
     automations: 'Автоматизации',
     staff: 'Сотрудники',
     settings: 'Настройки',
@@ -184,29 +179,7 @@ export function AdminDashboard({
       case 'settings':
         return <AdminSettings />;
       case 'pricing':
-        return (
-          <PricingManagement 
-            products={products} 
-            onNavigateToCreate={() => {
-              setSelectedProduct(undefined);
-              setCurrentPage('pricing-form');
-            }}
-            onNavigateToEdit={(product) => {
-              setSelectedProduct(product);
-              setCurrentPage('pricing-form');
-            }}
-          />
-        );
-      case 'pricing-form':
-        return (
-          <PricingForm 
-            product={selectedProduct} 
-            onBack={() => {
-              setSelectedProduct(undefined);
-              setCurrentPage('pricing');
-            }}
-          />
-        );
+        return <OwnerPricingPanel currentUser={user} />;
       case 'events-management':
         return <EventsManagement events={newsEvents} onCreate={onCreateNewsEvent} onUpdate={onUpdateNewsEvent} onDelete={onDeleteNewsEvent} />;
       case 'documents-management':
@@ -275,6 +248,7 @@ export function AdminDashboard({
         currentPage={currentPage}
         onNavigate={setCurrentPage}
         role="admin"
+        permissions={user.permissions}
         badges={{
           communication: chatUnreadMessagesCount > 0,
         }}
