@@ -16,6 +16,8 @@ import {
   loadAdminPayments,
   loadOwnerEmployees,
   loadOwnerGroups,
+  loadOwnerPricing,
+  OwnerPricingPlanDto,
   sendAdminPaymentReminder,
   updateAdminChildProfile,
 } from '../../lib/backendApi';
@@ -405,6 +407,7 @@ export function ClientsManagement({
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [pricingPlans, setPricingPlans] = useState<OwnerPricingPlanDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('today');
@@ -477,12 +480,13 @@ export function ClientsManagement({
     }
 
     try {
-      const [childrenRows, landingLeadRows, paymentRows, groupRows, employeeRows] = await Promise.all([
+      const [childrenRows, landingLeadRows, paymentRows, groupRows, employeeRows, pricingRows] = await Promise.all([
         loadAdminChildren(),
         loadAdminLandingLeads(),
         loadAdminPayments(),
         loadOwnerGroups(),
         loadOwnerEmployees(),
+        loadOwnerPricing(),
       ]);
       setChildren([
         ...landingLeadRows.map(buildLeadWorkspaceChild),
@@ -491,6 +495,7 @@ export function ClientsManagement({
       setPayments(paymentRows);
       setGroups(groupRows);
       setEmployees(employeeRows);
+      setPricingPlans(pricingRows);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить клиентов');
     } finally {
@@ -789,11 +794,16 @@ export function ClientsManagement({
   }, [childrenWithMeta]);
 
   const subscriptions = useMemo(
-    () => [
-      { id: 'hobby', name: 'Хобби' },
-      { id: 'pro', name: 'Про' },
-    ],
-    [],
+    () =>
+      pricingPlans
+        .filter((plan) => plan.is_active)
+        .map((plan) => ({
+          id: plan.code,
+          name: plan.title,
+          classes: plan.classes_count ?? 0,
+          price: plan.price,
+        })),
+    [pricingPlans],
   );
 
   const openClient = (childId: string) => {
@@ -1296,6 +1306,7 @@ export function ClientsManagement({
           isInvoicingChildId={isInvoicingChildId}
           isReminderPaymentId={isReminderPaymentId}
           onNavigateSection={onNavigateSection}
+          onAddClient={() => setIsAddDialogOpen(true)}
         />
       ) : (
         <>

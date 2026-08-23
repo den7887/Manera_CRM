@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { Group, Task } from '../../types';
-import { ClipboardList, Search, SlidersHorizontal } from 'lucide-react';
+import { ClipboardList, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { EmptyState } from '../EmptyState';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -98,6 +98,7 @@ export function MobileClientsWorkspace({
   isInvoicingChildId,
   isReminderPaymentId,
   onNavigateSection,
+  onAddClient,
 }: {
   isLoading: boolean;
   groups: Group[];
@@ -144,6 +145,7 @@ export function MobileClientsWorkspace({
   isInvoicingChildId: string | null;
   isReminderPaymentId: string | null;
   onNavigateSection?: (page: string) => void;
+  onAddClient: () => void;
 }) {
   const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base' | 'clients'>('today');
   const [todayFocus, setTodayFocus] = useState<'all' | 'new' | 'trials' | 'after' | 'waiting' | 'risk' | 'no-action'>('all');
@@ -290,10 +292,23 @@ export function MobileClientsWorkspace({
   return (
     <div className="space-y-4 pb-6">
       <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-br from-[#133C2A] to-[#1d5a3f] px-4 py-5 text-white">
-        <p className="text-[23px] leading-tight">Клиенты и заявки</p>
-        <p className="mt-2 text-sm text-white/72">
-          Сегодня нужно обработать: {todaySummary.newRequests + todaySummary.waitingPayment + todaySummary.risk}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[23px] leading-tight">Клиенты и заявки</p>
+            <p className="mt-2 text-sm text-white/72">
+              Сегодня нужно обработать: {todaySummary.newRequests + todaySummary.waitingPayment + todaySummary.risk}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="flex-shrink-0 rounded-2xl bg-white text-[#133C2A] hover:bg-white/90"
+            onClick={onAddClient}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Добавить
+          </Button>
+        </div>
       </div>
 
       <div className="mobile-scroll-x rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/75 p-1">

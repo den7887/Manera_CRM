@@ -732,7 +732,7 @@ export function AddStudentDialog({
                     <div className="flex items-center justify-between gap-4">
                       <span>{sub.name}</span>
                       <span className="text-sm text-[#133C2A]/60">
-                        {sub.classes} занятий • {sub.price} ₽
+                        {sub.classes > 0 ? `${sub.classes} занятий` : 'без учёта лимита'} • {sub.price.toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
                   </SelectItem>
@@ -820,7 +820,7 @@ export function AddStudentDialog({
             <DialogDescription className="text-[#133C2A]/70">
               Примите оплату наличными средствами{' '}
               <span className="font-semibold text-[#133C2A]">
-                {pendingSubmission?.payableAmount.toLocaleString('ru-RU')} ₽
+                {(pendingSubmission?.payableAmount ?? 0).toLocaleString('ru-RU')} ₽
               </span>
             </DialogDescription>
           </DialogHeader>
