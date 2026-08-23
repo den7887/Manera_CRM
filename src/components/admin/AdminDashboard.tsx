@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User, Group, Event, Task, AutomationRule, Child, Notification, Product, News, Document } from '../../types';
 import { AdminHome } from './AdminHome';
 import { AdminStudents } from './AdminStudents';
 import { AdminParents } from './AdminParents';
 import { AdminLeads } from './AdminLeads';
 import { AdminGroups } from './AdminGroups';
-import { AdminCommunication } from './AdminCommunication';
+import { OwnerCommunicationPanel } from '../owner/OwnerCommunicationPanel';
+import { loadOwnerCommunicationChats } from '../../lib/backendApi';
 import { AdminProfile } from './AdminProfile';
 import { AdminTasks } from './AdminTasks';
 import { TasksManagement } from './TasksManagement';
@@ -73,7 +74,28 @@ export function AdminDashboard({
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<AdminPaymentsNavigationContext | null>(null);
   const [clientsNavigationContext, setClientsNavigationContext] = useState<{ requestId: number; searchQuery?: string; sourceLabel?: string } | null>(null);
+  const [chatUnreadMessagesCount, setChatUnreadMessagesCount] = useState(0);
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    let active = true;
+
+    loadOwnerCommunicationChats()
+      .then((items) => {
+        if (active) {
+          setChatUnreadMessagesCount(items.reduce((sum, chat) => sum + Number(chat.employeeUnreadCount || 0), 0));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setChatUnreadMessagesCount(0);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const inDevelopmentPages: Record<string, string> = {
     'pricing-form': 'Прайс',
@@ -137,7 +159,7 @@ export function AdminDashboard({
       case 'tasks':
         return <AdminTasks tasks={tasks} />;
       case 'communication':
-        return <AdminCommunication />;
+        return <OwnerCommunicationPanel />;
       case 'payments':
         return (
           <AdminPayments
@@ -237,13 +259,20 @@ export function AdminDashboard({
         onLogout={onLogout}
       />
       
-      <main className="md:pl-24 pb-24 md:pb-8">
+      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
         <div className="p-4 md:p-8">
           {renderPage()}
         </div>
       </main>
 
-      <MobileNav currentPage={currentPage} onNavigate={setCurrentPage} role="admin" />
+      <MobileNav
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+        role="admin"
+        badges={{
+          communication: chatUnreadMessagesCount > 0,
+        }}
+      />
     </div>
   );
 }

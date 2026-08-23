@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { User, Child, Event, Payment, News, Notification, Document as StudioDocument } from '../../types';
-import { ParentAccessInfo } from '../../lib/backendApi';
+import { ParentAccessInfo, loadParentCommunicationChats } from '../../lib/backendApi';
 import { ParentHome } from './ParentHome';
 import { ParentChildren } from './ParentChildren';
 import { ParentSchedule } from './ParentSchedule';
@@ -138,10 +138,31 @@ export function ParentDashboard({
   onMarkAllNotificationsRead,
 }: ParentDashboardProps) {
   const [currentPage, setCurrentPage] = useState<ParentPage>(() => readParentPageFromUrl());
+  const [hasUnreadChats, setHasUnreadChats] = useState(false);
   const pageInfo = pageMap[currentPage] || pageMap.home;
   const PageIcon = pageInfo.icon;
 
   const isAccessRestricted = accessInfo ? !accessInfo.canUseDashboard : false;
+
+  useEffect(() => {
+    let active = true;
+
+    loadParentCommunicationChats()
+      .then((chats) => {
+        if (active) {
+          setHasUnreadChats(chats.some((chat) => Number(chat.parentUnreadCount || 0) > 0));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setHasUnreadChats(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentPage]);
 
   const navigate = (page: string) => {
     const normalizedPage = normalizeParentPage(page);
@@ -394,7 +415,15 @@ export function ParentDashboard({
         </div>
       </main>
 
-      <MobileNav currentPage={currentPage} onNavigate={navigate} role="parent" />
+      <MobileNav
+        currentPage={currentPage}
+        onNavigate={navigate}
+        role="parent"
+        badges={{
+          communication: hasUnreadChats,
+          notifications: quickStats.unreadNotifications > 0,
+        }}
+      />
     </div>
   );
 }

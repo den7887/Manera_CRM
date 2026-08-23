@@ -114,7 +114,7 @@ function DialogOverlay({ className, ...props }: DialogOverlayProps) {
     <div
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 animate-in fade-in-0",
+        "fixed inset-0 z-[60] bg-black/50 animate-in fade-in-0",
         className,
       )}
       onClick={() => onOpenChange(false)}
@@ -202,7 +202,7 @@ function DialogContent({
         ref={contentRef}
         data-slot="dialog-content"
         className={cn(
-          "!fixed !inset-x-0 !bottom-0 !top-auto !left-0 !z-50 !m-0 !grid !w-screen !max-w-none !translate-x-0 !translate-y-0 gap-4 !rounded-t-[28px] !rounded-b-none !border-0 bg-[#FCFBF6] px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl animate-in fade-in-0 slide-in-from-bottom-6 duration-200 !max-h-[92dvh] overflow-y-auto",
+          "!fixed !inset-x-0 !bottom-0 !top-auto !left-0 !z-[60] !m-0 !grid !w-screen !max-w-none !translate-x-0 !translate-y-0 gap-4 !rounded-t-[28px] !rounded-b-none !border-0 bg-[#FCFBF6] px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl animate-in fade-in-0 slide-in-from-bottom-6 duration-200 !max-h-[92dvh] overflow-y-auto",
           "sm:!bg-background sm:!top-[50%] sm:!left-[50%] sm:!bottom-auto sm:!inset-x-auto sm:!w-full sm:!max-w-[calc(100%-2rem)] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:!rounded-lg sm:!border sm:!p-6 sm:!shadow-lg sm:zoom-in-95 sm:max-w-lg",
           className,
         )}

@@ -7,9 +7,11 @@ interface MobileNavProps {
   currentPage: string;
   onNavigate: (page: string) => void;
   role: UserRole;
+  /** Map of tab/menu item id -> whether it should show an unread dot. */
+  badges?: Record<string, boolean>;
 }
 
-export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
+export function MobileNav({ currentPage, onNavigate, role, badges }: MobileNavProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const parentMainTabs = [
@@ -96,6 +98,10 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
   const hasMenu = menuItems.some((item) => !item.desktopOnly);
   const visibleMainTabs = hasMenu ? mainTabs.slice(0, 4) : mainTabs.slice(0, 5);
   const columnCount = visibleMainTabs.length + (hasMenu ? 1 : 0);
+  const visibleTabIds = new Set(visibleMainTabs.map((tab) => tab.id));
+  // Items tucked away behind "Ещё" don't show their own dot, so surface a
+  // single aggregate dot on the "Ещё" button when any of them has one.
+  const moreHasBadge = menuItems.some((item) => !visibleTabIds.has(item.id) && badges?.[item.id]);
 
   return (
     <>
@@ -109,28 +115,40 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
               const Icon = tab.icon;
               const isActive = currentPage === tab.id;
               
+              const hasBadge = Boolean(badges?.[tab.id]);
+
               return (
                 <button
                   key={tab.id}
                   onClick={() => onNavigate(tab.id)}
-                  className={`min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth ${
+                  className={`relative min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth ${
                     isActive
                       ? 'bg-white text-[#133C2A] border border-[#D4AF37]/40 shadow-sm'
                       : 'text-[#133C2A]/60 hover:text-[#133C2A]'
                   }`}
                 >
-                  <Icon className="w-5 h-5 shrink-0" />
+                  <span className="relative">
+                    <Icon className="w-5 h-5 shrink-0" />
+                    {hasBadge && (
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#D14343] ring-2 ring-[#fbf7e8]" />
+                    )}
+                  </span>
                   <span className="text-[11px] leading-tight truncate max-w-full px-1">{tab.label}</span>
                 </button>
               );
             })}
-            
+
             {hasMenu && (
               <button
                 onClick={() => setIsMenuOpen(true)}
-                className="min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth bg-[#133C2A] text-white shadow-sm"
+                className="relative min-w-0 h-14 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-smooth bg-[#133C2A] text-white shadow-sm"
               >
-                <Menu className="w-5 h-5 shrink-0" />
+                <span className="relative">
+                  <Menu className="w-5 h-5 shrink-0" />
+                  {moreHasBadge && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#D14343] ring-2 ring-[#133C2A]" />
+                  )}
+                </span>
                 <span className="text-[11px] leading-tight truncate max-w-full px-1">Ещё</span>
               </button>
             )}
@@ -144,6 +162,7 @@ export function MobileNav({ currentPage, onNavigate, role }: MobileNavProps) {
         menuItems={menuItems}
         currentPage={currentPage}
         onNavigate={onNavigate}
+        badges={badges}
       />
     </>
   );

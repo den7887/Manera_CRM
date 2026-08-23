@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessageSquare, Plus, Send, UserRound } from 'lucide-react';
 import {
   CommunicationChatRecord,
@@ -33,6 +33,7 @@ export function ParentCommunication() {
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const selectedChat = useMemo(() => chats.find((item) => item.id === selectedChatId) || null, [chats, selectedChatId]);
   const isChatOpened = Boolean(selectedChat);
@@ -77,6 +78,10 @@ export function ParentCommunication() {
     void bootstrap();
   }, []);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages.length, selectedChatId]);
+
   const handleCreateChat = async () => {
     if (!employeeToStart) {
       toast.info('Выберите сотрудника');
@@ -116,7 +121,7 @@ export function ParentCommunication() {
 
   if (!isChatOpened) {
     return (
-      <Card className="border-none soft-shadow h-[calc(100dvh-11rem)] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
+      <Card className="border-none soft-shadow h-[calc(100dvh-12.5rem-env(safe-area-inset-bottom))] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
         <CardHeader className="space-y-3 border-b border-[#133C2A]/10 p-3 md:p-6">
           <CardTitle className="text-[#133C2A] flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
@@ -179,7 +184,7 @@ export function ParentCommunication() {
   }
 
   return (
-    <Card className="border-none soft-shadow h-[calc(100dvh-11rem)] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
+    <Card className="border-none soft-shadow h-[calc(100dvh-12.5rem-env(safe-area-inset-bottom))] min-h-[420px] flex flex-col md:h-[74vh] md:min-h-[580px]">
       <CardHeader className="border-b border-[#133C2A]/10 py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSelectedChatId(null)}>
@@ -228,6 +233,7 @@ export function ParentCommunication() {
               );
             })
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="shrink-0 border-t-2 border-[#D4AF37]/40 bg-[#FFFDF6] px-3 py-3 rounded-b-xl">

@@ -15,9 +15,10 @@ interface MobileMenuDrawerProps {
   menuItems: MenuItem[];
   currentPage: string;
   onNavigate: (page: string) => void;
+  badges?: Record<string, boolean>;
 }
 
-export function MobileMenuDrawer({ isOpen, onClose, menuItems, currentPage, onNavigate }: MobileMenuDrawerProps) {
+export function MobileMenuDrawer({ isOpen, onClose, menuItems, currentPage, onNavigate, badges }: MobileMenuDrawerProps) {
   const [query, setQuery] = useState('');
 
   const handleNavigate = (page: string) => {
@@ -49,12 +50,12 @@ export function MobileMenuDrawer({ isOpen, onClose, menuItems, currentPage, onNa
 
   return (
     <>
-      <div 
-        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-40 md:hidden"
+      <div
+        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-[59] md:hidden"
         onClick={onClose}
       />
-      
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden animate-slide-up">
+
+      <div className="fixed bottom-0 left-0 right-0 z-[60] md:hidden animate-slide-up">
         <div className="bg-[#fbf7e8] rounded-t-[24px] shadow-2xl border-t border-[#133C2A]/10 max-h-[88dvh] overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#133C2A]/10">
             <div>
@@ -95,6 +96,8 @@ export function MobileMenuDrawer({ isOpen, onClose, menuItems, currentPage, onNa
                       const Icon = item.icon;
                       const isActive = currentPage === item.id;
 
+                      const hasBadge = Boolean(badges?.[item.id]);
+
                       return (
                         <button
                           key={item.id}
@@ -105,10 +108,15 @@ export function MobileMenuDrawer({ isOpen, onClose, menuItems, currentPage, onNa
                               : 'bg-white text-[#133C2A] border border-[#133C2A]/8'
                           }`}
                         >
-                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                          <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                             isActive ? 'bg-white/15' : 'bg-[#F8F4E3]'
                           }`}>
                             <Icon className="h-4.5 w-4.5 shrink-0" />
+                            {hasBadge && (
+                              <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#D14343] ring-2 ${
+                                isActive ? 'ring-[#133C2A]' : 'ring-white'
+                              }`} />
+                            )}
                           </span>
                           <span className="min-w-0 flex-1 text-sm leading-tight">{item.label}</span>
                         </button>

@@ -50,7 +50,7 @@ export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDash
         onLogout={onLogout}
       />
       
-      <main className="md:pl-24 pb-24 md:pb-8">
+      <main className="md:pl-24 mobile-safe-bottom md:pb-8">
         <div className="p-4 md:p-8">
           {renderPage()}
         </div>

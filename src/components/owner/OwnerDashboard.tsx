@@ -311,6 +311,9 @@ export function OwnerDashboard({
         currentPage={currentPage}
         onNavigate={navigate}
         role="owner"
+        badges={{
+          communication: chatUnreadMessagesCount > 0,
+        }}
       />
     </div>
   );

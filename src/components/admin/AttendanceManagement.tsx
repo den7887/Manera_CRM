@@ -121,12 +121,12 @@ export function AttendanceManagement() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="rounded-2xl border-[#133C2A]/20"
+                className="w-full rounded-2xl border-[#133C2A]/20 sm:w-auto"
               >
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 {format(selectedDate, 'dd MMMM yyyy', { locale: ru })}
@@ -144,7 +144,7 @@ export function AttendanceManagement() {
           </Popover>
 
           <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-            <SelectTrigger className="w-[200px] rounded-2xl border-[#133C2A]/20">
+            <SelectTrigger className="w-full rounded-2xl border-[#133C2A]/20 sm:w-[200px]">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Все группы" />
             </SelectTrigger>
