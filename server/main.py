@@ -5262,6 +5262,16 @@ def _require_admin_or_owner(current_user: dict[str, Any] = Depends(_require_auth
     return current_user
 
 
+def _require_staff(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
+    """Broader than _require_admin_or_owner: also allows teacher, for the
+    handful of read-only endpoints (groups, employee directory) a teacher's
+    cabinet needs to render its schedule. Write endpoints should keep using
+    _require_admin_or_owner."""
+    if current_user.get("role") not in {"admin", "owner", "teacher"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return current_user
+
+
 def _require_parent(current_user: dict[str, Any] = Depends(_require_auth)) -> dict[str, Any]:
     if current_user.get("role") != "parent":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent access only")
@@ -6486,7 +6496,7 @@ def auth_login_pin(payload: PinLoginPayload, request: FastAPIRequest, response: 
     store = _read_store()
     user = _find_user_by_phone(store, normalized_phone)
     user_role = str(user.get("role") or "") if user else ""
-    if user is None or user_role not in {"parent", "owner"}:
+    if user is None or user_role not in {"parent", "owner", "admin", "teacher"}:
         _append_security_audit_event(
             store,
             event_type="auth.login_pin",
@@ -6585,7 +6595,7 @@ def auth_login_pin(payload: PinLoginPayload, request: FastAPIRequest, response: 
     )
     _write_store(store)
     return AuthResponse(
-        role="owner" if user_role == "owner" else "parent",
+        role=user_role,
         access_level=str(user.get("access_level") or "full"),
         account_status=str(user.get("account_status") or "active"),
     )
@@ -6595,29 +6605,35 @@ def auth_login_pin(payload: PinLoginPayload, request: FastAPIRequest, response: 
 def auth_start_pin_activation(payload: StartPinActivationPayload) -> dict[str, Any]:
     store = _read_store()
     normalized_phone = _normalize_phone(payload.phone)
-    parent_user = _find_user_by_phone(store, normalized_phone)
-    if parent_user is None or str(parent_user.get("role") or "") != "parent":
+    target_user = _find_user_by_phone(store, normalized_phone)
+    target_role = str(target_user.get("role") or "") if target_user else ""
+    if target_user is None or target_role not in {"parent", "admin", "teacher"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Не удалось запустить активацию. Обратитесь к администратору студии.",
         )
-    if _current_portal_status(parent_user) == "blocked":
+    if _current_portal_status(target_user) == "blocked":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Доступ к кабинету отключен. Обратитесь к администратору студии.",
         )
-    has_any_payments = any(
-        str(item.get("parentUserId") or "") == str(parent_user.get("id") or "")
-        for item in store.get("paymentRecords", [])
-    )
-    if not has_any_payments:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="По этому номеру пока нет выставленных счетов. Обратитесь к администратору студии.",
+    if target_role == "parent":
+        # Parents can be typed in by anyone, so only let a phone number that's
+        # already tied to a real invoice self-activate -- staff accounts don't
+        # need this check, since the owner deliberately created that phone
+        # number as an employee in the first place.
+        has_any_payments = any(
+            str(item.get("parentUserId") or "") == str(target_user.get("id") or "")
+            for item in store.get("paymentRecords", [])
         )
+        if not has_any_payments:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="По этому номеру пока нет выставленных счетов. Обратитесь к администратору студии.",
+            )
     activation = _create_activation_token(
         store,
-        parent_user_id=str(parent_user.get("id") or ""),
+        parent_user_id=str(target_user.get("id") or ""),
         payment_id=None,
         purpose="initial_activation",
         source_flow="admin_manual_activation",
@@ -6697,7 +6713,7 @@ def auth_activation_set_pin(
     )
     _write_store(store)
     return AuthResponse(
-        role="parent",
+        role=str(parent_user.get("role") or "parent"),
         access_level="full",
         account_status="active",
     )
@@ -8843,7 +8859,7 @@ def owner_communication_send_message(
 
 
 @app.get("/api/owner/groups")
-def owner_list_groups(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def owner_list_groups(current_user: dict[str, Any] = Depends(_require_staff)) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     return list(store.get("ownerGroups", []))
@@ -8911,7 +8927,7 @@ def owner_delete_group(
 
 
 @app.get("/api/owner/employees")
-def owner_list_employees(current_user: dict[str, Any] = Depends(_require_admin_or_owner)) -> list[dict[str, Any]]:
+def owner_list_employees(current_user: dict[str, Any] = Depends(_require_staff)) -> list[dict[str, Any]]:
     del current_user
     store = _read_store()
     employees = [user for user in store["users"] if user.get("role") in {"teacher", "admin"}]

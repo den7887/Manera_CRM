@@ -32,11 +32,11 @@ interface AdminDashboardProps {
   groups: Group[];
   events: Event[];
   tasks: Task[];
-  automationRules: AutomationRule[];
-  employees: User[];
-  clients: User[];
-  children: Child[];
-  products: Product[];
+  automationRules?: AutomationRule[];
+  employees?: User[];
+  clients?: User[];
+  children?: Child[];
+  products?: Product[];
   newsEvents: News[]; // Добавляем мероприятия
   documents: Document[];
   onLogout: () => void;
@@ -49,19 +49,19 @@ interface AdminDashboardProps {
   onDeleteDocument?: (id: string) => void;
 }
 
-export function AdminDashboard({ 
-  user, 
-  groups, 
-  events, 
-  tasks, 
-  automationRules, 
-  employees, 
-  clients, 
-  children, 
-  products, 
-  newsEvents, 
+export function AdminDashboard({
+  user,
+  groups,
+  events,
+  tasks,
+  automationRules = [],
+  employees = [],
+  clients = [],
+  children = [],
+  products = [],
+  newsEvents,
   documents,
-  onLogout, 
+  onLogout,
   notifications,
   onCreateNewsEvent,
   onUpdateNewsEvent,

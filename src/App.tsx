@@ -5,6 +5,8 @@ import { PinLogin } from './components/auth/PinLogin';
 import { ActivationPinPage } from './components/auth/ActivationPinPage';
 import { ParentDashboard } from './components/parent/ParentDashboard';
 import { OwnerDashboard } from './components/owner/OwnerDashboard';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { PublicPaymentSessionPage } from './components/payments/PublicPaymentSessionPage';
 import { PublicPaymentSuccessPage } from './components/payments/PublicPaymentSuccessPage';
 import { Toaster } from './components/ui/sonner';
@@ -317,7 +319,11 @@ export default function App() {
     setParentEvents([]);
     setIsParentStateLoading(false);
 
-    if (effectiveRole === 'owner') {
+    if (effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'teacher') {
+      // Admin already has the same backend access as owner for all of these.
+      // Teacher only has read access to groups/employees (see _require_staff
+      // on the backend) -- the rest 403 and Promise.allSettled quietly falls
+      // back to empty state for those, no separate code path needed.
       const [serverTasks, serverNews, serverDocuments, groups, employees, financeSummary, expenses, automations, ownerNotifications] = await Promise.allSettled([
         loadTasks(),
         loadNews(),
@@ -356,7 +362,7 @@ export default function App() {
 
   useEffect(() => {
     const savedRole = getStoredRole();
-    const allowedRole = savedRole === 'owner' || savedRole === 'parent' ? savedRole : null;
+    const allowedRole = savedRole === 'owner' || savedRole === 'parent' || savedRole === 'admin' || savedRole === 'teacher' ? savedRole : null;
     const initialUrlRoute = readAppStateFromUrl();
     const isStandalonePublicRoute = ['activation', 'payment-session', 'payment-success'].includes(initialUrlRoute.appState);
     // A guest on /login already renders the login screen correctly (see readAppStateFromUrl
@@ -385,7 +391,7 @@ export default function App() {
       try {
         const serverUser = await loadCurrentUser();
         const serverRole = serverUser.role;
-        if (serverRole !== 'owner' && serverRole !== 'parent') {
+        if (serverRole !== 'owner' && serverRole !== 'parent' && serverRole !== 'admin' && serverRole !== 'teacher') {
           clearAuth();
           setCurrentUserRole('parent');
           openLanding();
@@ -482,9 +488,6 @@ export default function App() {
 
   const handlePinLogin = async (phone: string, pin: string) => {
     const role = await loginWithPin(phone, pin);
-    if (role !== 'owner' && role !== 'parent') {
-      throw new Error('Вход для этой роли отключен');
-    }
 
     try {
       await syncServerState(role);
@@ -854,7 +857,29 @@ export default function App() {
         />
       )}
 
-      <Toaster 
+      {appState === 'dashboard' && currentUserRole === 'admin' && (
+        <AdminDashboard
+          user={currentUser}
+          onLogout={handleLogout}
+          tasks={tasks}
+          events={ownerScheduleEvents}
+          groups={ownerGroups}
+          newsEvents={newsEvents}
+          documents={documents}
+          notifications={notifications}
+        />
+      )}
+
+      {appState === 'dashboard' && currentUserRole === 'teacher' && (
+        <TeacherDashboard
+          user={currentUser}
+          onLogout={handleLogout}
+          groups={ownerGroups}
+          events={ownerScheduleEvents}
+        />
+      )}
+
+      <Toaster
         position="top-right"
         expand={false}
         richColors
