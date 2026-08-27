@@ -32,12 +32,31 @@ export function TeacherSchedule({ events }: TeacherScheduleProps) {
 
   // Фильтруем только дни с занятиями
   const daysWithEvents = weekDays.filter(date => getEventsForDate(date).length > 0);
+  const todayEventsCount = getEventsForDate(new Date()).length;
+  const weekEventsCount = weekDays.reduce((sum, date) => sum + getEventsForDate(date).length, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-[#133C2A] mb-2">Расписание занятий</h1>
         <p className="text-[#133C2A]/60">Календарь и график ваших занятий</p>
+      </div>
+
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня на занятиях</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Ваше расписание</h2>
+            <p className="mt-1 text-sm text-white/72">Занятия на сегодня и на неделю вперёд.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{todayEventsCount} сегодня</span>
+            <span>•</span>
+            <span>{weekEventsCount} за неделю</span>
+            <span>•</span>
+            <span>{daysWithEvents.length} дней с занятиями</span>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="week" className="w-full">

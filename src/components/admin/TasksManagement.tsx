@@ -126,7 +126,7 @@ export function TasksManagement({ tasks, employees, clients, children, currentUs
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -134,13 +134,30 @@ export function TasksManagement({ tasks, employees, clients, children, currentUs
           <p className="text-[#133C2A]/60">Управление задачами команды</p>
         </div>
 
-        <Button 
+        <Button
           onClick={handleOpenCreateDialog}
           className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 gap-2"
         >
           <Plus className="w-5 h-5" />
           Создать задачу
         </Button>
+      </div>
+
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня в работе</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Задачи команды</h2>
+            <p className="mt-1 text-sm text-white/72">Что в работе, что просрочено.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{tasks.length} всего</span>
+            <span>•</span>
+            <span>{todoTasks.length} в работе</span>
+            <span>•</span>
+            <span>{tasks.filter(isOverdue).length} просрочено</span>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

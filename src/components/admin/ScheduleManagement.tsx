@@ -120,6 +120,23 @@ export function ScheduleManagement({
         </div>
       </div>
 
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня в расписании</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Занятия и заполняемость</h2>
+            <p className="mt-1 text-sm text-white/72">Кто занимается сегодня и где ещё есть места.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{summary.todayLessons} занятий сегодня</span>
+            <span>•</span>
+            <span>{summary.studentsToday} учеников</span>
+            <span>•</span>
+            <span>{summary.groupsWithPlaces} групп со свободными местами</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-4">
         <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Занятий сегодня</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.todayLessons}</p></CardContent></Card>
         <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">На неделе</p><p className="mt-1 text-3xl text-[#133C2A]">{summary.weekLessons}</p></CardContent></Card>
