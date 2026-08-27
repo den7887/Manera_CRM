@@ -9125,6 +9125,7 @@ def staff_attendance_day(
             "time": time_range[0] if time_range else str(group.get("time") or ""),
             "studentCount": len(roster),
             "markedCount": marked_count,
+            "color": group.get("color"),
         })
 
     rows.sort(key=lambda item: (item["time"] or "99:99", item["groupName"]))

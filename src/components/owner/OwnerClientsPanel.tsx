@@ -1,4 +1,4 @@
-import { ClientsManagement } from '../admin/ClientsManagement';
+import { AdminClientsNavigationContext, ClientsManagement } from '../admin/ClientsManagement';
 import { Task, User } from '../../types';
 import { OwnerPaymentsNavigationContext } from './paymentsNavigation';
 
@@ -7,6 +7,8 @@ interface OwnerClientsPanelProps {
   currentUser: User;
   onNavigatePayments?: (context?: Omit<OwnerPaymentsNavigationContext, 'requestId'>) => void;
   onNavigateSection?: (page: string) => void;
+  navigationContext?: AdminClientsNavigationContext;
+  onNavigationContextApplied?: () => void;
 }
 
 function mapPaymentsContext(
@@ -45,11 +47,15 @@ export function OwnerClientsPanel({
   currentUser,
   onNavigatePayments,
   onNavigateSection,
+  navigationContext,
+  onNavigationContextApplied,
 }: OwnerClientsPanelProps) {
   return (
     <ClientsManagement
       tasks={tasks}
       currentUser={currentUser}
+      navigationContext={navigationContext}
+      onNavigationContextApplied={onNavigationContextApplied}
       onNavigatePayments={(context) => onNavigatePayments?.(mapPaymentsContext(context))}
       onNavigateSection={(page) => {
         if (!onNavigateSection) return;

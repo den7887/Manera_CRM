@@ -194,7 +194,18 @@ export function AdminDashboard({
           onDeleteDocument={onDeleteDocument || (() => {})} 
         />; 
       case 'attendance-management':
-        return <AttendanceWorkspace onOpenClient={() => setCurrentPage('clients-management')} />;
+        return (
+          <AttendanceWorkspace
+            onOpenClient={(info) => {
+              setClientsNavigationContext({
+                requestId: Date.now(),
+                searchQuery: info.parentPhone || info.fullName,
+                sourceLabel: `Посещаемость · ${info.fullName}`,
+              });
+              setCurrentPage('clients-management');
+            }}
+          />
+        );
       case 'clients-management':
         return (
           <ClientsManagement

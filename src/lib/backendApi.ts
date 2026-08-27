@@ -1378,6 +1378,7 @@ export interface AttendanceDayGroupDto {
   time: string;
   studentCount: number;
   markedCount: number;
+  color: string | null;
 }
 
 export interface AttendanceStudentDto {
@@ -1410,6 +1411,7 @@ export async function loadAttendanceDay(dateStr: string): Promise<AttendanceDayG
     time: String(row.time || ''),
     studentCount: Number(row.studentCount || 0),
     markedCount: Number(row.markedCount || 0),
+    color: row.color ?? null,
   }));
 }
 

@@ -17,6 +17,7 @@ import { FeatureInDevelopment } from '../FeatureInDevelopment';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { OwnerHome } from './OwnerHome';
 import { OwnerProfile } from './OwnerProfile';
+import { AdminClientsNavigationContext } from '../admin/ClientsManagement';
 import { OwnerClientsPanel } from './OwnerClientsPanel';
 import { OwnerGroupsPanel } from './OwnerGroupsPanel';
 import { OwnerTeamPanel } from './OwnerTeamPanel';
@@ -139,6 +140,7 @@ export function OwnerDashboard({
   // resetting to Home (see audit F-02).
   const [currentPage, setCurrentPage] = useState<OwnerPage>(() => readOwnerPageFromUrl());
   const [paymentsNavigationContext, setPaymentsNavigationContext] = useState<OwnerPaymentsNavigationContext | null>(null);
+  const [clientsNavigationContext, setClientsNavigationContext] = useState<AdminClientsNavigationContext | null>(null);
   const [landingLeads, setLandingLeads] = useState<AdminLandingLeadRecord[]>([]);
   const [chatUnreadMessagesCount, setChatUnreadMessagesCount] = useState(0);
 
@@ -241,11 +243,24 @@ export function OwnerDashboard({
           currentUser={user}
           onNavigatePayments={openPayments}
           onNavigateSection={navigate}
+          navigationContext={clientsNavigationContext || undefined}
+          onNavigationContextApplied={() => setClientsNavigationContext(null)}
         />
       );
     }
     if (currentPage === 'attendance') {
-      return <AttendanceWorkspace onOpenClient={() => navigate('clients')} />;
+      return (
+        <AttendanceWorkspace
+          onOpenClient={(info) => {
+            setClientsNavigationContext({
+              requestId: Date.now(),
+              searchQuery: info.parentPhone || info.fullName,
+              sourceLabel: `Посещаемость · ${info.fullName}`,
+            });
+            navigate('clients');
+          }}
+        />
+      );
     }
     if (currentPage === 'analytics') {
       return <OwnerAnalyticsPanel />;
