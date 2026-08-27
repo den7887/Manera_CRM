@@ -655,6 +655,23 @@ export function OwnerTeamPanel() {
         </div>
       </div>
 
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Команда студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Загрузка команды</h2>
+            <p className="mt-1 text-sm text-white/72">Кто без групп и кто перегружен — видно сразу.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{totals.active} активных</span>
+            <span>•</span>
+            <span>{totals.teacherUnassigned} без групп</span>
+            <span>•</span>
+            <span>{totals.teacherHeavy} перегружены</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
         <Card className="border-none soft-shadow"><CardContent className="p-4 md:p-5"><p className="text-xs md:text-sm text-[#133C2A]/60">Всего</p><p className="text-2xl md:text-3xl text-[#133C2A]">{totals.all}</p></CardContent></Card>
         <Card className="border-none soft-shadow"><CardContent className="p-4 md:p-5"><p className="text-xs md:text-sm text-[#133C2A]/60">Преподаватели</p><p className="text-2xl md:text-3xl text-[#133C2A]">{totals.teachers}</p></CardContent></Card>

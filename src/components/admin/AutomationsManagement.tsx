@@ -28,7 +28,7 @@ import {
   Tag,
   Cake
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -185,15 +185,14 @@ export function AutomationsManagement({ rules, onNavigateToCreate, onNavigateToE
   }, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
-      {/* Header */}
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[#133C2A] mb-2">⚡ Автоматизации</h1>
+          <h1 className="text-[#133C2A] mb-2">Автоматизации</h1>
           <p className="text-[#133C2A]/60">Умная система автоматического создания задач</p>
         </div>
 
-        <Button 
+        <Button
           onClick={onNavigateToCreate}
           className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 gap-2"
         >
@@ -202,63 +201,28 @@ export function AutomationsManagement({ rules, onNavigateToCreate, onNavigateToE
         </Button>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Всего правил</p>
-                <p className="text-2xl md:text-3xl text-[#133C2A] mt-1">{rules.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
-                <Layers className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Автоматизации студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Правила и авто-задачи</h2>
+            <p className="mt-1 text-sm text-white/72">Что включено, а что стоит на паузе.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{rules.length} правил</span>
+            <span>•</span>
+            <span>{activeRules.length} активных</span>
+            <span>•</span>
+            <span>{totalTasks} авто-задач создано</span>
+          </div>
+        </div>
+      </div>
 
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Активные</p>
-                <p className="text-2xl md:text-3xl text-[#133C2A] mt-1">{activeRules.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-                <Power className="w-6 h-6 text-green-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Неактивные</p>
-                <p className="text-2xl md:text-3xl text-[#133C2A] mt-1">{inactiveRules.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                <PowerOff className="w-6 h-6 text-gray-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Авто-задачи</p>
-                <p className="text-2xl md:text-3xl text-[#133C2A] mt-1">{totalTasks}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1C8C64] to-[#133C2A] flex items-center justify-center">
-                <CheckSquare className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Всего правил</p><p className="mt-1 text-3xl text-[#133C2A]">{rules.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Активные</p><p className="mt-1 text-3xl text-[#1C8C64]">{activeRules.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Неактивные</p><p className="mt-1 text-3xl text-[#133C2A]/50">{inactiveRules.length}</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Авто-задачи</p><p className="mt-1 text-3xl text-[#133C2A]">{totalTasks}</p></CardContent></Card>
       </div>
 
       {/* Filters */}
@@ -283,9 +247,9 @@ export function AutomationsManagement({ rules, onNavigateToCreate, onNavigateToE
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все категории</SelectItem>
-                <SelectItem value="leads">🎯 База клиентов</SelectItem>
-                <SelectItem value="subscriptions">💳 Абонементы</SelectItem>
-                <SelectItem value="users">👥 Пользователи</SelectItem>
+                <SelectItem value="leads">База клиентов</SelectItem>
+                <SelectItem value="subscriptions">Абонементы</SelectItem>
+                <SelectItem value="users">Пользователи</SelectItem>
               </SelectContent>
             </Select>
 

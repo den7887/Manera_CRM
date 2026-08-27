@@ -182,6 +182,23 @@ export function OwnerNewsPanel() {
         </div>
       </div>
 
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Новости студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Лента для родителей</h2>
+            <p className="mt-1 text-sm text-white/72">Что опубликовано, а что ещё лежит черновиком.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{stats.total} всего</span>
+            <span>•</span>
+            <span>{stats.published} опубликовано</span>
+            <span>•</span>
+            <span>{stats.drafts} черновиков</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Всего</p><p className="text-2xl text-[#133C2A] md:text-3xl">{stats.total}</p></CardContent></Card>
         <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-5"><p className="text-xs text-[#133C2A]/60 md:text-sm">Опубликовано</p><p className="text-2xl text-[#133C2A] md:text-3xl">{stats.published}</p></CardContent></Card>

@@ -445,6 +445,23 @@ export function OwnerGroupsPanel() {
         </div>
       </div>
 
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Группы студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Обзор групп</h2>
+            <p className="mt-1 text-sm text-white/72">Расписание, состав и загрузка групп в реальном времени.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{totals.groups} групп</span>
+            <span>•</span>
+            <span>{totals.students} учеников</span>
+            <span>•</span>
+            <span>{totals.empty} без учеников</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-3">
         <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Групп всего</p><p className="mt-1 text-3xl text-[#133C2A]">{totals.groups}</p><p className="mt-2 text-xs text-[#133C2A]/45">Активные группы студии</p></CardContent></Card>
         <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Учеников</p><p className="mt-1 text-3xl text-[#133C2A]">{totals.students}</p><p className="mt-2 text-xs text-[#133C2A]/45">Во всех группах вместе</p></CardContent></Card>
