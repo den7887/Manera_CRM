@@ -235,33 +235,43 @@ export function OwnerNewsPanel() {
             />
           ) : (
             filteredNews.map((item) => (
-              <div key={item.id} className="rounded-2xl border border-[#133C2A]/10 p-3 md:p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <p className="text-[#133C2A]">{item.title}</p>
-                    <p className="text-sm text-[#133C2A]/70 whitespace-pre-line">{item.content}</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="rounded-xl">
-                        {item.published ? 'Опубликовано' : 'Черновик'}
-                      </Badge>
-                      <span className="text-xs text-[#133C2A]/50">
-                        {item.date.toLocaleDateString('ru-RU')}
-                      </span>
+              <Card key={item.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        item.published ? 'bg-[#1C8C64]/12 text-[#1C8C64]' : 'bg-[#F8F4E3] text-[#133C2A]/50'
+                      }`}
+                    >
+                      <Megaphone className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <button type="button" onClick={() => openEdit(item)} className="min-w-0 truncate text-left text-lg text-[#133C2A] hover:underline">
+                          {item.title}
+                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => void togglePublished(item)} className="rounded-xl">
+                            {item.published ? 'Снять с публикации' : 'Опубликовать'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void remove(item.id)} className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-[#133C2A]/70 whitespace-pre-line">{item.content}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="rounded-full">
+                          {item.published ? 'Опубликовано' : 'Черновик'}
+                        </Badge>
+                        <span className="text-xs text-[#133C2A]/50">
+                          {item.date.toLocaleDateString('ru-RU')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5 shrink-0 sm:flex-row sm:items-center sm:gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(item)} className="rounded-xl" title="Редактировать">
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void togglePublished(item)} className="rounded-xl" title="Сменить статус публикации">
-                      <Megaphone className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void remove(item.id)} className="rounded-xl" title="Удалить">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))
           )}
         </CardContent>

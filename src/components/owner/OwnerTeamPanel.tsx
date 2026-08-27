@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Edit,
   Link2,
   Mail,
+  MoreHorizontal,
   Phone,
   Plus,
   RefreshCw,
@@ -22,11 +24,13 @@ import {
 } from '../../lib/backendApi';
 import { toast } from 'sonner';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -745,83 +749,110 @@ export function OwnerTeamPanel() {
               const teacherGroups = teacherGroupsById.get(employee.id) || [];
               const permissionsCount = Array.isArray(employee.permissions) ? employee.permissions.length : 0;
               return (
-                <div key={employee.id} className="rounded-2xl border border-[#133C2A]/10 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[#133C2A]">{employee.name}</p>
-                        <Badge variant="outline" className="rounded-xl">
-                          {employee.role === 'teacher' ? 'Преподаватель' : 'Администратор'}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-xl">
-                          {employee.status === 'active' ? 'Активен' : 'Неактивен'}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-xl">
-                          Прав: {permissionsCount}
-                        </Badge>
-                        {employee.role === 'teacher' && (
-                          <Badge variant="outline" className="rounded-xl">
-                            Групп: {teacherGroups.length}
+                <Card key={employee.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-11 w-11 shrink-0 border border-[#D4AF37]/20">
+                        <AvatarFallback className="bg-gradient-to-br from-[#133C2A] to-[#D4AF37] text-white">
+                          {employee.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-lg text-[#133C2A]">{employee.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#133C2A]/62">
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3.5 h-3.5" />
+                                {employee.phone}
+                              </span>
+                              {employee.email ? (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Mail className="w-3.5 h-3.5" />
+                                    {employee.email}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex items-center gap-2 rounded-full border border-[#133C2A]/10 px-2.5 py-1">
+                              <UserCheck className="w-4 h-4 text-[#133C2A]/70" />
+                              <Switch checked={employee.status === 'active'} onCheckedChange={() => void toggleEmployeeStatus(employee)} />
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                {employee.role === 'teacher' ? (
+                                  <DropdownMenuItem onSelect={() => openAssignDialog(employee)}>
+                                    <Link2 className="mr-2 h-4 w-4" />
+                                    Назначить на группу
+                                  </DropdownMenuItem>
+                                ) : null}
+                                <DropdownMenuItem onSelect={() => openEdit(employee)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Изменить
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => void remove(employee.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Удалить
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <Badge variant="outline" className="rounded-full">
+                            {employee.role === 'teacher' ? 'Преподаватель' : 'Администратор'}
                           </Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-[#133C2A]/70 pt-1">
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-4 h-4" />
-                          {employee.phone}
-                        </span>
-                        {employee.email ? (
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {employee.email}
-                          </span>
-                        ) : null}
-                      </div>
-                      {employee.role === 'teacher' && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {teacherGroups.length === 0 ? (
-                            <Badge variant="outline" className="rounded-xl border-[#D4AF37]/30 text-[#B8941F]">
-                              Нет назначенных групп
+                          <Badge variant="outline" className="rounded-full">
+                            {employee.status === 'active' ? 'Активен' : 'Неактивен'}
+                          </Badge>
+                          <Badge variant="outline" className="rounded-full">
+                            Прав: {permissionsCount}
+                          </Badge>
+                          {employee.role === 'teacher' && (
+                            <Badge variant="outline" className="rounded-full">
+                              Групп: {teacherGroups.length}
                             </Badge>
-                          ) : (
-                            teacherGroups.map((group) => (
-                              <div key={group.id} className="inline-flex items-center gap-1 rounded-xl border border-[#133C2A]/10 px-2 py-1 text-xs text-[#133C2A]/80">
-                                <span>{group.name}</span>
-                                <button
-                                  type="button"
-                                  className="text-[#D14343] hover:opacity-80"
-                                  onClick={() => void unassignTeacherFromGroup(group)}
-                                  disabled={isUnassigningGroupId === group.id}
-                                  title="Снять с группы"
-                                >
-                                  <Unlink2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))
                           )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                      <div className="flex items-center gap-2 rounded-xl border border-[#133C2A]/10 px-2 py-1">
-                        <UserCheck className="w-4 h-4 text-[#133C2A]/70" />
-                        <Switch checked={employee.status === 'active'} onCheckedChange={() => void toggleEmployeeStatus(employee)} />
+
+                        {employee.role === 'teacher' && (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {teacherGroups.length === 0 ? (
+                              <Badge variant="outline" className="rounded-full border-[#D4AF37]/30 text-[#B8941F]">
+                                Нет назначенных групп
+                              </Badge>
+                            ) : (
+                              teacherGroups.map((group) => (
+                                <div key={group.id} className="inline-flex items-center gap-1 rounded-full border border-[#133C2A]/10 px-2.5 py-1 text-xs text-[#133C2A]/80">
+                                  <span>{group.name}</span>
+                                  <button
+                                    type="button"
+                                    className="text-[#D14343] hover:opacity-80"
+                                    onClick={() => void unassignTeacherFromGroup(group)}
+                                    disabled={isUnassigningGroupId === group.id}
+                                    title="Снять с группы"
+                                  >
+                                    <Unlink2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {employee.role === 'teacher' && (
-                        <Button size="sm" variant="outline" onClick={() => openAssignDialog(employee)} className="rounded-xl">
-                          <Link2 className="w-4 h-4 mr-1" />
-                          Назначить
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => openEdit(employee)} className="rounded-xl">
-                        Изменить
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => void remove(employee.id)} className="rounded-xl">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })
           )}

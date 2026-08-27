@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Copy, Edit, Plus, RefreshCw, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Calendar, Copy, Edit, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { Group } from '../../types';
 import {
   AdminChildRecord,
@@ -16,6 +16,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -519,65 +520,73 @@ export function OwnerGroupsPanel() {
           ) : (
             filteredGroups.map((group) => {
               return (
-                <div
-                  key={group.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openRosterDialog(group)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openRosterDialog(group);
-                    }
-                  }}
-                  className="cursor-pointer rounded-2xl border border-[#133C2A]/10 p-3 transition-smooth hover:border-[#D4AF37]/35 hover:bg-[#FFF9E8]/45 md:p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[#133C2A] truncate">{group.name}</p>
-                          <p className="text-sm text-[#133C2A]/60 mt-1">{group.ageRange || 'Возраст не указан'}</p>
-                        </div>
-                        <Badge variant="outline" className="rounded-full whitespace-nowrap">
-                          {group.studentCount} учеников
-                        </Badge>
+                <Card key={group.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white"
+                        style={{ backgroundColor: group.color || '#133C2A' }}
+                      >
+                        <Users className="h-5 w-5" />
                       </div>
-                      <div className="mt-3 space-y-2 text-sm text-[#133C2A]/72">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 shrink-0" />
-                          <span>{formatGroupTiming(group)}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => openRosterDialog(group)}
+                              className="truncate text-left text-lg text-[#133C2A] hover:underline"
+                            >
+                              {group.name}
+                            </button>
+                            <p className="mt-1 text-sm text-[#133C2A]/62">{group.ageRange || 'Возраст не указан'}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <Badge variant="outline" className="rounded-full whitespace-nowrap">
+                              {group.studentCount} учеников
+                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                <DropdownMenuItem onSelect={() => openEdit(group)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Редактировать
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => void duplicateGroup(group)} disabled={duplicatingId === group.id}>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Дублировать
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => void remove(group.id)} disabled={deletingId === group.id}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Удалить
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
+
+                        <div className="mt-3 rounded-2xl bg-[#F8F4E3]/70 px-3 py-3">
+                          <p className="text-xs text-[#133C2A]/45">Расписание</p>
+                          <p className="mt-1 flex items-center gap-2 text-sm text-[#133C2A]">
+                            <Calendar className="h-4 w-4 shrink-0 text-[#D4AF37]" />
+                            {formatGroupTiming(group)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openRosterDialog(group)}
+                          className="mt-2 text-xs text-[#133C2A]/45 hover:text-[#133C2A]/70"
+                        >
+                          Нажмите, чтобы открыть состав
+                        </button>
                       </div>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); openEdit(group); }} className="rounded-xl" title="Редактировать">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => { event.stopPropagation(); void duplicateGroup(group); }}
-                        className="rounded-xl"
-                        title="Дублировать"
-                        disabled={duplicatingId === group.id}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => { event.stopPropagation(); void remove(group.id); }}
-                        className="rounded-xl"
-                        title="Удалить"
-                        disabled={deletingId === group.id}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-[#133C2A]/45">Нажмите на группу, чтобы открыть состав</p>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })
           )}

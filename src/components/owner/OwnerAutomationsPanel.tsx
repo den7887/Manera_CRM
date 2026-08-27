@@ -13,6 +13,7 @@ import {
   Filter,
   GraduationCap,
   MessageSquare,
+  MoreHorizontal,
   Plus,
   Power,
   RefreshCw,
@@ -30,11 +31,13 @@ import {
   updateOwnerAutomation,
 } from '../../lib/backendApi';
 import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -1317,6 +1320,23 @@ export function OwnerAutomationsPanel() {
         </div>
       </div>
 
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Автоматизации студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Сценарии и цепочки</h2>
+            <p className="mt-1 text-sm text-white/72">Что включено, а что выключено.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{stats.total} всего</span>
+            <span>•</span>
+            <span>{stats.active} активных</span>
+            <span>•</span>
+            <span>{stats.disabled} отключено</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <Card className="border-none soft-shadow">
           <CardContent className="p-4">
@@ -1385,50 +1405,74 @@ export function OwnerAutomationsPanel() {
               {isLoading ? (
                 <p className="text-[#133C2A]/60">Загрузка...</p>
               ) : filteredRules.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[#133C2A]/20 p-6 text-center">
-                  <Bell className="w-8 h-8 mx-auto text-[#133C2A]/40 mb-2" />
-                  <p className="text-[#133C2A]">Сценариев по текущему фильтру нет</p>
-                  <p className="text-sm text-[#133C2A]/55">Создайте первый сценарий через конструктор</p>
-                </div>
+                <EmptyState
+                  icon={Bell}
+                  title={rules.length === 0 ? 'Сценариев пока нет' : 'Ничего не найдено'}
+                  description={rules.length === 0 ? 'Создайте первый сценарий через конструктор.' : 'Попробуйте изменить поиск или фильтр.'}
+                  actionLabel={rules.length === 0 ? 'Создать сценарий' : undefined}
+                  onAction={rules.length === 0 ? openCreate : undefined}
+                />
               ) : (
                 <div className="space-y-3">
                   {filteredRules.map((rule) => {
                     const description = ruleDescription(rule);
                     return (
-                      <div key={rule.id} className="rounded-2xl border border-[#133C2A]/10 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-2 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Bot className="w-4 h-4 text-[#133C2A]/70" />
-                              <p className="text-[#133C2A]">{rule.name}</p>
-                              <Badge variant={rule.isActive ? 'default' : 'outline'} className="rounded-xl">
-                                {rule.isActive ? 'Активно' : 'Отключено'}
-                              </Badge>
+                      <Card key={rule.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                                rule.isActive ? 'bg-[#1C8C64]/12 text-[#1C8C64]' : 'bg-[#F8F4E3] text-[#133C2A]/50'
+                              }`}
+                            >
+                              <Bot className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <button type="button" onClick={() => openEdit(rule)} className="min-w-0 truncate text-left text-lg text-[#133C2A] hover:underline">
+                                  {rule.name}
+                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <Switch checked={rule.isActive} onCheckedChange={() => void toggleRule(rule)} />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="rounded-xl">
+                                      <DropdownMenuItem onSelect={() => openEdit(rule)}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Редактировать
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onSelect={() => void duplicateRule(rule)}>
+                                        <Copy className="mr-2 h-4 w-4" />
+                                        Дублировать
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onSelect={() => void remove(rule.id)}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Удалить
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant={rule.isActive ? 'default' : 'outline'} className="rounded-full">
+                                  {rule.isActive ? 'Активно' : 'Отключено'}
+                                </Badge>
+                                <Badge variant="outline" className="rounded-full">{description.scope}</Badge>
+                                <Badge variant="outline" className="rounded-full">{description.trigger}</Badge>
+                                <Badge variant="outline" className="rounded-full">{description.details}</Badge>
+                              </div>
+                              <p className="text-sm text-[#133C2A]/70 line-clamp-2">{description.actions}</p>
+                              <p className="text-xs text-[#133C2A]/50">
+                                Обновлено: {new Date(rule.updatedAt || rule.createdAt).toLocaleString('ru-RU')}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="rounded-xl">{description.scope}</Badge>
-                              <Badge variant="outline" className="rounded-xl">{description.trigger}</Badge>
-                              <Badge variant="outline" className="rounded-xl">{description.details}</Badge>
-                            </div>
-                            <p className="text-sm text-[#133C2A]/70 line-clamp-2">{description.actions}</p>
-                            <p className="text-xs text-[#133C2A]/50">
-                              Обновлено: {new Date(rule.updatedAt || rule.createdAt).toLocaleString('ru-RU')}
-                            </p>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Switch checked={rule.isActive} onCheckedChange={() => void toggleRule(rule)} />
-                            <Button size="sm" variant="outline" onClick={() => openEdit(rule)} className="rounded-xl" title="Редактировать">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => void duplicateRule(rule)} className="rounded-xl" title="Дублировать">
-                              <Copy className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => void remove(rule.id)} className="rounded-xl" title="Удалить">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>

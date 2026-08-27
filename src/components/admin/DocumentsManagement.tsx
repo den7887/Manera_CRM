@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { 
-  FileText, 
-  Upload, 
-  Search, 
-  Filter, 
-  Download, 
-  Trash2, 
-  Eye, 
+import {
+  FileText,
+  Upload,
+  Search,
+  Filter,
+  Download,
+  Trash2,
+  Eye,
   Plus,
   FileType,
   Calendar,
@@ -14,12 +14,14 @@ import {
   Tag,
   X,
   Edit,
-  ClipboardCheck
+  ClipboardCheck,
+  MoreHorizontal
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Document, DocumentCategory, User as UserType } from '../../types';
 import { AddDocumentDialog } from './AddDocumentDialog';
 import { ViewDocumentDialog } from './ViewDocumentDialog';
@@ -320,34 +322,55 @@ export function DocumentsManagement({
               <CardTitle className="text-[#133C2A] flex items-center gap-2">
                 <FileType className="w-5 h-5 text-[#D4AF37]" />
                 {categoryLabels[category as DocumentCategory]}
-                <Badge className={categoryColors[category as DocumentCategory]}>
+                <Badge className={`rounded-full ${categoryColors[category as DocumentCategory]}`}>
                   {docs.length}
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {docs.map(doc => (
-                  <div
-                    key={doc.id}
-                    className="p-4 rounded-2xl bg-[#F8F4E3] hover:bg-[#F8F4E3]/70 transition-smooth"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* File Icon */}
-                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-2xl flex-shrink-0">
+            <CardContent className="space-y-3">
+              {docs.map(doc => (
+                <Card key={doc.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F8F4E3] text-xl">
                         {fileTypeIcons[(doc.fileType ?? '').toLowerCase()] || '📄'}
                       </div>
 
-                      {/* Document Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1">
-                            <h4 className="text-[#133C2A] mb-1">{doc.name ?? 'Без названия'}</h4>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <button type="button" onClick={() => setViewDocument(doc)} className="min-w-0 truncate text-left text-lg text-[#133C2A] hover:underline">
+                              {doc.name ?? 'Без названия'}
+                            </button>
                             {doc.description && (
-                              <p className="text-sm text-[#133C2A]/60 line-clamp-2">
-                                {doc.description}
-                              </p>
+                              <p className="mt-1 text-sm text-[#133C2A]/60 line-clamp-2">{doc.description}</p>
                             )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleDownload(doc)} className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                <DropdownMenuItem onSelect={() => setViewDocument(doc)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Открыть
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setEditDocument(doc)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Изменить
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => onDeleteDocument(doc.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Удалить
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
 
@@ -366,7 +389,7 @@ export function DocumentsManagement({
                           {doc.updatedAt && new Date(doc.updatedAt).getTime() !== new Date(doc.createdAt).getTime() && (
                             <>
                               <span>•</span>
-                              <span className="flex items-center gap-1 text-[#D4AF37]">
+                              <span className="flex items-center gap-1 text-[#8B6B00]">
                                 <Calendar className="w-3 h-3" />
                                 Обновлен: {formatDate(doc.updatedAt)}
                               </span>
@@ -379,64 +402,21 @@ export function DocumentsManagement({
                           </span>
                         </div>
 
-                        {/* Assigned Employees */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs border-[#133C2A]/20">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="rounded-full text-xs border-[#133C2A]/20">
                             {getEmployeeNames(doc.assignedEmployees)}
                           </Badge>
+                          {doc.tags && doc.tags.length > 0 && doc.tags.map((tag, idx) => (
+                            <Badge key={idx} variant="outline" className="rounded-full text-xs border-[#D4AF37]/30 text-[#8B6B00] bg-[#FFF9E8]">
+                              #{tag}
+                            </Badge>
+                          ))}
                         </div>
-
-                        {/* Tags */}
-                        {doc.tags && doc.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {doc.tags.map((tag, idx) => (
-                              <Badge key={idx} className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30 text-xs">
-                                #{tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setViewDocument(doc)}
-                          className="rounded-xl hover:bg-white/50"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownload(doc)}
-                          className="rounded-xl hover:bg-white/50"
-                        >
-                          <Download className="w-4 h-4 text-[#D4AF37]" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditDocument(doc)}
-                          className="rounded-xl hover:bg-white/50"
-                        >
-                          <Edit className="w-4 h-4 text-[#D4AF37]" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeleteDocument(doc.id)}
-                          className="rounded-xl hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </CardContent>
+                </Card>
+              ))}
             </CardContent>
           </Card>
         ))

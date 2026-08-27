@@ -503,60 +503,67 @@ export function OwnerTasksPanel() {
                 filteredTasks.map((task) => {
                   const overdue = isTaskOverdue(task);
                   return (
-                    <div key={task.id} className="rounded-2xl border border-[#133C2A]/10 p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="space-y-2 min-w-0">
-                          <p className="text-[#133C2A]">{task.title}</p>
-                          <p className="text-sm text-[#133C2A]/70">{task.description || 'Без описания'}</p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="rounded-xl">{typeLabel(task.type)}</Badge>
-                            <Badge variant="outline" className="rounded-xl">{priorityLabel(task.priority)}</Badge>
-                            <Badge variant="outline" className="rounded-xl">{task.status === 'done' ? 'Выполнено' : 'В работе'}</Badge>
-                            {overdue && (
-                              <Badge className="rounded-xl bg-red-50 text-red-700 border border-red-200">
-                                <AlertCircle className="w-3 h-3 mr-1" />
-                                Просрочено
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs text-[#133C2A]/60">
-                            <span className="flex items-center gap-1"><UserRound className="w-3.5 h-3.5" />Исполнитель: {assigneeById.get(task.assigneeId || '') || task.assigneeName || '—'}</span>
-                            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Дедлайн: {formatDate(task.dueDate)}</span>
-                            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Создано: {formatDate(task.createdAt)}</span>
-                          </div>
-                          {(task as any).assigneeComment ? (
-                            <div className="text-xs text-[#133C2A]/70 rounded-xl bg-[#F8F4E3]/70 px-2 py-1 inline-flex items-start gap-1 max-w-full">
-                              <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                              <span className="line-clamp-2">Комментарий исполнителя: {(task as any).assigneeComment}</span>
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 sm:flex sm:shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void updateTaskPatch(task, {
-                                status: task.status === 'done' ? 'todo' : 'done',
-                                completedAt: task.status === 'done' ? undefined : new Date(),
-                              })
-                            }
-                            className="rounded-xl"
-                            title="Сменить статус"
+                    <Card key={task.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                              task.status === 'done' ? 'bg-[#1C8C64]/12 text-[#1C8C64]' : overdue ? 'bg-[#D14343]/12 text-[#D14343]' : 'bg-[#F8F4E3] text-[#133C2A]/60'
+                            }`}
                           >
-                            <CheckSquare className="w-4 h-4" />
-                            <span className="sm:hidden">{task.status === 'done' ? 'Вернуть' : 'Готово'}</span>
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => openTaskDialog(task)} className="rounded-xl">
-                            Детали
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => void remove(task.id)} className="rounded-xl" title="Удалить">
-                            <Trash2 className="w-4 h-4" />
-                            <span className="sm:hidden">Удалить</span>
-                          </Button>
+                            <CheckSquare className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <button type="button" onClick={() => openTaskDialog(task)} className="min-w-0 truncate text-left text-lg text-[#133C2A] hover:underline">
+                                {task.title}
+                              </button>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    void updateTaskPatch(task, {
+                                      status: task.status === 'done' ? 'todo' : 'done',
+                                      completedAt: task.status === 'done' ? undefined : new Date(),
+                                    })
+                                  }
+                                  className="rounded-xl"
+                                >
+                                  {task.status === 'done' ? 'Вернуть' : 'Готово'}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => void remove(task.id)} className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-sm text-[#133C2A]/70">{task.description || 'Без описания'}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Badge variant="outline" className="rounded-full">{typeLabel(task.type)}</Badge>
+                              <Badge variant="outline" className="rounded-full">{priorityLabel(task.priority)}</Badge>
+                              <Badge variant="outline" className="rounded-full">{task.status === 'done' ? 'Выполнено' : 'В работе'}</Badge>
+                              {overdue && (
+                                <Badge className="rounded-full bg-red-50 text-red-700 border border-red-200">
+                                  <AlertCircle className="w-3 h-3 mr-1" />
+                                  Просрочено
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs text-[#133C2A]/60">
+                              <span className="flex items-center gap-1"><UserRound className="w-3.5 h-3.5" />Исполнитель: {assigneeById.get(task.assigneeId || '') || task.assigneeName || '—'}</span>
+                              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Дедлайн: {formatDate(task.dueDate)}</span>
+                              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Создано: {formatDate(task.createdAt)}</span>
+                            </div>
+                            {(task as any).assigneeComment ? (
+                              <div className="inline-flex max-w-full items-start gap-1 rounded-2xl bg-[#F8F4E3]/70 px-3 py-2 text-xs text-[#133C2A]/70">
+                                <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                <span className="line-clamp-2">Комментарий исполнителя: {(task as any).assigneeComment}</span>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
                 })
               )}
