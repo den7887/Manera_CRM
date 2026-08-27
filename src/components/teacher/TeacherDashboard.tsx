@@ -37,7 +37,7 @@ export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDash
       case 'profile':
         return <TeacherProfile user={user} onLogout={onLogout} />;
       default:
-        return <TeacherHome user={user} groups={groups} events={events} />;
+        return <TeacherHome user={user} groups={groups} events={events} onNavigate={setCurrentPage} />;
     }
   };
 

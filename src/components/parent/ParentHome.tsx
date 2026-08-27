@@ -138,6 +138,43 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
         </CardContent>
       </Card>
 
+      {children.length > 1 && (
+        <Card className="border-none soft-shadow">
+          <CardContent className="p-4">
+            <p className="text-sm text-[#133C2A]/60 mb-3">Ваши дети</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {children.map((child) => (
+                <div
+                  key={child.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#133C2A]/10 bg-white p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-[#133C2A] truncate">{child.name}</p>
+                    <p className="mt-0.5 text-xs text-[#133C2A]/55">
+                      {child.totalClasses > 0
+                        ? `Осталось: ${child.remainingClasses} из ${child.totalClasses}`
+                        : 'Без лимита занятий'}
+                    </p>
+                  </div>
+                  {child.attendanceStatusColor ? (
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                        child.attendanceStatusColor === 'green'
+                          ? 'bg-[#1C8C64]'
+                          : child.attendanceStatusColor === 'yellow'
+                            ? 'bg-[#D4AF37]'
+                            : 'bg-[#D14343]'
+                      }`}
+                      title={child.attendanceStatusLabel}
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {childrenNeedingRenewal.length > 0 && (
         <Card className="border-none soft-shadow">
           <CardContent className="p-4">

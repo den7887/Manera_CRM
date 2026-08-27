@@ -223,6 +223,7 @@ export function OwnerDashboard({
           groups={groups}
           tasks={tasks}
           payments={payments}
+          monthlyData={monthlyData}
           landingLeads={landingLeads}
           chatUnreadMessagesCount={chatUnreadMessagesCount}
           onOpenOverduePayments={openOverduePayments}

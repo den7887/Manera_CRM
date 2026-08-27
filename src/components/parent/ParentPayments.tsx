@@ -150,6 +150,8 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                     </div>
                     <p className="text-xs text-[#133C2A]/60 mt-1">
                       {payment.date.toLocaleString('ru-RU')} • {paymentStatusLabels[payment.status] || payment.status}
+                      {' • '}
+                      {payment.paymentMethod === 'cash' ? 'Наличные' : 'Онлайн'}
                       {payment.paymentReference ? ` • ${payment.paymentReference}` : ''}
                       {payment.invoiceNumber ? ` • Счет ${payment.invoiceNumber}` : ''}
                     </p>

@@ -218,7 +218,7 @@ export function AdminDashboard({
       case 'schedule-management':
         return <ScheduleManagement events={events} groups={groups} onNavigate={setCurrentPage} />;
       default:
-        return <AdminHome user={user} events={events} groups={groups} tasks={tasks} onNavigate={setCurrentPage} />;
+        return <AdminHome user={user} events={events} groups={groups} tasks={tasks} onNavigate={setCurrentPage} notifications={notifications} />;
     }
   };
 

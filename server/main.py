@@ -8325,6 +8325,19 @@ def admin_change_payment_method(
     if payload.comment and payload.comment.strip():
         payment["invoiceComment"] = payload.comment.strip()
 
+    if previous_method == "online" and next_method != "online":
+        # A hosted payment link/token issued while this was an online invoice
+        # must die the moment staff switches it away from online -- otherwise
+        # a parent who still has the old link (sent before the switch) can
+        # complete an online payment for an invoice staff now expects to be
+        # settled in cash, producing a silent double payment. Clearing the
+        # token here makes the old link 403 immediately (see
+        # selfwork_payment_form's token check); a fresh one is generated
+        # on demand if the payment is ever switched back to online.
+        payment["paymentUrl"] = None
+        payment["providerPaymentId"] = None
+        payment["providerPublicToken"] = None
+
     if next_method == "cash" and payload.confirm_cash_immediately:
         payment["status"] = "paid"
         payment["paidAt"] = now
@@ -8449,6 +8462,27 @@ def _apply_provider_webhook_payload(store: dict[str, Any], payload: ProviderWebh
 
     previous_status = payment.get("status")
     now = _utc_now_iso()
+
+    if payload.status == "paid":
+        # Guard against reprocessing: a provider webhook can arrive for a
+        # payment that staff already resolved another way (confirmed as
+        # cash, cancelled, refunded) -- e.g. a parent who still had a stale
+        # online link (from before the payment was switched to cash) pays
+        # through it after the fact. Without this check the webhook would
+        # silently overwrite paidAt, log a second "confirmed" journal entry
+        # and re-notify the parent, with nothing surfacing that the payment
+        # was actually settled twice. Mirrors the guard payment_service's
+        # confirm_provider_paid already has for the other payment
+        # collection, and the one this function's own "failed" branch below
+        # already has for the reverse case.
+        if previous_status == "paid":
+            return {"ok": True, "payment": _serialize_admin_payment(store, payment), "idempotent": True}
+        if previous_status in {"cancelled", "refunded", "expired"}:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Payment cannot be marked as paid in current status",
+            )
+
     payment["updatedAt"] = now
     if payload.provider_payment_id:
         payment["providerPaymentId"] = payload.provider_payment_id

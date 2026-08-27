@@ -1,15 +1,19 @@
+import { useEffect, useState } from 'react';
 import {
   Activity,
   Calendar,
   CheckSquare,
+  ClipboardCheck,
   MessageCircleMore,
   Receipt,
   TicketPlus,
 } from 'lucide-react';
-import type { AdminLandingLeadRecord } from '../../lib/backendApi';
-import { Event, FinanceStats, Group, Task, User } from '../../types';
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { type AdminLandingLeadRecord, type AttendanceDayGroupDto, loadAttendanceDay } from '../../lib/backendApi';
+import { Event, FinanceStats, Group, MonthlyData, Task, User } from '../../types';
 import { Card, CardContent } from '../ui/card';
 import { NotificationPermissionPrompt } from '../NotificationPermissionPrompt';
+import { formatMoney } from '../money/moneyTypes';
 
 interface OwnerHomeProps {
   user: User;
@@ -22,10 +26,31 @@ interface OwnerHomeProps {
     type: 'subscription' | 'single';
     status: 'paid' | 'pending' | 'waiting_confirmation' | 'overdue' | 'unpaid' | 'failed' | 'refunded' | 'cancelled' | 'expired';
   }>;
+  monthlyData: MonthlyData[];
   onNavigate: (page: string) => void;
   onOpenOverduePayments: () => void;
   landingLeads: AdminLandingLeadRecord[];
   chatUnreadMessagesCount: number;
+}
+
+function todayIso(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function RevenueTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-[#133C2A]/10 bg-white px-3 py-2 shadow-[0_12px_28px_rgba(19,60,42,0.12)]">
+      <p className="text-xs text-[#133C2A]/60">{label}</p>
+      {payload.map((entry: any) => (
+        <p key={entry.dataKey} className="text-sm text-[#133C2A]">
+          {entry.dataKey === 'income' ? 'Доход' : 'Расход'}: {formatMoney(entry.value)}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 function getFirstName(name?: string | null): string {
@@ -43,11 +68,39 @@ export function OwnerHome({
   groups,
   tasks,
   payments,
+  monthlyData,
   onNavigate,
   onOpenOverduePayments,
   landingLeads,
   chatUnreadMessagesCount,
 }: OwnerHomeProps) {
+  const [attendanceGroups, setAttendanceGroups] = useState<AttendanceDayGroupDto[]>([]);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    loadAttendanceDay(todayIso())
+      .then((rows) => {
+        if (active) setAttendanceGroups(rows);
+      })
+      .catch(() => {
+        if (active) setAttendanceGroups([]);
+      })
+      .finally(() => {
+        if (active) setIsAttendanceLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const attendanceMarkedGroups = attendanceGroups.filter(
+    (group) => group.studentCount > 0 && group.markedCount >= group.studentCount,
+  ).length;
+  const attendancePendingGroups = attendanceGroups.filter((group) => group.markedCount < group.studentCount);
+
+  const revenueTrend = (monthlyData || []).slice(-6);
+
   const today = new Date();
   const todayEvents = events.filter((event) => new Date(event.date).toDateString() === today.toDateString());
   const weekEvents = events.filter((event) => {
@@ -211,6 +264,94 @@ export function OwnerHome({
             })}
           </div>
         </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+        <Card className="border-none bg-white/92 shadow-[0_12px_40px_rgba(19,60,42,0.07)]">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[#133C2A]">Динамика финансов</p>
+                <p className="mt-1 text-xs text-[#133C2A]/55">Доход и расходы по месяцам</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('finance')}
+                className="text-xs text-[#8B6B00] hover:text-[#133C2A]"
+              >
+                Все финансы
+              </button>
+            </div>
+            {revenueTrend.length > 0 ? (
+              <div className="mt-4 h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueTrend} barGap={4}>
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#133C2A99', fontSize: 12 }}
+                    />
+                    <YAxis hide />
+                    <Tooltip content={<RevenueTooltip />} cursor={{ fill: 'rgba(19,60,42,0.04)' }} />
+                    <Bar dataKey="income" name="Доход" fill="#133C2A" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="expenses" name="Расход" fill="#D4AF37" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="mt-6 py-8 text-center text-sm text-[#133C2A]/55">
+                Данные появятся после первых операций.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-none bg-white/92 shadow-[0_12px_40px_rgba(19,60,42,0.07)]">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-[#8B6B00]" />
+                <p className="text-[#133C2A]">Посещаемость сегодня</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('attendance')}
+                className="text-xs text-[#8B6B00] hover:text-[#133C2A]"
+              >
+                Открыть
+              </button>
+            </div>
+            {isAttendanceLoading ? (
+              <p className="mt-4 text-sm text-[#133C2A]/55">Загрузка...</p>
+            ) : attendanceGroups.length === 0 ? (
+              <p className="mt-4 text-sm text-[#133C2A]/55">На сегодня занятий в расписании нет.</p>
+            ) : (
+              <>
+                <p className="mt-3 text-2xl text-[#133C2A]">
+                  {attendanceMarkedGroups} <span className="text-base text-[#133C2A]/50">из {attendanceGroups.length} групп размечено</span>
+                </p>
+                {attendancePendingGroups.length > 0 ? (
+                  <div className="mt-3 space-y-1.5">
+                    {attendancePendingGroups.slice(0, 4).map((group) => (
+                      <div
+                        key={group.groupId}
+                        className="flex items-center justify-between gap-2 rounded-xl bg-[#F8F4E3] px-3 py-2 text-sm"
+                      >
+                        <span className="min-w-0 truncate text-[#133C2A]">{group.groupName}</span>
+                        <span className="shrink-0 text-xs text-[#133C2A]/55">
+                          {group.time} · {group.markedCount}/{group.studentCount}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-[#1C8C64]">Все группы отмечены.</p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <section>

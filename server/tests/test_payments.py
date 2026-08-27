@@ -388,6 +388,107 @@ def test_owner_can_switch_online_payment_to_cash_and_confirm(client: TestClient)
     assert "payment.confirmed_cash" in event_types
 
 
+def test_change_method_to_cash_invalidates_stale_online_link(client: TestClient, monkeypatch):
+    monkeypatch.setenv("PAYMENT_METHOD", "online")
+    monkeypatch.setenv("PAYMENT_PROVIDER", "selfwork")
+    monkeypatch.setenv("SELFWORK_API_KEY", "test-selfwork-secret")
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001006", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    link = client.post(
+        "/api/payments/provider/create",
+        json={
+            "payment_id": payment_id,
+            "success_url": "http://localhost:3000/?payment=success",
+            "fail_url": "http://localhost:3000/?payment=fail",
+        },
+        headers=owner_headers,
+    )
+    assert link.status_code == 200
+    payment_url = link.json()["payment_url"]
+
+    still_online = client.get(payment_url)
+    assert still_online.status_code == 200
+
+    change = client.post(
+        f"/api/admin/payments/{payment_id}/change-method",
+        json={"payment_method": "cash", "comment": "Родитель хочет платить наличными"},
+        headers=owner_headers,
+    )
+    assert change.status_code == 200
+    payment = change.json()["payment"]
+    assert payment["paymentMethod"] == "cash"
+    assert payment.get("paymentUrl") is None
+    assert payment.get("providerPaymentId") is None
+
+    # The link a parent may already have (sent before the switch) must die --
+    # otherwise they could still pay through it after staff started expecting
+    # cash, producing a silent double payment.
+    stale_link = client.get(payment_url)
+    assert stale_link.status_code == 403
+
+
+def test_webhook_paid_is_idempotent_for_admin_created_payment(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001007", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    change = client.post(
+        f"/api/admin/payments/{payment_id}/change-method",
+        json={
+            "payment_method": "cash",
+            "confirm_cash_immediately": True,
+            "paid_amount": 5000,
+            "comment": "Родитель оплатил наличными",
+        },
+        headers=owner_headers,
+    )
+    assert change.status_code == 200
+    paid_at = change.json()["payment"]["paidAt"]
+    assert paid_at is not None
+
+    store_before = json.loads(main.DATA_FILE.read_text(encoding="utf-8"))
+    journal_before = [item for item in store_before.get("paymentJournal", []) if str(item.get("paymentId")) == payment_id]
+
+    # A parent who still had the old online link (from before the switch)
+    # pays through it, and the provider fires its webhook for the same
+    # payment_id after staff already settled it as cash in person.
+    webhook = client.post(
+        "/api/payments/provider/webhook",
+        json={"payment_id": payment_id, "status": "paid", "provider_payment_id": "prov-stale-1"},
+    )
+    assert webhook.status_code == 200
+    body = webhook.json()
+    assert body.get("idempotent") is True
+    assert body["payment"]["paidAt"] == paid_at
+    assert body["payment"]["paymentMethod"] == "cash"
+
+    store_after = json.loads(main.DATA_FILE.read_text(encoding="utf-8"))
+    journal_after = [item for item in store_after.get("paymentJournal", []) if str(item.get("paymentId")) == payment_id]
+    assert len(journal_after) == len(journal_before)
+
+
+def test_webhook_paid_rejects_cancelled_payment(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001008", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    cancel = client.patch(
+        f"/api/admin/payments/{payment_id}/status",
+        json={"status": "cancelled", "comment": "Клиент отказался"},
+        headers=owner_headers,
+    )
+    assert cancel.status_code == 200
+    assert cancel.json()["payment"]["status"] == "cancelled"
+
+    webhook = client.post(
+        "/api/payments/provider/webhook",
+        json={"payment_id": payment_id, "status": "paid", "provider_payment_id": "prov-late-1"},
+    )
+    assert webhook.status_code == 409
+
+
 def test_selfwork_provider_create_returns_local_form(client: TestClient, monkeypatch):
     monkeypatch.setenv("PAYMENT_METHOD", "online")
     monkeypatch.setenv("PAYMENT_PROVIDER", "selfwork")

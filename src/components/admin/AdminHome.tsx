@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Calendar, Clock, Users, Bell, CheckCircle, AlertCircle, Briefcase, UserPlus, Circle, CheckSquare, ArrowRight, Cake, ClipboardCheck } from 'lucide-react';
+import { Calendar, Clock, Users, Bell, CheckCircle, AlertCircle, Briefcase, UserPlus, Circle, CheckSquare, ArrowRight, ClipboardCheck } from 'lucide-react';
 import { User, Event, Group, Task, Notification } from '../../types';
+import { type AttendanceDayGroupDto, loadAttendanceDay } from '../../lib/backendApi';
 import { startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { UpcomingBirthdays } from './UpcomingBirthdays';
 import { CreateChecklistDialog } from './CreateChecklistDialog';
 
 interface AdminHomeProps {
@@ -16,11 +17,40 @@ interface AdminHomeProps {
   notifications: Notification[];
 }
 
+function todayIso(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
 export function AdminHome({ user, events, groups, tasks, onNavigate, notifications }: AdminHomeProps) {
   const today = new Date();
-  
-  const birthdays = [];
-  
+
+  const [attendanceGroups, setAttendanceGroups] = useState<AttendanceDayGroupDto[]>([]);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    loadAttendanceDay(todayIso())
+      .then((rows) => {
+        if (active) setAttendanceGroups(rows);
+      })
+      .catch(() => {
+        if (active) setAttendanceGroups([]);
+      })
+      .finally(() => {
+        if (active) setIsAttendanceLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const attendanceMarkedGroups = attendanceGroups.filter(
+    (group) => group.studentCount > 0 && group.markedCount >= group.studentCount,
+  ).length;
+  const attendancePendingGroups = attendanceGroups.filter((group) => group.markedCount < group.studentCount);
+
   const todayEvents = events.filter(e => {
     const eventDate = new Date(e.date);
     return eventDate.toDateString() === today.toDateString();
@@ -58,10 +88,10 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
   };
 
   const priorityConfig = {
-    low: { color: 'text-blue-600', bgColor: 'bg-blue-50 border-blue-200' },
-    medium: { color: 'text-yellow-600', bgColor: 'bg-yellow-50 border-yellow-200' },
-    high: { color: 'text-orange-600', bgColor: 'bg-orange-50 border-orange-200' },
-    urgent: { color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' },
+    low: { color: 'text-[#1C8C64]', bgColor: 'bg-[#1C8C64]/8 border-[#1C8C64]/20' },
+    medium: { color: 'text-[#8B6B00]', bgColor: 'bg-[#D4AF37]/10 border-[#D4AF37]/25' },
+    high: { color: 'text-[#B85A2E]', bgColor: 'bg-[#FFF1E8] border-[#B85A2E]/20' },
+    urgent: { color: 'text-[#D14343]', bgColor: 'bg-[#D14343]/8 border-[#D14343]/20' },
   };
 
   const statusIcons = {
@@ -82,63 +112,76 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
       </div>
 
       {/* Today's Summary */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Занятий сегодня</p>
-                <p className="text-3xl text-[#133C2A]">{todayEvents.length}</p>
+      <Card className="border-none soft-shadow">
+        <CardContent className="grid grid-cols-2 divide-x divide-[#133C2A]/8 md:grid-cols-4 md:divide-x-0 md:gap-6 p-0 md:p-6">
+          {[
+            { label: 'Занятий сегодня', value: todayEvents.length, Icon: Calendar },
+            { label: 'Студентов посетят', value: todayAttending, Icon: Users },
+            { label: 'Активных групп', value: groups.length, Icon: CheckCircle },
+            { label: 'Всего учеников', value: totalStudents, Icon: Users },
+          ].map((item, index) => (
+            <div
+              key={item.label}
+              className={`flex items-center gap-3 p-4 md:p-0 ${index >= 2 ? 'border-t border-[#133C2A]/8 md:border-t-0' : ''}`}
+            >
+              <item.Icon className="h-5 w-5 shrink-0 text-[#D4AF37]" />
+              <div className="min-w-0">
+                <p className="text-2xl leading-none text-[#133C2A]">{item.value}</p>
+                <p className="mt-1.5 text-xs text-[#133C2A]/58">{item.label}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </CardContent>
+      </Card>
 
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#133C2A] to-[#D4AF37] flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Студентов посетят</p>
-                <p className="text-3xl text-[#133C2A]">{todayAttending}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1C8C64] to-[#133C2A] flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Активных групп</p>
-                <p className="text-3xl text-[#133C2A]">{groups.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow hover-lift">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FADADD] to-[#FFC0CB] flex items-center justify-center">
-                <Users className="w-6 h-6 text-[#133C2A]" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Всего учеников</p>
-                <p className="text-3xl text-[#133C2A]">{totalStudents}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Attendance today */}
+      <Card className="border-none soft-shadow">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-[#133C2A] flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-[#D4AF37]" />
+            Посещаемость сегодня
+          </CardTitle>
+          <Button
+            variant="ghost"
+            onClick={() => onNavigate('attendance-management')}
+            className="text-[#D4AF37] hover:text-[#133C2A] hover:bg-[#D4AF37]/10 rounded-xl"
+          >
+            Открыть
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isAttendanceLoading ? (
+            <p className="text-sm text-[#133C2A]/60">Загрузка...</p>
+          ) : attendanceGroups.length === 0 ? (
+            <p className="text-sm text-[#133C2A]/60">На сегодня занятий в расписании нет.</p>
+          ) : (
+            <>
+              <p className="text-2xl text-[#133C2A]">
+                {attendanceMarkedGroups}{' '}
+                <span className="text-base text-[#133C2A]/50">из {attendanceGroups.length} групп размечено</span>
+              </p>
+              {attendancePendingGroups.length > 0 ? (
+                <div className="mt-3 grid gap-1.5 md:grid-cols-2">
+                  {attendancePendingGroups.slice(0, 4).map((group) => (
+                    <div
+                      key={group.groupId}
+                      className="flex items-center justify-between gap-2 rounded-xl bg-[#F8F4E3] px-3 py-2 text-sm"
+                    >
+                      <span className="min-w-0 truncate text-[#133C2A]">{group.groupName}</span>
+                      <span className="shrink-0 text-xs text-[#133C2A]/55">
+                        {group.time} · {group.markedCount}/{group.studentCount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-[#1C8C64]">Все группы отмечены.</p>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <Card className="border-none soft-shadow">
@@ -434,9 +477,6 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
           </div>
         </CardContent>
       </Card>
-
-      {/* Upcoming Birthdays */}
-      <UpcomingBirthdays birthdays={birthdays} />
     </div>
   );
 }
