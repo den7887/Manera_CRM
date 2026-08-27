@@ -271,23 +271,6 @@ export function OwnerTasksPanel() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-[#133C2A] mb-2">Задачи</h1>
-          <p className="text-[#133C2A]/60">Назначение задач сотрудникам и контроль исполнения</p>
-        </div>
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            {isRefreshing ? 'Обновляем...' : 'Обновить'}
-          </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
-            <Plus className="w-4 h-4 mr-2" />
-            Новая задача
-          </Button>
-        </div>
-      </div>
-
       <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня в работе</p>
         <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -302,6 +285,23 @@ export function OwnerTasksPanel() {
             <span>•</span>
             <span>{stats.overdue} просрочено</span>
           </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-[#133C2A] mb-2">Задачи</h1>
+          <p className="text-[#133C2A]/60">Назначение задач сотрудникам и контроль исполнения</p>
+        </div>
+        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {isRefreshing ? 'Обновляем...' : 'Обновить'}
+          </Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+            <Plus className="w-4 h-4 mr-2" />
+            Новая задача
+          </Button>
         </div>
       </div>
 

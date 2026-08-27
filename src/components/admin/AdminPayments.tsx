@@ -275,23 +275,6 @@ export function AdminPayments({
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-[#133C2A] mb-2">Оплаты</h1>
-          <p className="text-[#133C2A]/60">Очередь проверок, долги родителей и выставление счетов.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
-          <Button variant="outline" className="rounded-2xl" onClick={() => void runReminders()} disabled={isRunningReminders}>
-            <TimerReset className="mr-2 h-4 w-4" />
-            {isRunningReminders ? 'Отправляем...' : 'Напоминания'}
-          </Button>
-          <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {isRefreshing ? 'Обновляем...' : 'Обновить'}
-          </Button>
-        </div>
-      </div>
-
       <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня нужно обработать</p>
         <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -306,6 +289,23 @@ export function AdminPayments({
             <span>•</span>
             <span>{stats.overdueCount} просрочено</span>
           </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-[#133C2A] mb-2">Оплаты</h1>
+          <p className="text-[#133C2A]/60">Очередь проверок, долги родителей и выставление счетов.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+          <Button variant="outline" className="rounded-2xl" onClick={() => void runReminders()} disabled={isRunningReminders}>
+            <TimerReset className="mr-2 h-4 w-4" />
+            {isRunningReminders ? 'Отправляем...' : 'Напоминания'}
+          </Button>
+          <Button variant="outline" className="rounded-2xl" onClick={() => void refresh(true)} disabled={isRefreshing}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {isRefreshing ? 'Обновляем...' : 'Обновить'}
+          </Button>
         </div>
       </div>
 

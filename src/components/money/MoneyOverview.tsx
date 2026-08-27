@@ -165,23 +165,6 @@ export function MoneyOverview({
 
   return (
     <div className={isMobile ? 'space-y-4' : 'space-y-6'}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-[#133C2A] mb-2">Обзор денег</h1>
-          <p className="text-sm text-[#133C2A]/60">Что происходит с оплатами, расходами и абонементами прямо сейчас.</p>
-        </div>
-        <select
-          value={period}
-          onChange={(event) => setPeriod(event.target.value)}
-          className="w-full rounded-2xl border border-[#133C2A]/12 bg-white px-4 py-3 text-sm text-[#133C2A] outline-none md:w-[220px]"
-        >
-          <option value="week">Неделя</option>
-          <option value="month">Месяц</option>
-          <option value="quarter">Квартал</option>
-          <option value="year">Год</option>
-        </select>
-      </div>
-
       <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня нужно обработать</p>
         <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -197,6 +180,23 @@ export function MoneyOverview({
             <span>{endingSoonCount} абонементов на грани</span>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-[#133C2A] mb-2">Обзор денег</h1>
+          <p className="text-sm text-[#133C2A]/60">Что происходит с оплатами, расходами и абонементами прямо сейчас.</p>
+        </div>
+        <select
+          value={period}
+          onChange={(event) => setPeriod(event.target.value)}
+          className="w-full rounded-2xl border border-[#133C2A]/12 bg-white px-4 py-3 text-sm text-[#133C2A] outline-none md:w-[220px]"
+        >
+          <option value="week">Неделя</option>
+          <option value="month">Месяц</option>
+          <option value="quarter">Квартал</option>
+          <option value="year">Год</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

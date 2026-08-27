@@ -203,22 +203,6 @@ export function DocumentsManagement({
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-[#133C2A] mb-2">Документация</h1>
-          <p className="text-[#133C2A]/60">
-            Управление документами студии
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowAddDialog(true)}
-          className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить документ
-        </Button>
-      </div>
-
       <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-white/65">Документация студии</p>
         <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -234,6 +218,22 @@ export function DocumentsManagement({
             <span>{documents.filter(d => new Date(d.createdAt).toDateString() === new Date().toDateString()).length} загружено сегодня</span>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-[#133C2A] mb-2">Документация</h1>
+          <p className="text-[#133C2A]/60">
+            Управление документами студии
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowAddDialog(true)}
+          className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Добавить документ
+        </Button>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">

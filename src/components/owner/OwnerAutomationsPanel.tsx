@@ -1284,6 +1284,23 @@ export function OwnerAutomationsPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Автоматизации студии</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Сценарии и цепочки</h2>
+            <p className="mt-1 text-sm text-white/72">Что включено, а что выключено.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{stats.total} всего</span>
+            <span>•</span>
+            <span>{stats.active} активных</span>
+            <span>•</span>
+            <span>{stats.disabled} отключено</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-[#133C2A] mb-2">Автоматизации</h1>
@@ -1317,23 +1334,6 @@ export function OwnerAutomationsPanel() {
             Правила ниже сохраняются, но система ещё не умеет запускать их сама. Статус «Активно» показывает, что правило включено, а не что оно сработало.
             Напоминания об оплате при этом отправляются отдельным механизмом — раз в час, независимо от этого раздела.
           </p>
-        </div>
-      </div>
-
-      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
-        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Автоматизации студии</p>
-        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl">Сценарии и цепочки</h2>
-            <p className="mt-1 text-sm text-white/72">Что включено, а что выключено.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm text-white/72">
-            <span>{stats.total} всего</span>
-            <span>•</span>
-            <span>{stats.active} активных</span>
-            <span>•</span>
-            <span>{stats.disabled} отключено</span>
-          </div>
         </div>
       </div>
 
