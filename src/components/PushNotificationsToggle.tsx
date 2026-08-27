@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Switch } from './ui/switch';
 import {
   disablePushNotifications,

@@ -6,6 +6,7 @@ import { Badge } from '../ui/badge';
 import { FileText, Search, Download, Eye, Calendar, Tag } from 'lucide-react';
 import { Document, DocumentCategory } from '../../types';
 import { ViewDocumentDialog } from '../admin/ViewDocumentDialog';
+import { EmptyState } from '../EmptyState';
 
 interface ParentDocumentsProps {
   documents: Document[];
@@ -24,14 +25,14 @@ const categoryLabels: Record<DocumentCategory, string> = {
 };
 
 const categoryColors: Record<DocumentCategory, string> = {
-  contract: 'bg-blue-50 text-blue-600 border-blue-200',
-  policy: 'bg-purple-50 text-purple-600 border-purple-200',
-  instruction: 'bg-green-50 text-green-600 border-green-200',
-  template: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-  certificate: 'bg-pink-50 text-pink-600 border-pink-200',
-  report: 'bg-orange-50 text-orange-600 border-orange-200',
-  checklist: 'bg-teal-50 text-teal-600 border-teal-200',
-  other: 'bg-gray-50 text-gray-600 border-gray-200',
+  contract: 'bg-[#EEF5F0] text-[#133C2A] border-[#133C2A]/20',
+  policy: 'bg-[#FFF9E8] text-[#8B6B00] border-[#D4AF37]/30',
+  instruction: 'bg-[#EAF7F1] text-[#1C8C64] border-[#1C8C64]/25',
+  template: 'bg-[#FFF1E8] text-[#B85A2E] border-[#B85A2E]/25',
+  certificate: 'bg-[#FFF3F4] text-[#B85A6B] border-[#FADADD]',
+  report: 'bg-slate-100 text-slate-700 border-slate-200',
+  checklist: 'bg-[#133C2A]/8 text-[#0F3021] border-[#133C2A]/25',
+  other: 'bg-[#F8F4E3] text-[#133C2A]/70 border-[#133C2A]/12',
 };
 
 const fileTypeIcons: Record<string, string> = {
@@ -141,7 +142,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
         <Card className="border-none soft-shadow">
           <CardContent className="p-3 md:p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1C8C64] to-[#15694A] flex items-center justify-center">
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -177,14 +178,16 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
       {/* Documents by Category */}
       {filteredDocuments.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-8 md:p-12 text-center">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-[#133C2A]/30" />
-            <p className="text-[#133C2A]/60 mb-2">Документы не найдены</p>
-            <p className="text-sm text-[#133C2A]/40">
-              {availableDocuments.length === 0 
-                ? 'Вам пока не предоставлен доступ к документам'
-                : 'Попробуйте изменить параметры поиска'}
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={FileText}
+              title="Документы не найдены"
+              description={
+                availableDocuments.length === 0
+                  ? 'Вам пока не предоставлен доступ к документам'
+                  : 'Попробуйте изменить параметры поиска'
+              }
+            />
           </CardContent>
         </Card>
       ) : (

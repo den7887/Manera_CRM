@@ -31,6 +31,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
+import { EmptyState } from '../EmptyState';
 
 type EmployeeRole = 'teacher' | 'admin';
 type EmployeeStatus = 'active' | 'inactive';
@@ -715,7 +716,13 @@ export function OwnerTeamPanel() {
           {isLoading ? (
             <p className="text-[#133C2A]/60">Загрузка...</p>
           ) : filteredEmployees.length === 0 ? (
-            <p className="text-[#133C2A]/60">Сотрудники по текущему фильтру не найдены</p>
+            <EmptyState
+              icon={UserCheck}
+              title={employees.length === 0 ? 'Сотрудников пока нет' : 'Ничего не найдено'}
+              description={employees.length === 0 ? 'Добавьте администратора или преподавателя, чтобы дать доступ к кабинету.' : 'Попробуйте изменить фильтры.'}
+              actionLabel={employees.length === 0 ? 'Добавить сотрудника' : undefined}
+              onAction={employees.length === 0 ? openCreate : undefined}
+            />
           ) : (
             filteredEmployees.map((employee) => {
               const teacherGroups = teacherGroupsById.get(employee.id) || [];

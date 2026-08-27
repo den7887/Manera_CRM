@@ -4,7 +4,7 @@ import { AdminHome } from './AdminHome';
 import { AdminStudents } from './AdminStudents';
 import { AdminParents } from './AdminParents';
 import { AdminLeads } from './AdminLeads';
-import { AdminGroups } from './AdminGroups';
+import { OwnerGroupsPanel } from '../owner/OwnerGroupsPanel';
 import { OwnerCommunicationPanel } from '../owner/OwnerCommunicationPanel';
 import { loadOwnerCommunicationChats } from '../../lib/backendApi';
 import { AdminProfile } from './AdminProfile';
@@ -148,7 +148,7 @@ export function AdminDashboard({
       case 'leads':
         return <AdminLeads />;
       case 'groups':
-        return <AdminGroups groups={groups} />;
+        return <OwnerGroupsPanel />;
       case 'schedule':
         return <ScheduleManagement events={events} groups={groups} onNavigate={setCurrentPage} />;
       case 'tasks':

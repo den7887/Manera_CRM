@@ -12,6 +12,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Switch } from '../ui/switch';
+import { EmptyState } from '../EmptyState';
 
 const defaults = {
   id: '',
@@ -208,7 +209,13 @@ export function OwnerNewsPanel() {
           {isLoading ? (
             <p className="text-[#133C2A]/60">Загрузка...</p>
           ) : filteredNews.length === 0 ? (
-            <p className="text-[#133C2A]/60">Новостей по текущему фильтру нет</p>
+            <EmptyState
+              icon={Megaphone}
+              title={news.length === 0 ? 'Новостей пока нет' : 'Ничего не найдено'}
+              description={news.length === 0 ? 'Опубликуйте первую новость для родителей.' : 'Попробуйте изменить поиск или фильтр.'}
+              actionLabel={news.length === 0 ? 'Добавить новость' : undefined}
+              onAction={news.length === 0 ? openCreate : undefined}
+            />
           ) : (
             filteredNews.map((item) => (
               <div key={item.id} className="rounded-2xl border border-[#133C2A]/10 p-3 md:p-4">

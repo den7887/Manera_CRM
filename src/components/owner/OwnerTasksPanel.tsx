@@ -12,6 +12,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
+import { EmptyState } from '../EmptyState';
 
 const newTaskDefaults = {
   title: '',
@@ -474,7 +475,13 @@ export function OwnerTasksPanel() {
               {isLoading ? (
                 <p className="text-[#133C2A]/60">Загрузка...</p>
               ) : filteredTasks.length === 0 ? (
-                <p className="text-[#133C2A]/60">Задач по текущему фильтру нет</p>
+                <EmptyState
+                  icon={CheckSquare}
+                  title={tasks.length === 0 ? 'Задач пока нет' : 'Ничего не найдено'}
+                  description={tasks.length === 0 ? 'Создайте первую задачу для сотрудника.' : 'Попробуйте изменить поиск или фильтры.'}
+                  actionLabel={tasks.length === 0 ? 'Новая задача' : undefined}
+                  onAction={tasks.length === 0 ? () => setIsCreateDialogOpen(true) : undefined}
+                />
               ) : (
                 filteredTasks.map((task) => {
                   const overdue = isTaskOverdue(task);

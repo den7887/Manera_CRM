@@ -7,7 +7,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog';
 import { CheckCircle2, Circle, Calendar, User as UserIcon, Plus, Edit, Trash2, ChevronDown } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 
 interface TasksManagementProps {
   tasks: Task[];
@@ -212,14 +213,14 @@ export function TasksManagement({ tasks, employees, clients, children, currentUs
       <div className="space-y-3">
         {filteredTasks.length === 0 ? (
           <Card className="border-none soft-shadow">
-            <CardContent className="py-12 text-center">
-              <Circle className="w-16 h-16 text-[#D4AF37] mx-auto mb-4" />
-              <h3 className="text-[#133C2A] mb-2">Нет задач</h3>
-              <p className="text-[#133C2A]/60">
-                {statusFilter === 'done' 
-                  ? 'Пока нет выполненных задач'
-                  : 'Создайте первую задачу'}
-              </p>
+            <CardContent>
+              <EmptyState
+                icon={Circle}
+                title="Нет задач"
+                description={statusFilter === 'done' ? 'Пока нет выполненных задач' : 'Создайте первую задачу'}
+                actionLabel={statusFilter !== 'done' ? 'Новая задача' : undefined}
+                onAction={statusFilter !== 'done' ? () => setCreateDialogOpen(true) : undefined}
+              />
             </CardContent>
           </Card>
         ) : (

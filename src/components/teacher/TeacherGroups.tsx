@@ -1,24 +1,17 @@
-import { Users, Calendar, TrendingUp } from 'lucide-react';
+import { Users, Calendar } from 'lucide-react';
 import { Group } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { toast } from 'sonner@2.0.3';
 
 interface TeacherGroupsProps {
   groups: Group[];
+  onNavigate?: (page: string) => void;
 }
 
-export function TeacherGroups({ groups }: TeacherGroupsProps) {
-  const handleViewStudents = (groupName: string) => {
-    toast.info('Просмотр учеников', {
-      description: `Открываем список учеников группы "${groupName}"`,
-      duration: 2000,
-    });
-  };
-
+export function TeacherGroups({ groups, onNavigate }: TeacherGroupsProps) {
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
       <div>
         <h1 className="text-[#133C2A] mb-2">Мои группы</h1>
         <p className="text-[#133C2A]/60">Просмотр групп и составов</p>
@@ -58,15 +51,12 @@ export function TeacherGroups({ groups }: TeacherGroupsProps) {
                   <Calendar className="w-4 h-4 text-[#D4AF37]" />
                   <span className="text-[#133C2A]/70">{group.schedule}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <TrendingUp className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="text-[#133C2A]/70">Средняя посещаемость: 87%</span>
-                </div>
               </div>
 
               <div className="pt-4 border-t border-[#133C2A]/10">
-                <Button 
-                  onClick={() => handleViewStudents(group.name)}
+                <Button
+                  onClick={() => onNavigate?.('students')}
+                  disabled={!onNavigate}
                   className="w-full rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
                 >
                   Просмотреть учеников

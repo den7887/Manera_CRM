@@ -24,6 +24,7 @@ import { Document, DocumentCategory, User as UserType } from '../../types';
 import { AddDocumentDialog } from './AddDocumentDialog';
 import { ViewDocumentDialog } from './ViewDocumentDialog';
 import { EditDocumentDialog } from './EditDocumentDialog';
+import { EmptyState } from '../EmptyState';
 
 interface DocumentsManagementProps {
   documents: Document[];
@@ -48,14 +49,14 @@ const categoryLabels: Record<DocumentCategory, string> = {
 };
 
 const categoryColors: Record<DocumentCategory, string> = {
-  contract: 'bg-blue-50 text-blue-600 border-blue-200',
-  policy: 'bg-purple-50 text-purple-600 border-purple-200',
-  instruction: 'bg-green-50 text-green-600 border-green-200',
-  template: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-  certificate: 'bg-pink-50 text-pink-600 border-pink-200',
-  report: 'bg-orange-50 text-orange-600 border-orange-200',
-  checklist: 'bg-teal-50 text-teal-600 border-teal-200',
-  other: 'bg-gray-50 text-gray-600 border-gray-200',
+  contract: 'bg-[#EEF5F0] text-[#133C2A] border-[#133C2A]/20',
+  policy: 'bg-[#FFF9E8] text-[#8B6B00] border-[#D4AF37]/30',
+  instruction: 'bg-[#EAF7F1] text-[#1C8C64] border-[#1C8C64]/25',
+  template: 'bg-[#FFF1E8] text-[#B85A2E] border-[#B85A2E]/25',
+  certificate: 'bg-[#FFF3F4] text-[#B85A6B] border-[#FADADD]',
+  report: 'bg-slate-100 text-slate-700 border-slate-200',
+  checklist: 'bg-[#133C2A]/8 text-[#0F3021] border-[#133C2A]/25',
+  other: 'bg-[#F8F4E3] text-[#133C2A]/70 border-[#133C2A]/12',
 };
 
 const fileTypeIcons: Record<string, string> = {
@@ -199,11 +200,10 @@ export function DocumentsManagement({
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl text-[#133C2A] mb-2">Документация</h1>
+          <h1 className="text-[#133C2A] mb-2">Документация</h1>
           <p className="text-[#133C2A]/60">
             Управление документами студии
           </p>
@@ -217,69 +217,11 @@ export function DocumentsManagement({
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Всего документов</p>
-                <p className="text-2xl text-[#133C2A]">{documents.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#133C2A] to-[#1C8C64] flex items-center justify-center">
-                <Tag className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Категорий</p>
-                <p className="text-2xl text-[#133C2A]">{Object.keys(documentsByCategory).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Сотрудников</p>
-                <p className="text-2xl text-[#133C2A]">{employees.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none soft-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                <Upload className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-[#133C2A]/60">Загружено сегодня</p>
-                <p className="text-2xl text-[#133C2A]">
-                  {documents.filter(d => {
-                    const today = new Date();
-                    const docDate = new Date(d.createdAt);
-                    return docDate.toDateString() === today.toDateString();
-                  }).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 md:grid-cols-4">
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Всего документов</p><p className="mt-1 text-3xl text-[#133C2A]">{documents.length}</p><p className="mt-2 text-xs text-[#133C2A]/45">В базе студии</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Категорий</p><p className="mt-1 text-3xl text-[#133C2A]">{Object.keys(documentsByCategory).length}</p><p className="mt-2 text-xs text-[#133C2A]/45">Разделов документации</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Сотрудников</p><p className="mt-1 text-3xl text-[#133C2A]">{employees.length}</p><p className="mt-2 text-xs text-[#133C2A]/45">Имеют доступ к загрузке</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Загружено сегодня</p><p className="mt-1 text-3xl text-[#133C2A]">{documents.filter(d => new Date(d.createdAt).toDateString() === new Date().toDateString()).length}</p><p className="mt-2 text-xs text-[#133C2A]/45">Новых документов за день</p></CardContent></Card>
       </div>
 
       {/* Search and Filters */}
@@ -344,12 +286,14 @@ export function DocumentsManagement({
       {/* Documents by Category */}
       {filteredDocuments.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-12 text-center">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-[#133C2A]/30" />
-            <p className="text-[#133C2A]/60 mb-2">Документы не найдены</p>
-            <p className="text-sm text-[#133C2A]/40">
-              Попробуйте изменить параметры поиска или добавьте новый документ
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={FileText}
+              title={documents.length === 0 ? 'Документов пока нет' : 'Ничего не найдено'}
+              description={documents.length === 0 ? 'Загрузите первый документ студии.' : 'Попробуйте изменить поиск или фильтры.'}
+              actionLabel={documents.length === 0 ? 'Добавить документ' : undefined}
+              onAction={documents.length === 0 ? () => setShowAddDialog(true) : undefined}
+            />
           </CardContent>
         </Card>
       ) : (

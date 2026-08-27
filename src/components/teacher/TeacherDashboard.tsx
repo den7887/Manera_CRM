@@ -25,7 +25,7 @@ export function TeacherDashboard({ user, groups, events, onLogout }: TeacherDash
       case 'home':
         return <TeacherHome user={user} groups={groups} events={events} onNavigate={setCurrentPage} />;
       case 'groups':
-        return <TeacherGroups groups={groups} />;
+        return <TeacherGroups groups={groups} onNavigate={setCurrentPage} />;
       case 'attendance':
         return <AttendanceWorkspace onOpenClient={() => setCurrentPage('students')} />;
       case 'communication':

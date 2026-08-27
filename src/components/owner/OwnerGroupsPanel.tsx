@@ -11,6 +11,7 @@ import {
   updateOwnerGroup,
 } from '../../lib/backendApi';
 import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -231,6 +232,7 @@ export function OwnerGroupsPanel() {
     () => ({
       groups: groups.length,
       students: groups.reduce((sum, group) => sum + Number(group.studentCount || 0), 0),
+      empty: groups.filter((group) => Number(group.studentCount || 0) === 0).length,
     }),
     [groups],
   );
@@ -443,33 +445,11 @@ export function OwnerGroupsPanel() {
         </div>
       </div>
 
-      <section>
-        <Card className="overflow-hidden border-none bg-[#123827] text-white shadow-[0_22px_55px_rgba(19,60,42,0.16)]">
-          <CardContent className="p-5 md:p-6">
-            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-sm text-white/60">Группы студии</p>
-                <p className="mt-2 text-3xl leading-none md:text-4xl">Все группы в одном месте</p>
-              </div>
-              <Button className="rounded-2xl bg-white text-[#133C2A] hover:bg-white/90" onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" />
-                Создать группу
-              </Button>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Количество групп</span>
-                <span className="mt-1 block text-2xl">{totals.groups}</span>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 text-left">
-                <span className="block text-xs text-white/50">Количество учеников</span>
-                <span className="mt-1 block text-2xl">{totals.students}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Групп всего</p><p className="mt-1 text-3xl text-[#133C2A]">{totals.groups}</p><p className="mt-2 text-xs text-[#133C2A]/45">Активные группы студии</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Учеников</p><p className="mt-1 text-3xl text-[#133C2A]">{totals.students}</p><p className="mt-2 text-xs text-[#133C2A]/45">Во всех группах вместе</p></CardContent></Card>
+        <Card className="border-none soft-shadow"><CardContent className="p-4"><p className="text-sm text-[#133C2A]/55">Без учеников</p><p className={`mt-1 text-3xl ${totals.empty > 0 ? 'text-[#D14343]' : 'text-[#133C2A]'}`}>{totals.empty}</p><p className="mt-2 text-xs text-[#133C2A]/45">Группы, куда пока никого не назначили</p></CardContent></Card>
+      </div>
 
       <Card className="border-none soft-shadow">
         <CardHeader>
@@ -512,7 +492,13 @@ export function OwnerGroupsPanel() {
           {isLoading ? (
             <p className="text-[#133C2A]/60">Загрузка...</p>
           ) : filteredGroups.length === 0 ? (
-            <p className="text-[#133C2A]/60">Пока нет групп</p>
+            <EmptyState
+              icon={Calendar}
+              title={groups.length === 0 ? 'Групп пока нет' : 'Ничего не найдено'}
+              description={groups.length === 0 ? 'Создайте первую группу, чтобы начать набор учеников.' : 'Попробуйте изменить поиск или сортировку.'}
+              actionLabel={groups.length === 0 ? 'Создать группу' : undefined}
+              onAction={groups.length === 0 ? openCreate : undefined}
+            />
           ) : (
             filteredGroups.map((group) => {
               return (
