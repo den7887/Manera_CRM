@@ -8,6 +8,9 @@ from fastapi.testclient import TestClient
 
 import main
 
+WEBHOOK_SECRET = "test-webhook-secret"
+WEBHOOK_HEADERS = {"x-webhook-secret": WEBHOOK_SECRET}
+
 
 def _make_store() -> dict:
     now = main._utc_now_iso()
@@ -66,6 +69,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("MANUAL_SBP_RECEIVER_PHONE", "+79990001122")
     monkeypatch.setenv("PAYMENTS_AUTO_ACTIVATE_ON_USER_CONFIRM", "true")
     monkeypatch.setenv("PAYMENTS_MVP_ENABLED", "true")
+    monkeypatch.setenv("PAYMENT_PROVIDER_WEBHOOK_SECRET", WEBHOOK_SECRET)
 
     main.ACTIVE_TOKENS.clear()
     main.OTP_CODES.clear()
@@ -171,6 +175,43 @@ def test_confirm_idempotent_no_duplicate_subscription(client: TestClient):
     assert len(subscriptions.json()) == 1
 
 
+def test_renewal_payment_extends_active_subscription_instead_of_granting_nothing(client: TestClient):
+    headers = _auth_headers(client, "+79990000001")
+    first_payment = client.post(
+        "/api/payments/create", json={"subscription_plan_code": "hobby", "child_id": None}, headers=headers
+    ).json()
+    first_confirm = client.post(f"/api/payments/{first_payment['payment_id']}/confirm-user-paid", headers=headers)
+    assert first_confirm.status_code == 200
+    first_body = first_confirm.json()
+    original_subscription_id = first_body["subscription"]["id"]
+    original_expires_at = first_body["subscription"]["expires_at"]
+    assert first_body["subscription"]["total_lessons"] == 8
+
+    # The parent renews early, while the first subscription is still active
+    # (no attendance consumed any lessons and nothing expired in between).
+    second_payment = client.post(
+        "/api/payments/create", json={"subscription_plan_code": "hobby", "child_id": None}, headers=headers
+    ).json()
+    second_confirm = client.post(f"/api/payments/{second_payment['payment_id']}/confirm-user-paid", headers=headers)
+    assert second_confirm.status_code == 200
+    second_body = second_confirm.json()
+
+    # The renewal payment must be recorded as paid...
+    assert second_body["payment"]["status"] == "paid"
+    # ...and must actually grant something for the money: the *same*
+    # subscription record is extended (no duplicate active subscription for
+    # the same plan+child), with lesson credits topped up and expiry pushed
+    # further out -- not silently reused unchanged.
+    assert second_body["subscription"]["id"] == original_subscription_id
+    assert second_body["subscription"]["total_lessons"] == 16
+    assert second_body["subscription"]["expires_at"] > original_expires_at
+
+    subscriptions = client.get("/api/subscriptions/my", headers=headers)
+    assert subscriptions.status_code == 200
+    active_subscriptions = [item for item in subscriptions.json() if item["status"] == "active"]
+    assert len(active_subscriptions) == 1
+
+
 def test_online_payment_is_confirmed_only_by_provider_webhook(client: TestClient, monkeypatch):
     monkeypatch.setenv("PAYMENT_METHOD", "online")
     monkeypatch.setenv("PAYMENT_PROVIDER", "internet_acquiring")
@@ -189,6 +230,7 @@ def test_online_payment_is_confirmed_only_by_provider_webhook(client: TestClient
             "provider_payment_id": "prov-123",
             "raw_payload": {"event": "payment.succeeded"},
         },
+        headers=WEBHOOK_HEADERS,
     )
     assert webhook.status_code == 200
     body = webhook.json()
@@ -457,6 +499,7 @@ def test_webhook_paid_is_idempotent_for_admin_created_payment(client: TestClient
     webhook = client.post(
         "/api/payments/provider/webhook",
         json={"payment_id": payment_id, "status": "paid", "provider_payment_id": "prov-stale-1"},
+        headers=WEBHOOK_HEADERS,
     )
     assert webhook.status_code == 200
     body = webhook.json()
@@ -485,6 +528,7 @@ def test_webhook_paid_rejects_cancelled_payment(client: TestClient):
     webhook = client.post(
         "/api/payments/provider/webhook",
         json={"payment_id": payment_id, "status": "paid", "provider_payment_id": "prov-late-1"},
+        headers=WEBHOOK_HEADERS,
     )
     assert webhook.status_code == 409
 

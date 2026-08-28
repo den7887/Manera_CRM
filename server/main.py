@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+from contextlib import contextmanager
 import re
 import secrets
 import threading
@@ -34,6 +36,8 @@ except Exception:  # pragma: no cover - optional dependency for browser push not
     webpush = None
     WebPushException = None
 
+logger = logging.getLogger(__name__)
+
 
 UserRole = Literal["parent", "teacher", "admin", "owner"]
 AccessLevel = Literal["payment_only", "full"]
@@ -56,7 +60,10 @@ PaymentSessionStatus = Literal["active", "paid", "expired", "cancelled", "comple
 APP_ROOT = Path(__file__).resolve().parent
 DATA_FILE = APP_ROOT / "data" / "store.json"
 DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-LOCK = threading.Lock()
+# Reentrant so `_store_transaction()` can hold it across the whole
+# read-modify-write cycle of a request while still calling `_read_store()`/
+# `_write_store()` (which each acquire it internally too) without deadlocking.
+LOCK = threading.RLock()
 DEFAULT_TELEGRAM_ALLOWED_CHAT_IDS: list[str] = ["8147085641", "824827315", "772025944"]
 
 ACTIVE_TOKENS: dict[str, str] = {}
@@ -1099,7 +1106,10 @@ def _payment_provider_webhook_secret() -> str:
 def _verify_provider_webhook_auth(request: FastAPIRequest) -> None:
     expected_secret = _payment_provider_webhook_secret()
     if not expected_secret:
-        return
+        # Fail closed: an unconfigured secret must never mean "skip the
+        # check" -- that used to let anyone POST a fake "paid" status for
+        # any invoice. Refuse every call until the secret is set.
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Webhook auth is not configured")
     provided_secret = (
         str(request.headers.get("x-webhook-secret", "")).strip()
         or str(request.query_params.get("secret", "")).strip()
@@ -1506,7 +1516,7 @@ def _require_stats_token(request: FastAPIRequest) -> None:
     if authorization.lower().startswith("bearer "):
         provided = authorization[7:].strip()
 
-    if provided != expected:
+    if not provided or not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
@@ -2617,8 +2627,14 @@ def _read_store() -> dict[str, Any]:
             try:
                 data, has_legacy_entities = _read_store_from_postgres()
             except Exception:
-                data = {}
-                has_legacy_entities = False
+                # A transient read failure (dropped connection, timeout, a
+                # deploy-time restart) must never be treated the same as "no
+                # row yet" -- that used to fall through to the empty-store
+                # branch below and immediately overwrite the live database
+                # with an empty one. Fail the request instead; the storage
+                # layer must recover on its own before any write is allowed.
+                logger.exception("Failed to read app store from Postgres; refusing to touch stored data")
+                raise RuntimeError("Storage temporarily unavailable") from None
             if not data:
                 if DATA_FILE.exists():
                     try:
@@ -2669,6 +2685,26 @@ def _write_store(data: dict[str, Any]) -> None:
             _write_store_to_postgres(data)
             return
         DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@contextmanager
+def _store_transaction():
+    """Read-modify-write the store as one atomic unit.
+
+    Plain `store = _read_store(); ...; _write_store(store)` (the pattern used
+    almost everywhere in this file) only locks each half individually --
+    another request's read-modify-write cycle can interleave in the gap
+    between them, and the second write silently clobbers the first (a lost
+    update). That's a real risk for anything that increments/decrements a
+    shared counter, like lesson credits consumed by attendance marking. Use
+    this instead for call sites where that matters: it holds `LOCK` for the
+    whole cycle, so no other thread's `_read_store()`/`_write_store()` can run
+    until this one finishes.
+    """
+    with LOCK:
+        store = _read_store()
+        yield store
+        _write_store(store)
 
 
 def _resolve_token_phone(token_data: Any) -> str | None:
@@ -9185,49 +9221,49 @@ def staff_attendance_mark(
     payload: AttendanceMarkPayload,
     current_user: dict[str, Any] = Depends(_require_permission("groups.attendance")),
 ) -> dict[str, Any]:
-    store = _read_store()
-    group = _find_group_by_id(store, payload.group_id)
-    if group is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
-    child = _find_child_by_id(store, payload.child_id)
-    if child is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
-    _parse_iso_date_or_400(payload.date)
+    # Consumes/restores a subscription's lesson credit, so the whole
+    # read-modify-write must be one atomic unit -- see _store_transaction.
+    with _store_transaction() as store:
+        group = _find_group_by_id(store, payload.group_id)
+        if group is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+        child = _find_child_by_id(store, payload.child_id)
+        if child is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+        _parse_iso_date_or_400(payload.date)
 
-    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == payload.child_id), None)
-    lesson_status = _compute_child_lesson_status(store, child, client)
-    subscription = lesson_status["active_subscription"]
+        client = next((item for item in store.get("clients", []) if str(item.get("childId")) == payload.child_id), None)
+        lesson_status = _compute_child_lesson_status(store, child, client)
+        subscription = lesson_status["active_subscription"]
 
-    existing = _find_attendance_record(store, payload.group_id, payload.child_id, payload.date)
-    old_status = str(existing.get("status")) if existing else None
-    now = _utc_now_iso()
+        existing = _find_attendance_record(store, payload.group_id, payload.child_id, payload.date)
+        old_status = str(existing.get("status")) if existing else None
+        now = _utc_now_iso()
 
-    if payload.status == "unmarked":
-        if existing is not None:
-            _apply_attendance_lesson_effect(subscription, old_status, "unmarked")
-            store["attendance"] = [item for item in store.get("attendance", []) if item is not existing]
-    elif existing is not None:
-        _apply_attendance_lesson_effect(subscription, old_status, payload.status)
-        existing["status"] = payload.status
-        existing["updatedAt"] = now
-        existing["markedByUserId"] = str(current_user.get("id") or "")
-    else:
-        _apply_attendance_lesson_effect(subscription, None, payload.status)
-        store.setdefault("attendance", []).append({
-            "id": _new_id("attendance"),
-            "groupId": payload.group_id,
-            "childId": payload.child_id,
-            "parentUserId": str(child.get("parentUserId") or ""),
-            "date": payload.date,
-            "status": payload.status,
-            "markedByUserId": str(current_user.get("id") or ""),
-            "createdAt": now,
-            "updatedAt": now,
-        })
+        if payload.status == "unmarked":
+            if existing is not None:
+                _apply_attendance_lesson_effect(subscription, old_status, "unmarked")
+                store["attendance"] = [item for item in store.get("attendance", []) if item is not existing]
+        elif existing is not None:
+            _apply_attendance_lesson_effect(subscription, old_status, payload.status)
+            existing["status"] = payload.status
+            existing["updatedAt"] = now
+            existing["markedByUserId"] = str(current_user.get("id") or "")
+        else:
+            _apply_attendance_lesson_effect(subscription, None, payload.status)
+            store.setdefault("attendance", []).append({
+                "id": _new_id("attendance"),
+                "groupId": payload.group_id,
+                "childId": payload.child_id,
+                "parentUserId": str(child.get("parentUserId") or ""),
+                "date": payload.date,
+                "status": payload.status,
+                "markedByUserId": str(current_user.get("id") or ""),
+                "createdAt": now,
+                "updatedAt": now,
+            })
 
-    _write_store(store)
-
-    refreshed_lesson_status = _compute_child_lesson_status(store, child, client)
+        refreshed_lesson_status = _compute_child_lesson_status(store, child, client)
     badge = _compute_attendance_status_badge(refreshed_lesson_status)
     return {
         "ok": True,

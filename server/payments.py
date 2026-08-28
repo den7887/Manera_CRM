@@ -238,6 +238,18 @@ class PaymentService:
         return None
 
     @staticmethod
+    def _parse_iso(raw: Any) -> datetime | None:
+        if not isinstance(raw, str) or not raw.strip():
+            return None
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    @staticmethod
     def _serialize_plan(plan: dict[str, Any]) -> dict[str, Any]:
         return {
             "id": str(plan.get("id")),
@@ -318,6 +330,26 @@ class PaymentService:
             }
             store.setdefault("subscriptions", []).insert(0, created_subscription)
         elif existing_subscription is None:
+            # Renewal: the parent already has an active subscription for this
+            # same plan+child and is paying again (an early renewal, or a
+            # second payment created before the first was settled). Reusing
+            # the subscription unchanged used to mark this new payment "paid"
+            # while granting nothing extra for it -- money collected, no
+            # additional time or lessons. Extend it instead: push expiry out
+            # from whichever is later (its current expiry, or now, in case it
+            # had already lapsed) and top up lesson credits for
+            # lesson-based plans.
+            plan_duration = timedelta(days=int(plan.get("duration_days", 30)))
+            current_expires_at = self._parse_iso(already_active_same_plan.get("expires_at")) or now
+            new_expires_at = max(current_expires_at, now) + plan_duration
+            already_active_same_plan["expires_at"] = to_iso_with_offset(new_expires_at)
+            plan_lessons = self._plan_total_lessons(str(plan.get("code", "")))
+            if plan_lessons is not None:
+                current_total = already_active_same_plan.get("total_lessons")
+                already_active_same_plan["total_lessons"] = (
+                    int(current_total) if current_total is not None else 0
+                ) + plan_lessons
+            already_active_same_plan["updated_at"] = now_iso
             created_subscription = already_active_same_plan
 
         parent_user["access_level"] = "full"
