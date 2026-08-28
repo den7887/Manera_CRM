@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 
 function formatMessageTime(value?: Date): string {
   if (!value) return '';
@@ -121,7 +122,7 @@ export function ParentCommunication() {
 
   if (!isChatOpened) {
     return (
-      <Card className="border-none soft-shadow h-full min-h-0 flex flex-col md:h-[74vh] md:min-h-[580px]">
+      <Card className="border-none soft-shadow animate-scale-in h-full min-h-0 flex flex-col md:h-[74vh] md:min-h-[580px]">
         <CardHeader className="space-y-3 border-b border-[#133C2A]/10 p-3 md:p-6">
           <CardTitle className="text-[#133C2A] flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
@@ -152,7 +153,7 @@ export function ParentCommunication() {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-3 space-y-2">
           {chats.length === 0 ? (
-            <p className="text-sm text-[#133C2A]/60">Чатов пока нет.</p>
+            <EmptyState icon={MessageSquare} title="Чатов пока нет" description="Выберите сотрудника выше, чтобы начать переписку." />
           ) : (
             chats.map((chat) => (
               <button
@@ -184,7 +185,7 @@ export function ParentCommunication() {
   }
 
   return (
-    <Card className="border-none soft-shadow h-full min-h-0 flex flex-col md:h-[74vh] md:min-h-[580px]">
+    <Card className="border-none soft-shadow animate-scale-in h-full min-h-0 flex flex-col md:h-[74vh] md:min-h-[580px]">
       <CardHeader className="border-b border-[#133C2A]/10 py-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSelectedChatId(null)}>
@@ -205,7 +206,7 @@ export function ParentCommunication() {
           {isMessagesLoading ? (
             <p className="text-sm text-[#133C2A]/60">Загрузка сообщений...</p>
           ) : messages.length === 0 ? (
-            <p className="text-sm text-[#133C2A]/60">Начните диалог первым.</p>
+            <EmptyState icon={Send} title="Начните диалог" description="Напишите первое сообщение, чтобы начать переписку." />
           ) : (
             messages.map((message) => {
               const isMine = message.senderRole === 'parent';

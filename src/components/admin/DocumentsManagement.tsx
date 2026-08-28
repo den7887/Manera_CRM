@@ -56,7 +56,7 @@ const categoryColors: Record<DocumentCategory, string> = {
   instruction: 'bg-[#EAF7F1] text-[#1C8C64] border-[#1C8C64]/25',
   template: 'bg-[#FFF1E8] text-[#B85A2E] border-[#B85A2E]/25',
   certificate: 'bg-[#FFF3F4] text-[#B85A6B] border-[#FADADD]',
-  report: 'bg-slate-100 text-slate-700 border-slate-200',
+  report: 'bg-[#F1ECE0] text-[#5B5140] border-[#B85A2E]/15',
   checklist: 'bg-[#133C2A]/8 text-[#0F3021] border-[#133C2A]/25',
   other: 'bg-[#F8F4E3] text-[#133C2A]/70 border-[#133C2A]/12',
 };

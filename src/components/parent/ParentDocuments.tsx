@@ -30,7 +30,7 @@ const categoryColors: Record<DocumentCategory, string> = {
   instruction: 'bg-[#EAF7F1] text-[#1C8C64] border-[#1C8C64]/25',
   template: 'bg-[#FFF1E8] text-[#B85A2E] border-[#B85A2E]/25',
   certificate: 'bg-[#FFF3F4] text-[#B85A6B] border-[#FADADD]',
-  report: 'bg-slate-100 text-slate-700 border-slate-200',
+  report: 'bg-[#F1ECE0] text-[#5B5140] border-[#B85A2E]/15',
   checklist: 'bg-[#133C2A]/8 text-[#0F3021] border-[#133C2A]/25',
   other: 'bg-[#F8F4E3] text-[#133C2A]/70 border-[#133C2A]/12',
 };
@@ -102,7 +102,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
   return (
     <div className="space-y-4 animate-scale-in">
       {/* Header */}
-      <div className="hidden md:block">
+      <div>
         <h2 className="text-[#133C2A] text-xl">Документы</h2>
         <p className="text-sm text-[#133C2A]/60">
           Документы, доступные для просмотра
@@ -197,7 +197,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
               <CardTitle className="text-[#133C2A] flex items-center gap-2 flex-wrap text-base">
                 <FileText className="w-5 h-5 text-[#D4AF37]" />
                 {categoryLabels[category as DocumentCategory]}
-                <Badge className={categoryColors[category as DocumentCategory]}>
+                <Badge className={`rounded-full ${categoryColors[category as DocumentCategory]}`}>
                   {docs.length}
                 </Badge>
               </CardTitle>
@@ -249,7 +249,7 @@ export function ParentDocuments({ documents, currentUserId }: ParentDocumentsPro
                         {doc.tags && doc.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {doc.tags.map((tag, idx) => (
-                              <Badge key={idx} className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30 text-xs">
+                              <Badge key={idx} className="rounded-full bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30 text-xs">
                                 #{tag}
                               </Badge>
                             ))}

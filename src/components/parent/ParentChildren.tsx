@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { Avatar, AvatarFallback } from '../ui/avatar';
+import { EmptyState } from '../EmptyState';
 
 interface ParentChildrenProps {
   children: Child[];
@@ -82,9 +83,8 @@ export function ParentChildren({ children, onNavigate }: ParentChildrenProps) {
 
       {children.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-10 text-center text-[#133C2A]/60">
-            <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p>В вашем профиле пока нет добавленных детей.</p>
+          <CardContent className="p-0">
+            <EmptyState icon={Users} title="Детей пока нет" description="В вашем профиле пока нет добавленных детей." />
           </CardContent>
         </Card>
       ) : (

@@ -4,6 +4,7 @@ import { Event, Child } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { EmptyState } from '../EmptyState';
 
 interface ParentScheduleProps {
   events: Event[];
@@ -78,7 +79,7 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
   );
 
   const renderEventCard = (event: Event) => (
-    <div key={event.id} className="rounded-2xl border border-[#133C2A]/10 p-3 bg-white">
+    <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[#133C2A]">{event.groupName}</p>
@@ -244,16 +245,13 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="text-[#133C2A] text-base capitalize">{selectedDateLabel}</CardTitle>
               {selectedDate.toDateString() === new Date().toDateString() ? (
-                <Badge className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">Сегодня</Badge>
+                <Badge className="rounded-full bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">Сегодня</Badge>
               ) : null}
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {selectedDayEvents.length === 0 ? (
-              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-8 text-center text-[#133C2A]/60">
-                <CalendarDays className="mx-auto mb-2 h-10 w-10 opacity-40" />
-                <p>На выбранный день занятий нет.</p>
-              </div>
+              <EmptyState icon={CalendarDays} title="Занятий нет" description="На выбранный день занятий не запланировано." />
             ) : (
               selectedDayEvents.map((event) => (
                 <div key={event.id} className="relative pl-6">
@@ -272,9 +270,7 @@ export function ParentSchedule({ events, children }: ParentScheduleProps) {
           </CardHeader>
           <CardContent className="space-y-2">
             {upcomingEvents.length === 0 ? (
-              <div className="rounded-2xl border border-[#133C2A]/10 bg-white p-6 text-center text-[#133C2A]/60">
-                Занятий пока нет.
-              </div>
+              <EmptyState icon={CalendarDays} title="Занятий пока нет" description="Ближайшие занятия появятся здесь." />
             ) : (
               upcomingEvents.slice(0, 20).map(renderEventCard)
             )}

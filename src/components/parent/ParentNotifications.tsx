@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { EmptyState } from '../EmptyState';
 
 interface ParentNotificationsProps {
   notifications: Notification[];
@@ -73,9 +74,12 @@ export function ParentNotifications({ notifications, onMarkRead, onMarkAllRead, 
 
       {filtered.length === 0 ? (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-8 text-center text-[#133C2A]/60 md:p-10">
-            <Bell className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p>{filter === 'unread' ? 'Новых уведомлений нет.' : 'Уведомлений пока нет.'}</p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Bell}
+              title={filter === 'unread' ? 'Новых уведомлений нет' : 'Уведомлений пока нет'}
+              description="Здесь появятся события по оплатам, занятиям и изменениям кабинета."
+            />
           </CardContent>
         </Card>
       ) : (

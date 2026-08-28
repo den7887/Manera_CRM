@@ -25,6 +25,12 @@ const paymentStatusLabels: Record<string, string> = {
   unpaid: 'Не оплачено',
 };
 
+const subscriptionStatusStyles: Record<string, { label: string; className: string }> = {
+  active: { label: 'Активен', className: 'border-[#1C8C64]/30 text-[#1C8C64] bg-[#1C8C64]/8' },
+  expired: { label: 'Истек', className: 'border-[#D14343]/30 text-[#D14343] bg-[#D14343]/5' },
+  cancelled: { label: 'Отменен', className: 'border-[#133C2A]/20 text-[#133C2A]/70 bg-white' },
+};
+
 export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmManualPayment }: ParentPaymentsProps) {
   const [subscriptions, setSubscriptions] = useState<ParentSubscriptionDto[]>([]);
 
@@ -64,7 +70,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
               </div>
               {primaryDuePayment?.paymentMethod === 'online' ? (
                 <Button
-                  className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] px-6 hover:opacity-90"
+                  className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] px-6 hover:opacity-90"
                   onClick={() => void onPayOnline(primaryDuePayment.id)}
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
@@ -78,7 +84,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                   {primaryDuePayment?.status !== 'waiting_confirmation' ? (
                     <Button
                       variant="outline"
-                      className="rounded-2xl border-[#133C2A]/20"
+                      className="rounded-xl border-[#133C2A]/20"
                       onClick={() => void onConfirmManualPayment(primaryDuePayment.id)}
                     >
                       Я оплатил
@@ -109,11 +115,13 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
             {subscriptions.length === 0 ? (
               <p className="text-sm text-[#133C2A]/60">Активных абонементов пока нет.</p>
             ) : (
-              subscriptions.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
+              subscriptions.map((item) => {
+                const statusStyle = subscriptionStatusStyles[item.status] || subscriptionStatusStyles.active;
+                return (
+                  <div key={item.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-[#133C2A] min-w-0">{item.plan_title}</p>
-                    <Badge variant="outline" className="rounded-full">{item.status}</Badge>
+                    <Badge variant="outline" className={`rounded-full ${statusStyle.className}`}>{statusStyle.label}</Badge>
                   </div>
                   <p className="text-xs text-[#133C2A]/60 mt-1">
                     {new Date(item.starts_at).toLocaleDateString('ru-RU')} - {new Date(item.expires_at).toLocaleDateString('ru-RU')}
@@ -124,7 +132,8 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                     </p>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
@@ -165,7 +174,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-2 w-full rounded-lg border-[#133C2A]/20 sm:w-auto"
+                        className="mt-2 w-full rounded-xl border-[#133C2A]/20 sm:w-auto"
                         onClick={() => void onPayOnline(payment.id)}
                       >
                         <CreditCard className="w-4 h-4 mr-2" />
@@ -176,7 +185,7 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-2 w-full rounded-lg border-[#133C2A]/20 sm:w-auto"
+                        className="mt-2 w-full rounded-xl border-[#133C2A]/20 sm:w-auto"
                         onClick={() => void onConfirmManualPayment(payment.id)}
                       >
                         Я оплатил

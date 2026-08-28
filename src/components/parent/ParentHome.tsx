@@ -146,7 +146,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
               {children.map((child) => (
                 <div
                   key={child.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#133C2A]/10 bg-white p-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[#133C2A]/10 bg-white p-3"
                 >
                   <div className="min-w-0">
                     <p className="text-sm text-[#133C2A] truncate">{child.name}</p>
@@ -236,7 +236,7 @@ export function ParentHome({ user, children, events, payments, newsEvents, onNav
               <p className="text-sm text-[#133C2A]/60 py-4">В расписании пока нет будущих занятий.</p>
             ) : (
               upcomingEvents.map((event) => (
-                  <div key={event.id} className="rounded-2xl border border-[#133C2A]/10 p-3 bg-white">
+                  <div key={event.id} className="rounded-xl border border-[#133C2A]/10 p-3 bg-white">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[#133C2A] min-w-0">{event.groupName}</p>

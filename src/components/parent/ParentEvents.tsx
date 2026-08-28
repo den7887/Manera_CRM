@@ -6,6 +6,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 
 interface ParentEventsProps {
   events: News[];
@@ -71,7 +72,7 @@ export function ParentEvents({ events }: ParentEventsProps) {
             </div>
             <Button
               size="sm"
-              className="w-full rounded-lg bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
+              className="w-full rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
               onClick={() => handleRegister(event)}
               disabled={!canRegister(event)}
             >
@@ -111,9 +112,8 @@ export function ParentEvents({ events }: ParentEventsProps) {
         <TabsContent value="upcoming" className="mt-4">
           {upcoming.length === 0 ? (
             <Card className="border-none soft-shadow">
-              <CardContent className="p-10 text-center text-[#133C2A]/60">
-                <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-35" />
-                <p>Предстоящих мероприятий пока нет.</p>
+              <CardContent className="p-0">
+                <EmptyState icon={Sparkles} title="Предстоящих мероприятий пока нет" description="Новые мероприятия появятся здесь." />
               </CardContent>
             </Card>
           ) : (
@@ -124,7 +124,9 @@ export function ParentEvents({ events }: ParentEventsProps) {
         <TabsContent value="past" className="mt-4">
           {past.length === 0 ? (
             <Card className="border-none soft-shadow">
-              <CardContent className="p-10 text-center text-[#133C2A]/60">История мероприятий пока пуста.</CardContent>
+              <CardContent className="p-0">
+                <EmptyState icon={Sparkles} title="История пуста" description="Прошедшие мероприятия появятся здесь." />
+              </CardContent>
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{past.map(renderCard)}</div>
