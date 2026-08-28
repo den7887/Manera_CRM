@@ -505,7 +505,7 @@ export function MoneyWorkspace({
       {activeTab === 'expenses' ? (
         <MoneyExpenses
           expenses={expenses}
-          onAddExpense={() => void addExpense()}
+          onAddExpense={addExpense}
           onDeleteExpense={(expenseId) => void removeExpense(expenseId)}
           isRefreshingExpenses={isRefreshing || isAddingExpense}
           onRefreshExpenses={() => void refresh(true)}

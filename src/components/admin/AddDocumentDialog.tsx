@@ -6,6 +6,7 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Upload, X, FileText, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Document, DocumentCategory, DocumentAccessType, User } from '../../types';
 
 interface AddDocumentDialogProps {
@@ -63,7 +64,7 @@ export function AddDocumentDialog({
     if (selectedFile) {
       // Проверка размера файла (максимум 10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
-        alert('Файл слишком большой. Максимальный размер 10MB');
+        toast.error('Файл слишком большой. Максимальный размер 10MB');
         return;
       }
       setFile(selectedFile);
@@ -142,12 +143,12 @@ export function AddDocumentDialog({
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      alert('Введите название документа');
+      toast.error('Введите название документа');
       return;
     }
 
     if (!file) {
-      alert('Выберите файл для загрузки');
+      toast.error('Выберите файл для загрузки');
       return;
     }
 
@@ -156,6 +157,10 @@ export function AddDocumentDialog({
     // В реальном приложении здесь будет загрузка файла на сервер
     // Для демо создаем data URL
     const reader = new FileReader();
+    reader.onerror = () => {
+      setIsUploading(false);
+      toast.error('Не удалось прочитать файл. Попробуйте еще раз.');
+    };
     reader.onload = () => {
       const fileUrl = reader.result as string;
       const fileType = file.name.split('.').pop() || '';
@@ -235,9 +240,9 @@ export function AddDocumentDialog({
                     variant="ghost"
                     size="sm"
                     onClick={() => setFile(null)}
-                    className="rounded-xl hover:bg-red-50"
+                    className="rounded-xl hover:bg-[#D14343]/8"
                   >
-                    <X className="w-4 h-4 text-red-500" />
+                    <X className="w-4 h-4 text-[#D14343]" />
                   </Button>
                 </div>
               )}
@@ -320,7 +325,7 @@ export function AddDocumentDialog({
                         className="rounded border-[#133C2A]/20"
                       />
                       <span className="text-sm text-[#133C2A]">{employee.name}</span>
-                      <Badge variant="outline" className="text-xs ml-auto">
+                      <Badge variant="outline" className="rounded-full text-xs ml-auto">
                         {employee.role === 'admin' ? 'Администратор' : 'Преподаватель'}
                       </Badge>
                     </label>
@@ -413,12 +418,12 @@ export function AddDocumentDialog({
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {tags.map((tag, idx) => (
-                  <Badge key={idx} className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">
+                  <Badge key={idx} className="rounded-full bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">
                     #{tag}
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 hover:text-red-500"
+                      className="ml-1 hover:text-[#D14343]"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -433,14 +438,14 @@ export function AddDocumentDialog({
             <Button
               variant="outline"
               onClick={onClose}
-              className="flex-1 rounded-xl border-[#133C2A]/20"
+              className="flex-1 rounded-2xl border-[#133C2A]/20"
               disabled={isUploading}
             >
               Отмена
             </Button>
             <Button
               onClick={handleSubmit}
-              className="flex-1 rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
+              className="flex-1 rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
               disabled={isUploading || !name.trim() || !file}
             >
               {isUploading ? 'Загрузка...' : 'Добавить документ'}

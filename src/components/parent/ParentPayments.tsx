@@ -33,6 +33,7 @@ const subscriptionStatusStyles: Record<string, { label: string; className: strin
 
 export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmManualPayment }: ParentPaymentsProps) {
   const [subscriptions, setSubscriptions] = useState<ParentSubscriptionDto[]>([]);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +45,30 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
     };
     void load();
   }, []);
+
+  const handlePayOnline = async (paymentId: string) => {
+    if (pendingPaymentId) return;
+    setPendingPaymentId(paymentId);
+    try {
+      await onPayOnline(paymentId);
+    } catch {
+      // onPayOnline already surfaces a toast; just stop blocking retries.
+    } finally {
+      setPendingPaymentId(null);
+    }
+  };
+
+  const handleConfirmManual = async (paymentId: string) => {
+    if (pendingPaymentId) return;
+    setPendingPaymentId(paymentId);
+    try {
+      await onConfirmManualPayment(paymentId);
+    } catch {
+      // onConfirmManualPayment already surfaces a toast; just stop blocking retries.
+    } finally {
+      setPendingPaymentId(null);
+    }
+  };
 
   const sortedPayments = useMemo(() => [...payments].sort((a, b) => b.date.getTime() - a.date.getTime()), [payments]);
   const duePayments = sortedPayments.filter((item) =>
@@ -71,10 +96,11 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
               {primaryDuePayment?.paymentMethod === 'online' ? (
                 <Button
                   className="rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] px-6 hover:opacity-90"
-                  onClick={() => void onPayOnline(primaryDuePayment.id)}
+                  onClick={() => void handlePayOnline(primaryDuePayment.id)}
+                  disabled={pendingPaymentId === primaryDuePayment.id}
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
-                  Оплатить
+                  {pendingPaymentId === primaryDuePayment.id ? 'Открываем...' : 'Оплатить'}
                 </Button>
               ) : (
                 <div className="flex flex-col items-start gap-2">
@@ -85,9 +111,10 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                     <Button
                       variant="outline"
                       className="rounded-xl border-[#133C2A]/20"
-                      onClick={() => void onConfirmManualPayment(primaryDuePayment.id)}
+                      onClick={() => void handleConfirmManual(primaryDuePayment.id)}
+                      disabled={pendingPaymentId === primaryDuePayment.id}
                     >
-                      Я оплатил
+                      {pendingPaymentId === primaryDuePayment.id ? 'Отправляем...' : 'Я оплатил'}
                     </Button>
                   ) : null}
                 </div>
@@ -175,10 +202,11 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                         size="sm"
                         variant="outline"
                         className="mt-2 w-full rounded-xl border-[#133C2A]/20 sm:w-auto"
-                        onClick={() => void onPayOnline(payment.id)}
+                        onClick={() => void handlePayOnline(payment.id)}
+                        disabled={pendingPaymentId === payment.id}
                       >
                         <CreditCard className="w-4 h-4 mr-2" />
-                        Открыть оплату
+                        {pendingPaymentId === payment.id ? 'Открываем...' : 'Открыть оплату'}
                       </Button>
                     )}
                     {isDue && payment.paymentMethod !== 'online' && payment.status !== 'waiting_confirmation' && (
@@ -186,9 +214,10 @@ export function ParentPayments({ payments, accessInfo, onPayOnline, onConfirmMan
                         size="sm"
                         variant="outline"
                         className="mt-2 w-full rounded-xl border-[#133C2A]/20 sm:w-auto"
-                        onClick={() => void onConfirmManualPayment(payment.id)}
+                        onClick={() => void handleConfirmManual(payment.id)}
+                        disabled={pendingPaymentId === payment.id}
                       >
-                        Я оплатил
+                        {pendingPaymentId === payment.id ? 'Отправляем...' : 'Я оплатил'}
                       </Button>
                     )}
                   </div>

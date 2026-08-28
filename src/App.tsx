@@ -10,6 +10,7 @@ import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { PublicPaymentSessionPage } from './components/payments/PublicPaymentSessionPage';
 import { PublicPaymentSuccessPage } from './components/payments/PublicPaymentSuccessPage';
 import { Toaster } from './components/ui/sonner';
+import { toast } from 'sonner';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { publicSiteConfig } from './lib/publicSiteConfig';
 import './styles/landing-v2.css';
@@ -679,36 +680,46 @@ export default function App() {
   };
 
   const handleParentOnlinePayment = async (paymentId: string) => {
-    const successUrl = `${window.location.origin}/?payment=success`;
-    const failUrl = `${window.location.origin}/?payment=fail`;
-    const provider = await createProviderPayment({
-      payment_id: paymentId,
-      success_url: successUrl,
-      fail_url: failUrl,
-    });
-
-    const autoConfirm = String(import.meta.env.VITE_PAYMENT_AUTO_CONFIRM || '').toLowerCase() === 'true';
-    if (autoConfirm) {
-      await sendProviderPaymentWebhook({
+    try {
+      const successUrl = `${window.location.origin}/?payment=success`;
+      const failUrl = `${window.location.origin}/?payment=fail`;
+      const provider = await createProviderPayment({
         payment_id: paymentId,
-        status: 'paid',
-        provider_payment_id: provider.provider_payment_id || `provider-${Date.now()}`,
-        raw_payload: {
-          source: 'parent-cabinet',
-          mode: 'auto-confirm',
-        },
+        success_url: successUrl,
+        fail_url: failUrl,
       });
-      await syncParentState({ silent: true });
-      return;
-    }
 
-    window.localStorage.setItem('manera_pending_provider_payment_id', paymentId);
-    window.location.href = provider.payment_url;
+      const autoConfirm = String(import.meta.env.VITE_PAYMENT_AUTO_CONFIRM || '').toLowerCase() === 'true';
+      if (autoConfirm) {
+        await sendProviderPaymentWebhook({
+          payment_id: paymentId,
+          status: 'paid',
+          provider_payment_id: provider.provider_payment_id || `provider-${Date.now()}`,
+          raw_payload: {
+            source: 'parent-cabinet',
+            mode: 'auto-confirm',
+          },
+        });
+        await syncParentState({ silent: true });
+        return;
+      }
+
+      window.localStorage.setItem('manera_pending_provider_payment_id', paymentId);
+      window.location.href = provider.payment_url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось начать оплату. Попробуйте еще раз.');
+      throw error;
+    }
   };
 
   const handleParentManualPayment = async (paymentId: string) => {
-    await confirmManualPayment(paymentId);
-    await syncParentState();
+    try {
+      await confirmManualPayment(paymentId);
+      await syncParentState();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось подтвердить оплату. Попробуйте еще раз.');
+      throw error;
+    }
   };
 
   const handleParentNotificationRead = async (notificationId: string) => {

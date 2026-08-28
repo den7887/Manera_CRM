@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, CheckCircle, PieChart as PieChartIcon, Plus, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
+import { BarChart3, CheckCircle, PieChart as PieChartIcon, Plus, RefreshCw, Trash2, TrendingDown, Wallet } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Expense } from '../../types';
 import { Button } from '../ui/button';
@@ -95,11 +95,24 @@ export function MoneyExpenses({
     return points;
   }, [expenses]);
 
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+
   const handleSubmitExpense = async () => {
-    const result = await Promise.resolve(onAddExpense());
-    if (result) {
-      setIsCreateOpen(false);
+    if (isSubmittingExpense) return;
+    setIsSubmittingExpense(true);
+    try {
+      const result = await Promise.resolve(onAddExpense());
+      if (result) {
+        setIsCreateOpen(false);
+      }
+    } finally {
+      setIsSubmittingExpense(false);
     }
+  };
+
+  const handleDeleteExpense = (expense: Expense) => {
+    if (!window.confirm(`Удалить расход «${expense.description}»?`)) return;
+    onDeleteExpense(expense.id);
   };
 
   return (
@@ -233,7 +246,17 @@ export function MoneyExpenses({
                           <span>{expense.paymentMethod ? 'Оплачен' : 'Запланирован'}</span>
                         </div>
                       </div>
-                      <p className="shrink-0 text-sm text-[#B84949]">-{formatMoney(expense.amount).replace(' ₽', '')} ₽</p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <p className="text-sm text-[#B84949]">-{formatMoney(expense.amount).replace(' ₽', '')} ₽</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-xl text-[#133C2A]/40 hover:bg-[#D14343]/10 hover:text-[#D14343]"
+                          onClick={() => handleDeleteExpense(expense)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -312,9 +335,9 @@ export function MoneyExpenses({
               <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => setIsCreateOpen(false)}>
                 Отмена
               </Button>
-              <Button className="rounded-2xl bg-[#133C2A]" onClick={() => void handleSubmitExpense()}>
+              <Button className="rounded-2xl bg-[#133C2A]" onClick={() => void handleSubmitExpense()} disabled={isSubmittingExpense}>
                 <Plus className="mr-2 h-4 w-4" />
-                Сохранить расход
+                {isSubmittingExpense ? 'Сохраняем...' : 'Сохранить расход'}
               </Button>
             </div>
           </div>

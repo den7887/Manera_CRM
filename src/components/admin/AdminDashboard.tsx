@@ -93,10 +93,15 @@ export function AdminDashboard({
     };
   }, []);
 
+  // 'automations' and 'staff' have no nav entry anywhere for the admin role
+  // (see DesktopSidebar.tsx adminSecondaryMenu / MobileNav.tsx adminMenuItems)
+  // -- genuinely unreachable, kept here for when they're eventually wired up.
+  // 'settings' WAS reachable (both nav menus link to it) while also being
+  // stubbed here, which meant clicking it always showed this "in development"
+  // placeholder instead of the fully-built AdminSettings page below.
   const inDevelopmentPages: Record<string, string> = {
     automations: 'Автоматизации',
     staff: 'Сотрудники',
-    settings: 'Настройки',
   };
 
   // Компонент для блокировки тяжелых функций на мобильных

@@ -97,7 +97,11 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
   };
 
   const renderEventCard = (event: News) => {
-    const eventTypeInfo = event.eventType ? eventTypes[event.eventType] : eventTypes.other;
+    // EventForm.tsx's "custom event type" input can store an arbitrary
+    // free-text string into eventType (which TypeScript's own union type
+    // says should be impossible) -- fall back instead of crashing on an
+    // unrecognized key.
+    const eventTypeInfo = (event.eventType && eventTypes[event.eventType]) || eventTypes.other;
     const Icon = eventTypeInfo.icon;
     const status = getEventStatus(event);
 
