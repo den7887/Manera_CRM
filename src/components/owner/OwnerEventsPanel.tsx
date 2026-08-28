@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, CalendarClock, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { News } from '../../types';
 import { createNews, deleteNews, loadNews, updateNews } from '../../lib/backendApi';
 import { EventsManagement } from '../admin/EventsManagement';
 import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
 import { toast } from 'sonner';
 
 export function OwnerEventsPanel() {
@@ -35,18 +34,6 @@ export function OwnerEventsPanel() {
   useEffect(() => {
     void refresh();
   }, []);
-
-  const stats = useMemo(() => {
-    const now = Date.now();
-    const published = events.filter((item) => item.published).length;
-    const upcoming = events.filter((item) => item.eventDate && new Date(item.eventDate).getTime() >= now).length;
-    return {
-      total: events.length,
-      published,
-      drafts: events.length - published,
-      upcoming,
-    };
-  }, [events]);
 
   const createEvent = async (payload: Partial<News>) => {
     const optimistic: News = {
@@ -107,40 +94,13 @@ export function OwnerEventsPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
-        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сейчас на публикации</p>
-        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-2xl">Мероприятия студии</h2>
-            <p className="mt-1 text-sm text-white/72">Что опубликовано, что в черновиках и что ещё впереди.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-sm text-white/72">
-            <span>{stats.total} всего</span>
-            <span>•</span>
-            <span>{stats.published} опубликовано</span>
-            <span>•</span>
-            <span>{stats.upcoming} впереди</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-[#133C2A]">Мероприятия</h1>
-          <p className="text-[#133C2A]/60">Публикации, дедлайны и участие в событиях</p>
-        </div>
-        <Button variant="outline" className="rounded-2xl md:w-auto" onClick={() => void refresh(true)} disabled={isRefreshing}>
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-[#133C2A]/60">Синхронизация после каждого изменения выполняется автоматически</p>
+        <Button size="sm" variant="outline" className="rounded-xl sm:w-auto" onClick={() => void refresh(true)} disabled={isRefreshing}>
           <RefreshCw className="w-4 h-4 mr-2" />
           {isRefreshing ? 'Обновляем...' : 'Обновить'}
         </Button>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Всего</p><p className="text-xl text-[#133C2A] md:text-2xl">{stats.total}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Опубликовано</p><p className="text-xl text-[#133C2A] md:text-2xl">{stats.published}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Черновики</p><p className="text-xl text-[#133C2A] md:text-2xl">{stats.drafts}</p></CardContent></Card>
-        <Card className="border-none soft-shadow"><CardContent className="p-3 md:p-4"><p className="text-xs text-[#133C2A]/60">Предстоят</p><p className="text-xl text-[#133C2A] md:text-2xl">{stats.upcoming}</p></CardContent></Card>
       </div>
 
       <EventsManagement
@@ -149,12 +109,6 @@ export function OwnerEventsPanel() {
         onUpdate={(id, payload) => void updateEvent(id, payload)}
         onDelete={(id) => void removeEvent(id)}
       />
-
-      <div className="text-xs text-[#133C2A]/50 flex items-center gap-2">
-        <CalendarClock className="w-3.5 h-3.5" />
-        Синхронизация после каждого изменения выполняется автоматически
-        <CalendarCheck className="w-3.5 h-3.5" />
-      </div>
     </div>
   );
 }

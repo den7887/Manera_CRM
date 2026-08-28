@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Plus, Search, Calendar, MapPin, Users, Edit2, Trash2, Trophy, Music, GraduationCap, Sparkles, Eye, UserCheck } from 'lucide-react';
+import { Plus, Search, Calendar, MapPin, Users, Edit2, Trash2, Trophy, Music, GraduationCap, Sparkles, Eye, UserCheck, MoreHorizontal } from 'lucide-react';
 import { News } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EventForm } from './EventForm';
 import { EventParticipantsList } from './EventParticipantsList';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { EmptyState } from '../EmptyState';
 
 interface EventsManagementProps {
   events: News[];
@@ -30,7 +32,7 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
     competition: { label: 'Конкурс', icon: Trophy, color: '#D4AF37' },
     concert: { label: 'Концерт', icon: Music, color: '#133C2A' },
     masterclass: { label: 'Мастер-класс', icon: GraduationCap, color: '#1C8C64' },
-    other: { label: 'Мероприятие', icon: Sparkles, color: '#9333EA' },
+    other: { label: 'Мероприятие', icon: Sparkles, color: '#B85A2E' },
   };
 
   // Фильтруем только мероприятия
@@ -100,7 +102,7 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
     const status = getEventStatus(event);
 
     return (
-      <Card key={event.id} className="border-none soft-shadow hover-lift overflow-hidden">
+      <Card key={event.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
         {event.image && (
           <div className="relative">
             <ImageWithFallback
@@ -120,8 +122,10 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
 
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-[#133C2A] text-lg">{event.title}</CardTitle>
-            <Badge className={`${status.color} border-none text-xs`}>{status.label}</Badge>
+            <CardTitle className="text-lg text-[#133C2A] hover:underline cursor-pointer" onClick={() => handleEdit(event)}>
+              {event.title}
+            </CardTitle>
+            <Badge className={`rounded-full ${status.color} border-none text-xs`}>{status.label}</Badge>
           </div>
           
           <div className="space-y-1.5 text-xs text-[#133C2A]/60">
@@ -152,22 +156,23 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
               <UserCheck className="w-3.5 h-3.5 mr-1.5" />
               Участники ({event.eventParticipants?.length || 0})
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleEdit(event)}
-              className="rounded-xl hover:bg-[#133C2A]/5"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete?.(event.id)}
-              className="rounded-xl hover:bg-[#D14343]/10 hover:text-[#D14343]"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                <DropdownMenuItem onSelect={() => handleEdit(event)}>
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Изменить
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDelete?.(event.id)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Удалить
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -205,7 +210,24 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сейчас на публикации</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Мероприятия студии</h2>
+            <p className="mt-1 text-sm text-white/72">Конкурсы, концерты и мастер-классы в одном потоке.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{stats.total} всего</span>
+            <span>•</span>
+            <span>{stats.upcoming} предстоящих</span>
+            <span>•</span>
+            <span>{stats.published} опубликовано</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Управление мероприятиями</h1>
@@ -267,8 +289,8 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
         <Card className="border-none soft-shadow">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#9333EA]/10 flex items-center justify-center">
-                <Users className="w-5 h-5 text-[#9333EA]" />
+              <div className="w-10 h-10 rounded-xl bg-[#B85A2E]/10 flex items-center justify-center">
+                <Users className="w-5 h-5 text-[#B85A2E]" />
               </div>
               <div>
                 <p className="text-xs text-[#133C2A]/60">Участников</p>
@@ -329,21 +351,18 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
         </div>
       ) : (
         <Card className="border-none soft-shadow">
-          <CardContent className="p-12 text-center">
-            <Calendar className="w-16 h-16 text-[#133C2A]/20 mx-auto mb-4" />
-            <h3 className="text-[#133C2A] mb-2">Нет мероприятий</h3>
-            <p className="text-[#133C2A]/60 mb-4">
-              {searchQuery || filterType !== 'all' || filterStatus !== 'all'
-                ? 'Попробуйте изменить фильтры'
-                : 'Создайте первое мероприятие для студии'}
-            </p>
-            <Button
-              onClick={handleCreate}
-              className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Создать мероприятие
-            </Button>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Calendar}
+              title="Нет мероприятий"
+              description={
+                searchQuery || filterType !== 'all' || filterStatus !== 'all'
+                  ? 'Попробуйте изменить фильтры.'
+                  : 'Создайте первое мероприятие для студии.'
+              }
+              actionLabel="Создать мероприятие"
+              onAction={handleCreate}
+            />
           </CardContent>
         </Card>
       )}

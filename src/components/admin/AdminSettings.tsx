@@ -15,7 +15,7 @@ export function AdminSettings() {
   const [quoteAuthor, setQuoteAuthor] = useState('Manera Dance Studio');
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
       <div>
         <h1 className="text-[#133C2A] mb-2">Настройки</h1>
         <p className="text-[#133C2A]/60">Персонализация интерфейса</p>

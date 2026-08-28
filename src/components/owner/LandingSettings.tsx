@@ -100,8 +100,8 @@ export function LandingSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-[#133C2A] mb-2">Лендинг</h1>
           <p className="text-[#133C2A]/60">Настройки публичной страницы без мок-данных</p>

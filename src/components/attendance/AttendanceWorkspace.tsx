@@ -190,7 +190,7 @@ export function AttendanceWorkspace({ onOpenClient }: AttendanceWorkspaceProps) 
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
                 style={{ backgroundColor: groupColor }}
               >
                 <Users className="h-5 w-5" />
@@ -354,7 +354,7 @@ export function AttendanceWorkspace({ onOpenClient }: AttendanceWorkspaceProps) 
                   className="w-full text-left rounded-2xl border border-[#133C2A]/10 hover:border-[#D4AF37]/35 hover:bg-[#133C2A]/[0.03] p-3 transition flex items-center gap-3"
                 >
                   <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
                     style={{ backgroundColor: group.color || '#133C2A' }}
                   >
                     <Users className="h-5 w-5" />

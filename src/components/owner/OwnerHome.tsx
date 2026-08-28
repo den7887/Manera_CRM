@@ -192,12 +192,12 @@ export function OwnerHome({
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 md:space-y-5">
+    <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
       <NotificationPermissionPrompt />
       <section className="overflow-hidden rounded-[1.35rem] border border-[#133C2A]/10 bg-[#123827] text-white shadow-[0_18px_42px_rgba(19,60,42,0.16)] md:rounded-[2rem]">
         <div className="grid gap-3 p-3 md:grid-cols-[1.15fr_0.85fr] md:gap-4 md:p-7">
           <div className="min-w-0">
-            <h1 className="max-w-2xl text-[1.75rem] leading-[1.05] md:text-5xl">
+            <h1 className="max-w-2xl">
               {firstName ? `Здравствуйте, ${firstName}!` : 'Здравствуйте!'}
             </h1>
 

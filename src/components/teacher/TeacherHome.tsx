@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { CreateChecklistDialog } from './CreateChecklistDialog';
+import { EmptyState } from '../EmptyState';
 
 interface TeacherHomeProps {
   user: User;
@@ -55,9 +56,26 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
   const attendancePendingGroups = attendanceGroups.filter((group) => group.markedCount < group.studentCount);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 md:space-y-6">
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white animate-scale-in">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Сегодня на занятиях</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">Рабочий день педагога</h2>
+            <p className="mt-1 text-sm text-white/72">Занятия и посещаемость на сегодня.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{todayEvents.length} занятий сегодня</span>
+            <span>•</span>
+            <span>{attendancePendingGroups.length} групп без отметки</span>
+            <span>•</span>
+            <span>{totalStudents} учеников</span>
+          </div>
+        </div>
+      </div>
+
       {/* Welcome Header */}
-      <div className="animate-scale-in">
+      <div>
         <h1 className="text-[#133C2A] mb-2">Сегодня</h1>
         <p className="text-[#133C2A]/60">
           {user.name.split(' ')[0]}, занятий сегодня: {todayEvents.length}
@@ -166,7 +184,7 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
               <Calendar className="w-5 h-5 text-[#D4AF37]" />
               Расписание на сегодня
             </CardTitle>
-            <Badge className="bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">
+            <Badge className="rounded-full bg-[#D4AF37]/20 text-[#133C2A] border-[#D4AF37]/30">
               {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
             </Badge>
           </CardHeader>
@@ -195,10 +213,7 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
                   );
                 })
               ) : (
-                <div className="text-center py-8 text-[#133C2A]/60">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Сегодня занятий нет</p>
-                </div>
+                <EmptyState icon={Calendar} title="Сегодня занятий нет" description="Расписание на сегодня свободно." />
               )}
             </div>
           </CardContent>
@@ -232,7 +247,7 @@ export function TeacherHome({ user, groups, events, onNavigate }: TeacherHomePro
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-[#133C2A]/70">{group.studentCount} учеников</span>
-                  <Badge variant="outline" className="border-[#133C2A]/20 text-[#133C2A]">
+                  <Badge variant="outline" className="rounded-full border-[#133C2A]/20 text-[#133C2A]">
                     {group.schedule.split(' ')[0]}
                   </Badge>
                 </div>

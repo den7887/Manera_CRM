@@ -1,6 +1,6 @@
-import { Search, Users, CheckCircle, XCircle, Calendar, Phone, MessageSquare, FileText, History, MoreVertical, Cake, TrendingUp, X } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { Search, Users, CheckCircle, XCircle, Calendar, Phone, MessageSquare, FileText, History, MoreHorizontal, Cake, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Group, Student } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -8,6 +8,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Textarea } from '../ui/textarea';
 
 interface TeacherStudentsProps {
@@ -110,89 +111,45 @@ const formatDate = (date: Date): string => {
   return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// Custom Dropdown Menu Component
-function CustomDropdown({ 
-  student, 
-  onContactParent, 
-  onSendMessage, 
-  onOpenNote, 
-  onViewHistory 
-}: { 
+function StudentActionsMenu({
+  student,
+  onContactParent,
+  onSendMessage,
+  onOpenNote,
+  onViewHistory,
+}: {
   student: Student;
   onContactParent: (student: Student) => void;
   onSendMessage: (student: Student) => void;
   onOpenNote: (student: Student) => void;
   onViewHistory: (student: Student) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const handleAction = (action: () => void) => {
-    action();
-    setIsOpen(false);
-  };
-
   return (
-    <div className="relative" ref={dropdownRef}>
-      <Button 
-        variant="outline" 
-        size="icon"
-        onClick={() => setIsOpen(!isOpen)}
-        className="h-10 w-10 rounded-full border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]"
-      >
-        <MoreVertical className="w-5 h-5 text-[#133C2A]" />
-      </Button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-12 w-56 bg-white rounded-lg border border-[#133C2A]/20 shadow-lg z-50 py-2 animate-in fade-in slide-in-from-top-2">
-          <button
-            onClick={() => handleAction(() => onContactParent(student))}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[#133C2A] hover:bg-[#F8F4E3] w-full text-left transition-colors"
-          >
-            <Phone className="w-4 h-4" />
-            Связаться с родителем
-          </button>
-          <button
-            onClick={() => handleAction(() => onSendMessage(student))}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[#133C2A] hover:bg-[#F8F4E3] w-full text-left transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-            Отправить сообщение
-          </button>
-          <div className="h-px bg-[#133C2A]/10 my-1 mx-2" />
-          <button
-            onClick={() => handleAction(() => onOpenNote(student))}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[#133C2A] hover:bg-[#F8F4E3] w-full text-left transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-            {student.notes ? 'Редактировать примечание' : 'Добавить примечание'}
-          </button>
-          <button
-            onClick={() => handleAction(() => onViewHistory(student))}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[#133C2A] hover:bg-[#F8F4E3] w-full text-left transition-colors"
-          >
-            <History className="w-4 h-4" />
-            История посещений
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]">
+          <MoreHorizontal className="w-5 h-5 text-[#133C2A]" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="rounded-xl">
+        <DropdownMenuItem onSelect={() => onContactParent(student)}>
+          <Phone className="mr-2 h-4 w-4" />
+          Связаться с родителем
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onSendMessage(student)}>
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Отправить сообщение
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenNote(student)}>
+          <FileText className="mr-2 h-4 w-4" />
+          {student.notes ? 'Редактировать примечание' : 'Добавить примечание'}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onViewHistory(student)}>
+          <History className="mr-2 h-4 w-4" />
+          История посещений
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -226,8 +183,29 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
     toast.info(`Открыть чат с ${student.parentName}`);
   };
 
+  const attendanceRate = Math.round(
+    (mockStudents.reduce((sum, s) => sum + s.attendedClasses, 0) / mockStudents.reduce((sum, s) => sum + s.totalClasses, 0)) * 100,
+  );
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-scale-in">
+    <div className="space-y-4 md:space-y-6 animate-scale-in">
+      <div className="rounded-[28px] border border-[#133C2A]/10 bg-gradient-to-r from-[#133C2A] to-[#1d5a3f] px-5 py-5 text-white">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/65">Ваши ученики</p>
+        <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-2xl">База учеников</h2>
+            <p className="mt-1 text-sm text-white/72">Посещаемость и контакты родителей в одном месте.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm text-white/72">
+            <span>{mockStudents.length} учеников</span>
+            <span>•</span>
+            <span>{attendanceRate}% посещаемость</span>
+            <span>•</span>
+            <span>{groups.length} групп</span>
+          </div>
+        </div>
+      </div>
+
       <div>
         <h1 className="text-[#133C2A] mb-2">Все ученики</h1>
         <p className="text-[#133C2A]/60">База данных учеников и их прогресс</p>
@@ -249,7 +227,7 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
                 <Badge
                   key={group.id}
                   variant="outline"
-                  className="cursor-pointer border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37] transition-smooth px-4 py-2"
+                  className="cursor-pointer rounded-full border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37] transition-smooth px-4 py-2"
                   style={{ borderLeftWidth: '4px', borderLeftColor: group.color }}
                 >
                   {group.name}
@@ -268,7 +246,7 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
           const yearsAttending = calculateYearsAttending(student.startDate);
           
           return (
-            <Card key={student.id} className="border-none soft-shadow hover-lift">
+            <Card key={student.id} className="overflow-hidden border-[#133C2A]/10 bg-white/95 shadow-[0_8px_24px_rgba(19,60,42,0.05)]">
               <CardContent className="p-6">
                 <div className="flex items-start gap-6">
                   <Avatar className="w-16 h-16 border-2 border-[#D4AF37]">
@@ -276,7 +254,7 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
                       {student.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Колонка 1: Информация о ученике */}
                     <div className="space-y-3">
@@ -284,8 +262,8 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
                         <h4 className="text-[#133C2A] mb-2">{student.name}</h4>
                         <div className="flex items-center gap-2 flex-wrap">
                           {group && (
-                            <Badge 
-                              className="border-0 text-white"
+                            <Badge
+                              className="rounded-full border-0 text-white"
                               style={{ backgroundColor: group.color }}
                             >
                               {group.name}
@@ -330,7 +308,7 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
 
                     {/* Колонка 3: Действия */}
                     <div className="flex items-start justify-end">
-                      <CustomDropdown
+                      <StudentActionsMenu
                         student={student}
                         onContactParent={handleContactParent}
                         onSendMessage={handleSendMessage}
@@ -400,13 +378,13 @@ export function TeacherStudents({ groups }: TeacherStudentsProps) {
             <Button
               variant="outline"
               onClick={() => setNoteDialogOpen(false)}
-              className="border-[#133C2A]/20 hover:bg-[#133C2A]/5"
+              className="rounded-2xl border-[#133C2A]/20 hover:bg-[#133C2A]/5"
             >
               Отмена
             </Button>
             <Button
               onClick={handleSaveNote}
-              className="bg-gradient-to-r from-[#133C2A] to-[#1C8C64] text-white hover:opacity-90"
+              className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90"
             >
               Сохранить
             </Button>

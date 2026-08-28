@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../ui/switch';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
+import { EmptyState } from '../EmptyState';
 
 type StatusFilter = 'all' | 'unread' | 'waiting_reply';
 
@@ -240,7 +241,7 @@ export function OwnerCommunicationPanel() {
 
       <CardContent className="flex-1 overflow-y-auto p-3 space-y-2">
         {filteredChats.length === 0 ? (
-          <p className="text-sm text-[#133C2A]/60">Чатов по текущему фильтру нет.</p>
+          <EmptyState icon={MessageSquare} title="Чатов нет" description="По текущему фильтру ничего не найдено." />
         ) : (
           filteredChats.map((chat) => (
             <button
@@ -308,7 +309,7 @@ export function OwnerCommunicationPanel() {
               {isMessagesLoading ? (
                 <p className="text-sm text-[#133C2A]/60">Загрузка сообщений...</p>
               ) : messages.length === 0 ? (
-                <p className="text-sm text-[#133C2A]/60">Пока нет сообщений.</p>
+                <EmptyState icon={Send} title="Пока нет сообщений" description="Начните переписку — сообщение появится здесь." />
               ) : (
                 messages.map((message) => {
                   const isOwnerSide = message.senderRole !== 'parent';
@@ -351,7 +352,7 @@ export function OwnerCommunicationPanel() {
                 <Button
                   onClick={() => void handleSend()}
                   disabled={isSending || !draft.trim()}
-                  className="w-full rounded-xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
+                  className="w-full rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37] hover:opacity-90 sm:w-auto"
                 >
                   <Send className="w-4 h-4 mr-2" />
                   {isSending ? 'Отправка...' : 'Отправить'}
