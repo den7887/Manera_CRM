@@ -64,7 +64,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", asChild = false, children, ...props }, ref) => {
+  ({ className, variant = "default", size = "default", asChild = false, type = "button", children, ...props }, ref) => {
     const combinedClassName = buttonVariants({ variant, size, className });
 
     if (asChild && React.isValidElement(children)) {
@@ -77,6 +77,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        type={type}
         data-slot="button"
         className={combinedClassName}
         {...props}
