@@ -402,6 +402,46 @@ def test_owner_can_mark_pending_payment_as_paid(client: TestClient):
     assert payment["paidAt"] is not None
 
 
+def test_owner_can_delete_unpaid_payment(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001020", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    deleted = client.delete(f"/api/admin/payments/{payment_id}", headers=owner_headers)
+    assert deleted.status_code == 200
+    assert deleted.json()["ok"] is True
+
+    payments = client.get("/api/admin/payments", headers=owner_headers)
+    assert all(item["id"] != payment_id for item in payments.json())
+
+    store = main._read_store()
+    journal_entries = [item for item in store.get("paymentJournal", []) if str(item.get("paymentId")) == payment_id]
+    assert any(str(item.get("eventType")) == "payment.deleted" for item in journal_entries)
+
+    # Deleting an id that no longer exists is a clean 404, not a crash.
+    repeat = client.delete(f"/api/admin/payments/{payment_id}", headers=owner_headers)
+    assert repeat.status_code == 404
+
+
+def test_owner_cannot_delete_paid_payment(client: TestClient):
+    owner_headers = _auth_headers(client, main.OWNER_PHONE)
+    created = _create_owner_client(client, owner_headers, phone="+79990001021", payment_method="online")
+    payment_id = created["payment"]["id"]
+
+    patch = client.patch(
+        f"/api/admin/payments/{payment_id}/status",
+        json={"status": "paid"},
+        headers=owner_headers,
+    )
+    assert patch.status_code == 200
+
+    deleted = client.delete(f"/api/admin/payments/{payment_id}", headers=owner_headers)
+    assert deleted.status_code == 409
+
+    payments = client.get("/api/admin/payments", headers=owner_headers)
+    assert any(item["id"] == payment_id for item in payments.json())
+
+
 def test_owner_can_switch_online_payment_to_cash_and_confirm(client: TestClient):
     owner_headers = _auth_headers(client, main.OWNER_PHONE)
     created = _create_owner_client(client, owner_headers, phone="+79990001005", payment_method="online")

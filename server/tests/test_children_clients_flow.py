@@ -193,3 +193,104 @@ def test_create_existing_client_with_paid_period_grants_full_access(client: Test
     assert payload["payment"]["paidAt"]
     assert payload["parent"]["access_level"] == "full"
     assert payload["parent"]["account_status"] == "active"
+
+
+def test_delete_landing_lead_soft_deletes_and_hides_it(client: TestClient):
+    lead_response = client.post(
+        "/api/landing/leads",
+        json={
+            "parent_full_name": "Николаева Полина",
+            "phone": "+79998887766",
+            "child_full_name": "Николаева Соня",
+            "child_birth_date": "14.09.2017",
+            "discovery_source": "Лендинг",
+            "comment": "",
+            "consent": True,
+        },
+    )
+    assert lead_response.status_code == 200
+    lead_id = lead_response.json()["lead"]["id"]
+
+    headers = _auth_headers(client, main.OWNER_PHONE)
+    before = client.get("/api/admin/landing-leads", headers=headers)
+    assert before.status_code == 200
+    assert any(item["id"] == lead_id for item in before.json())
+
+    deleted = client.delete(f"/api/admin/landing-leads/{lead_id}", headers=headers)
+    assert deleted.status_code == 200
+    assert deleted.json()["ok"] is True
+
+    after = client.get("/api/admin/landing-leads", headers=headers)
+    assert all(item["id"] != lead_id for item in after.json())
+
+    # Deleting it again (already soft-deleted) is a clean 404, not a crash.
+    repeat = client.delete(f"/api/admin/landing-leads/{lead_id}", headers=headers)
+    assert repeat.status_code == 404
+
+
+def test_delete_child_removes_client_and_recalculates_group_counts(client: TestClient):
+    headers = _auth_headers(client, main.OWNER_PHONE)
+    created = client.post(
+        "/api/admin/clients",
+        json={
+            "parent_full_name": "Кузнецова Вера",
+            "child_full_name": "Кузнецова Даша",
+            "child_birth_date": "2016-01-01",
+            "parent_phone": "+79997778899",
+            "subscription_name": "Хобби",
+            "subscription_amount": 5000,
+            "payment_method": "cash",
+            "group_id": "group-1",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+    child_id = created.json()["child"]["id"]
+
+    groups_before = client.get("/api/owner/groups", headers=headers)
+    assert {item["id"]: item["studentCount"] for item in groups_before.json()}["group-1"] == 1
+
+    deleted = client.delete(f"/api/admin/children/{child_id}", headers=headers)
+    assert deleted.status_code == 200
+    assert deleted.json()["ok"] is True
+
+    children = client.get("/api/admin/children", headers=headers)
+    assert children.json() == []
+
+    payments = client.get("/api/admin/payments", headers=headers)
+    assert payments.json() == []
+
+    groups_after = client.get("/api/owner/groups", headers=headers)
+    assert {item["id"]: item["studentCount"] for item in groups_after.json()}["group-1"] == 0
+
+    # Deleting an id that no longer exists is a clean 404, not a crash.
+    repeat = client.delete(f"/api/admin/children/{child_id}", headers=headers)
+    assert repeat.status_code == 404
+
+
+def test_delete_child_blocked_when_client_has_a_paid_payment(client: TestClient):
+    headers = _auth_headers(client, main.OWNER_PHONE)
+    created = client.post(
+        "/api/admin/clients",
+        json={
+            "parent_full_name": "Морозова Ирина",
+            "child_full_name": "Морозов Тимофей",
+            "child_birth_date": "2015-06-15",
+            "parent_phone": "+79996667788",
+            "subscription_name": "Хобби",
+            "subscription_amount": 5000,
+            "payment_method": "cash",
+            "group_id": "group-1",
+            "mark_as_paid": True,
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200
+    child_id = created.json()["child"]["id"]
+
+    deleted = client.delete(f"/api/admin/children/{child_id}", headers=headers)
+    assert deleted.status_code == 409
+
+    # Nothing was touched by the rejected attempt.
+    children = client.get("/api/admin/children", headers=headers)
+    assert len(children.json()) == 1

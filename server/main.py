@@ -7753,6 +7753,35 @@ def admin_sync_landing_leads(
     return result
 
 
+@app.delete("/api/admin/landing-leads/{lead_id}")
+def admin_delete_landing_lead(
+    lead_id: str,
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
+) -> dict[str, bool]:
+    store = _read_store()
+    lead = _find_landing_lead_by_id(store, lead_id)
+    if lead is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Заявка не найдена")
+
+    # Same soft-delete the Telegram bot's "lead:delete_apply:" action already
+    # uses (main.py's callback handler) -- _active_landing_leads()/the admin
+    # landing-leads list both already filter these out, so no other endpoint
+    # needs to change to stop showing a deleted lead.
+    now = _utc_now_iso()
+    lead["status"] = "deleted"
+    lead["deletedAt"] = now
+    lead["updatedAt"] = now
+    _append_security_audit_event(
+        store,
+        event_type="landing_lead.deleted",
+        outcome="success",
+        actor_user_id=str(current_user.get("id") or ""),
+        metadata={"leadId": lead_id, "childFullName": lead.get("childFullName"), "parentFullName": lead.get("parentFullName")},
+    )
+    _write_store(store)
+    return {"ok": True}
+
+
 @app.get("/api/admin/children/{child_id}")
 def admin_get_child(
     child_id: str,
@@ -7849,6 +7878,61 @@ def admin_assign_child_group(
         "group": next_group,
         "updatedByUserId": current_user.get("id"),
     }
+
+
+@app.delete("/api/admin/children/{child_id}")
+def admin_delete_child(
+    child_id: str,
+    current_user: dict[str, Any] = Depends(_require_permission("clients.edit")),
+) -> dict[str, bool]:
+    store = _read_store()
+    child = _find_child_by_id(store, child_id)
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ученик не найден")
+
+    client = next((item for item in store.get("clients", []) if str(item.get("childId")) == str(child.get("id"))), None)
+    client_id = str(client.get("id")) if client else None
+
+    payments_for_client = [
+        item for item in store.get("paymentRecords", [])
+        if client_id and str(item.get("clientId")) == client_id
+    ]
+    if any(str(item.get("status")) == "paid" for item in payments_for_client):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить заявку: по ней есть оплаченные платежи. Сначала оформите возврат/отмену оплаты.",
+        )
+
+    now = _utc_now_iso()
+    _append_security_audit_event(
+        store,
+        event_type="client.deleted",
+        outcome="success",
+        actor_user_id=str(current_user.get("id") or ""),
+        metadata={
+            "childId": child_id,
+            "childName": child.get("fullName"),
+            "clientId": client_id,
+            "parentUserId": child.get("parentUserId"),
+            "removedPaymentIds": [str(item.get("id")) for item in payments_for_client],
+        },
+    )
+
+    store["children"] = [item for item in store.get("children", []) if str(item.get("id")) != child_id]
+    if client_id:
+        store["clients"] = [item for item in store.get("clients", []) if str(item.get("id")) != client_id]
+        store["paymentRecords"] = [
+            item for item in store.get("paymentRecords", [])
+            if str(item.get("clientId")) != client_id
+        ]
+    store["attendance"] = [
+        item for item in store.get("attendance", [])
+        if str(item.get("childId")) != child_id
+    ]
+
+    _recalculate_group_student_counts(store)
+    _write_store(store)
+    return {"ok": True}
 
 
 @app.get("/api/admin/payments")
@@ -8219,6 +8303,44 @@ def admin_update_payment_status(
     )
     _write_store(store)
     return {"ok": True, "payment": _serialize_admin_payment(store, payment)}
+
+
+@app.delete("/api/admin/payments/{payment_id}")
+def admin_delete_payment(
+    payment_id: str,
+    current_user: dict[str, Any] = Depends(_require_permission("finance.status_update")),
+) -> dict[str, bool]:
+    store = _read_store()
+    payment = _find_payment_by_id(store, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    _ensure_legacy_payment_shape(store, payment)
+    _refresh_payment_overdue_status(payment)
+    if str(payment.get("status")) == "paid":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить оплаченный счет. Сначала отмените или оформите возврат.",
+        )
+
+    _append_payment_journal(
+        store,
+        payment=payment,
+        event_type="payment.deleted",
+        source="admin",
+        previous_status=str(payment.get("status") or "pending"),
+        new_status="deleted",
+        actor_user_id=str(current_user.get("id") or ""),
+        actor_role=current_user.get("role"),
+        metadata={"invoiceNumber": payment.get("invoiceNumber"), "amount": payment.get("amount")},
+    )
+
+    parent_user_id = str(payment.get("parentUserId") or "")
+    store["paymentRecords"] = [item for item in store.get("paymentRecords", []) if str(item.get("id")) != payment_id]
+    if parent_user_id:
+        _recalculate_parent_access_from_clients(store, parent_user_id)
+    _write_store(store)
+    return {"ok": True}
 
 
 @app.post("/api/admin/payments/{payment_id}/change-due-date")
