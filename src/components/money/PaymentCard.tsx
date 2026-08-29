@@ -81,7 +81,10 @@ export function PaymentCard({
   const mainAction = primaryActionLabel(payment, paymentType);
 
   return (
-    <Card className={`border-none bg-white/95 shadow-[0_12px_28px_rgba(19,60,42,0.06)] ${payment.status === 'overdue' ? 'ring-1 ring-[#D14343]/20' : ''}`}>
+    <Card
+      onClick={() => onOpen(payment)}
+      className={`cursor-pointer border-none bg-white/95 shadow-[0_12px_28px_rgba(19,60,42,0.06)] transition-shadow hover:shadow-[0_16px_36px_rgba(19,60,42,0.12)] ${payment.status === 'overdue' ? 'ring-1 ring-[#D14343]/20' : ''}`}
+    >
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -98,11 +101,16 @@ export function PaymentCard({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="rounded-2xl text-[#133C2A]/60">
+              <Button
+                size="icon"
+                variant="outline"
+                className="shrink-0 rounded-2xl border-[#133C2A]/15 bg-white text-[#133C2A] shadow-sm hover:bg-[#F8F4E3]"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl" onClick={(event) => event.stopPropagation()}>
               <DropdownMenuItem onClick={() => onOpen(payment)}>Открыть</DropdownMenuItem>
               {onOpenClient ? <DropdownMenuItem onClick={() => onOpenClient(payment)}>Открыть клиента</DropdownMenuItem> : null}
               {onCopyLink ? <DropdownMenuItem onClick={() => onCopyLink(payment)}>Скопировать ссылку</DropdownMenuItem> : null}
@@ -139,7 +147,7 @@ export function PaymentCard({
 
         <p className="text-sm text-[#133C2A]/60">{getDueLine(payment)}</p>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2" onClick={(event) => event.stopPropagation()}>
           {mainAction === 'Подтвердить' && onMarkCash ? (
             <Button className="rounded-2xl" onClick={() => onMarkCash(payment)}>
               Подтвердить
