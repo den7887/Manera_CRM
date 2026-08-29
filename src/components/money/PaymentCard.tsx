@@ -1,4 +1,4 @@
-import { MoreHorizontal, Send } from 'lucide-react';
+import { MoreHorizontal, Send, Trash2 } from 'lucide-react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -36,6 +36,10 @@ function canChangeMethod(payment: AdminPaymentRecord): boolean {
   return !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status);
 }
 
+function canDelete(payment: AdminPaymentRecord): boolean {
+  return payment.status !== 'paid';
+}
+
 function statusBadgeTone(status?: string | null): string {
   const displayStatus = getDisplayPaymentStatus(status);
   if (displayStatus === 'paid') return 'border-green-200 bg-green-50 text-green-700';
@@ -56,6 +60,8 @@ export function PaymentCard({
   onChangeDueDate,
   onOpenClient,
   onCallParent,
+  onDelete,
+  isDeleting,
 }: {
   payment: AdminPaymentRecord;
   onOpen: (payment: AdminPaymentRecord) => void;
@@ -68,6 +74,8 @@ export function PaymentCard({
   onChangeDueDate?: (payment: AdminPaymentRecord) => void;
   onOpenClient?: (payment: AdminPaymentRecord) => void;
   onCallParent?: (payment: AdminPaymentRecord) => void;
+  onDelete?: (payment: AdminPaymentRecord) => void;
+  isDeleting?: boolean;
 }) {
   const paymentType = derivePaymentType(payment);
   const mainAction = primaryActionLabel(payment, paymentType);
@@ -112,6 +120,11 @@ export function PaymentCard({
                 <DropdownMenuItem onClick={() => onCancel(payment)}>Отменить счет</DropdownMenuItem>
               ) : null}
               {onCallParent && payment.parentPhone ? <DropdownMenuItem onClick={() => onCallParent(payment)}>Позвонить</DropdownMenuItem> : null}
+              {onDelete && canDelete(payment) ? (
+                <DropdownMenuItem variant="destructive" disabled={isDeleting} onClick={() => onDelete(payment)}>
+                  {isDeleting ? 'Удаляем...' : 'Удалить'}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

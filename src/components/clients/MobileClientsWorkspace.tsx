@@ -95,8 +95,10 @@ export function MobileClientsWorkspace({
   onActivateLead,
   onAssignGroup,
   onOpenComments,
+  onDelete,
   isInvoicingChildId,
   isReminderPaymentId,
+  isDeletingChildId,
   onNavigateSection,
   onAddClient,
 }: {
@@ -142,8 +144,10 @@ export function MobileClientsWorkspace({
   onActivateLead: (entry: ClientWorkspaceEntry) => void;
   onAssignGroup: (entry: ClientWorkspaceEntry) => void;
   onOpenComments: (entry: ClientWorkspaceEntry) => void;
+  onDelete?: (entry: ClientWorkspaceEntry) => void;
   isInvoicingChildId: string | null;
   isReminderPaymentId: string | null;
+  isDeletingChildId?: string | null;
   onNavigateSection?: (page: string) => void;
   onAddClient?: () => void;
 }) {
@@ -284,8 +288,10 @@ export function MobileClientsWorkspace({
       onActivateLead={() => onActivateLead(entry)}
       onAssignGroup={() => onAssignGroup(entry)}
       onOpenComments={() => onOpenComments(entry)}
+      onDelete={onDelete ? () => onDelete(entry) : undefined}
       isInvoicing={isInvoicingChildId === entry.child.id}
       isReminding={entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : false}
+      isDeleting={isDeletingChildId === entry.child.id}
     />
   );
 

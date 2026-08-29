@@ -21,6 +21,8 @@ export function PaymentDetailsSheet({
   onChangeMethod,
   onChangeDueDate,
   onOpenClient,
+  onDelete,
+  isDeleting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +35,8 @@ export function PaymentDetailsSheet({
   onChangeMethod?: (payment: AdminPaymentRecord) => void;
   onChangeDueDate?: (payment: AdminPaymentRecord) => void;
   onOpenClient?: (payment: AdminPaymentRecord) => void;
+  onDelete?: (payment: AdminPaymentRecord) => void;
+  isDeleting?: boolean;
 }) {
   const isMobile = useIsMobile();
   if (!payment) return null;
@@ -102,6 +106,16 @@ export function PaymentDetailsSheet({
             ) : null}
             {onOpenClient ? (
               <Button variant="outline" className="rounded-2xl" onClick={() => onOpenClient(payment)}>Открыть клиента</Button>
+            ) : null}
+            {onDelete && payment.status !== 'paid' ? (
+              <Button
+                variant="outline"
+                className="rounded-2xl border-[#D14343]/25 text-[#D14343] hover:bg-[#D14343]/8 hover:text-[#D14343]"
+                onClick={() => onDelete(payment)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Удаляем...' : 'Удалить'}
+              </Button>
             ) : null}
           </div>
         </div>

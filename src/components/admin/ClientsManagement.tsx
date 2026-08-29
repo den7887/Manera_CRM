@@ -8,6 +8,8 @@ import {
   createClientByAdmin,
   createAdminInvoice,
   createTask,
+  deleteAdminChild,
+  deleteAdminLandingLead,
   resetClientPin,
   resumeClientPortal,
   suspendClientPortal,
@@ -37,6 +39,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { AddStudentDialog } from './AddStudentDialog';
@@ -426,6 +429,7 @@ export function ClientsManagement({
   const canCreateClient = hasPermission(currentUser, 'clients.create');
   const [isAssigningChildId, setIsAssigningChildId] = useState<string | null>(null);
   const [isInvoicingChildId, setIsInvoicingChildId] = useState<string | null>(null);
+  const [isDeletingChildId, setIsDeletingChildId] = useState<string | null>(null);
   const [isReminderPaymentId, setIsReminderPaymentId] = useState<string | null>(null);
   const [isPortalActionLoading, setIsPortalActionLoading] = useState(false);
   const [portalDialog, setPortalDialog] = useState<null | {
@@ -976,6 +980,32 @@ export function ClientsManagement({
     }
   };
 
+  const deleteClient = async (child: AdminChildRecord) => {
+    const isLeadOnly = isLeadOnlyChildRecord(child);
+    const confirmed = window.confirm(
+      `Удалить заявку «${child.fullName || 'без имени'}»? Это действие нельзя отменить.`,
+    );
+    if (!confirmed) return;
+
+    setIsDeletingChildId(child.id);
+    try {
+      if (isLeadOnly) {
+        await deleteAdminLandingLead(child.id.replace('lead::', ''));
+      } else {
+        await deleteAdminChild(child.id);
+      }
+      toast.success('Заявка удалена');
+      if (selectedChildId === child.id) {
+        setSelectedChildId(null);
+      }
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить заявку');
+    } finally {
+      setIsDeletingChildId(null);
+    }
+  };
+
   const createInvoiceForChild = async (child: AdminChildRecord) => {
     if (!child.clientId) {
       toast.error('У карточки нет clientId для выставления счета');
@@ -1124,9 +1154,11 @@ export function ClientsManagement({
           onNavigateSection('tasks-management');
         }
       }}
+      onDelete={() => void deleteClient(entry.child)}
       isAssigning={isAssigningChildId === entry.child.id}
       isInvoicing={isInvoicingChildId === entry.child.id}
       isReminding={entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : false}
+      isDeleting={isDeletingChildId === entry.child.id}
       sectionLabel={sectionLabel}
     />
   );
@@ -1155,9 +1187,22 @@ export function ClientsManagement({
                   {entry.child.age ?? '—'} лет • {entry.child.parentName || 'Родитель не указан'} • {entry.child.parentPhone || 'Телефон не указан'}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                <ClientStatusBadge stage={entry.stage} />
-                <ClientTemperatureBadge temperature={entry.temperature} />
+              <div className="flex shrink-0 items-start gap-2">
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  <ClientStatusBadge stage={entry.stage} />
+                  <ClientTemperatureBadge temperature={entry.temperature} />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl text-[#133C2A]/35 hover:bg-[#D14343]/8 hover:text-[#D14343]"
+                  onClick={() => void deleteClient(entry.child)}
+                  disabled={isDeletingChildId === entry.child.id}
+                  title="Удалить заявку"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -1305,7 +1350,9 @@ export function ClientsManagement({
           onActivateLead={openLeadActivation}
           onAssignGroup={(entry) => openClient(entry.child.id)}
           onOpenComments={(entry) => openClient(entry.child.id)}
+          onDelete={(entry) => void deleteClient(entry.child)}
           isInvoicingChildId={isInvoicingChildId}
+          isDeletingChildId={isDeletingChildId}
           isReminderPaymentId={isReminderPaymentId}
           onNavigateSection={onNavigateSection}
           onAddClient={canCreateClient ? () => setIsAddDialogOpen(true) : undefined}

@@ -1,5 +1,5 @@
 import { AdminChildRecord, AdminPaymentRecord } from '../../lib/backendApi';
-import { Copy, CreditCard, MessageSquareText, Receipt, UserPlus2, Users } from 'lucide-react';
+import { Copy, CreditCard, MessageSquareText, Receipt, Trash2, UserPlus2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import {
@@ -36,8 +36,10 @@ export function MobileClientActionsSheet({
   onOpenTasks,
   onOpenComments,
   onOpenGroup,
+  onDelete,
   isInvoicing,
   isReminding,
+  isDeleting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,8 +52,10 @@ export function MobileClientActionsSheet({
   onOpenTasks: () => void;
   onOpenComments: () => void;
   onOpenGroup: () => void;
+  onDelete?: () => void;
   isInvoicing?: boolean;
   isReminding?: boolean;
+  isDeleting?: boolean;
 }) {
   const closeAndRun = (handler: () => void) => {
     onOpenChange(false);
@@ -110,9 +114,17 @@ export function MobileClientActionsSheet({
             <Copy className="mr-2 h-4 w-4" />
             Скопировать телефон
           </Button>
-          <Button variant="outline" className="h-12 w-full justify-start rounded-2xl border-[#133C2A]/10 text-[#133C2A]/40" disabled>
-            Архивирование скоро появится
-          </Button>
+          {onDelete ? (
+            <Button
+              variant="outline"
+              className="h-12 w-full justify-start rounded-2xl border-[#D14343]/25 text-[#D14343] hover:bg-[#D14343]/8 hover:text-[#D14343]"
+              onClick={() => closeAndRun(onDelete)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isDeleting ? 'Удаляем...' : 'Удалить заявку'}
+            </Button>
+          ) : null}
         </div>
         <DrawerFooter>
           <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => onOpenChange(false)}>

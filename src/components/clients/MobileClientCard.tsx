@@ -59,8 +59,10 @@ export function MobileClientCard({
   onActivateLead,
   onAssignGroup,
   onOpenComments,
+  onDelete,
   isInvoicing,
   isReminding,
+  isDeleting,
 }: {
   entry: ClientWorkspaceEntry;
   groups: Group[];
@@ -74,8 +76,10 @@ export function MobileClientCard({
   onActivateLead?: () => void;
   onAssignGroup: () => void;
   onOpenComments: () => void;
+  onDelete?: () => void;
   isInvoicing?: boolean;
   isReminding?: boolean;
+  isDeleting?: boolean;
 }) {
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [callDialogOpen, setCallDialogOpen] = useState(false);
@@ -246,8 +250,10 @@ export function MobileClientCard({
         onOpenTasks={onOpenTasks}
         onOpenComments={onOpenComments}
         onOpenGroup={onAssignGroup}
+        onDelete={onDelete}
         isInvoicing={isInvoicing}
         isReminding={isReminding}
+        isDeleting={isDeleting}
       />
     </>
   );

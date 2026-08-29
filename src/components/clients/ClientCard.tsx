@@ -1,4 +1,4 @@
-import { ArrowUpRight, CreditCard, MoreHorizontal, Phone, Plus, Send, Users } from 'lucide-react';
+import { ArrowUpRight, CreditCard, MoreHorizontal, Phone, Plus, Send, Trash2, Users } from 'lucide-react';
 import { AdminChildRecord, AdminPaymentRecord } from '../../lib/backendApi';
 import { Group } from '../../types';
 import { Avatar, AvatarFallback } from '../ui/avatar';
@@ -58,9 +58,11 @@ export function ClientCard({
   onRemind,
   onAssignGroup,
   onOpenTasks,
+  onDelete,
   isAssigning,
   isInvoicing,
   isReminding,
+  isDeleting,
   sectionLabel,
 }: {
   child: AdminChildRecord;
@@ -80,9 +82,11 @@ export function ClientCard({
   onRemind?: () => void;
   onAssignGroup: (groupId: string | null) => void;
   onOpenTasks: () => void;
+  onDelete?: () => void;
   isAssigning?: boolean;
   isInvoicing?: boolean;
   isReminding?: boolean;
+  isDeleting?: boolean;
   sectionLabel?: string;
 }) {
   const leadCreatedAt = child.landingLead?.createdAt || child.createdAt;
@@ -163,6 +167,12 @@ export function ClientCard({
                         <Phone className="mr-2 h-4 w-4" />
                         Контакты и профиль
                       </DropdownMenuItem>
+                      {onDelete ? (
+                        <DropdownMenuItem variant="destructive" disabled={isDeleting} onSelect={onDelete}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {isDeleting ? 'Удаляем...' : 'Удалить заявку'}
+                        </DropdownMenuItem>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

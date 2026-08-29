@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { Button } from '../ui/button';
@@ -26,6 +26,8 @@ export function MoneyPayments({
   onMarkCash,
   onChangeMethod,
   onChangeDueDate,
+  onDelete,
+  isDeletingPaymentId,
   activeContextLabel,
 }: {
   payments: AdminPaymentRecord[];
@@ -46,6 +48,8 @@ export function MoneyPayments({
     options?: { confirmCashImmediately?: boolean },
   ) => Promise<void>;
   onChangeDueDate: (payment: AdminPaymentRecord) => void;
+  onDelete?: (payment: AdminPaymentRecord) => void;
+  isDeletingPaymentId?: string | null;
   activeContextLabel?: string | null;
 }) {
   const isMobile = useIsMobile();
@@ -186,6 +190,8 @@ export function MoneyPayments({
                   onChangeMethod={openMethodDialog}
                   onChangeDueDate={onChangeDueDate}
                   onCallParent={handleCallParent}
+                  onDelete={onDelete}
+                  isDeleting={isDeletingPaymentId === payment.id}
                 />
               ))}
             </div>
@@ -261,6 +267,18 @@ export function MoneyPayments({
                           <Button size="sm" className="rounded-xl bg-[#133C2A]" onClick={() => onOpenPayment(payment)}>
                             Открыть
                           </Button>
+                          {onDelete && payment.status !== 'paid' ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-xl px-2 text-[#133C2A]/40 hover:bg-[#D14343]/8 hover:text-[#D14343]"
+                              onClick={() => onDelete(payment)}
+                              disabled={isDeletingPaymentId === payment.id}
+                              title="Удалить платеж"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

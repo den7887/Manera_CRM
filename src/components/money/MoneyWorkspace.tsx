@@ -10,6 +10,7 @@ import {
   confirmCashPayment,
   createAdminInvoice,
   createOwnerExpense,
+  deleteAdminPayment,
   deleteOwnerExpense,
   loadAdminChildren,
   loadAdminClients,
@@ -163,6 +164,7 @@ export function MoneyWorkspace({
   });
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [editingDuePaymentId, setEditingDuePaymentId] = useState<string | null>(null);
+  const [isDeletingPaymentId, setIsDeletingPaymentId] = useState<string | null>(null);
 
   const refresh = async (silent = false) => {
     if (silent) {
@@ -364,6 +366,26 @@ export function MoneyWorkspace({
     }
   };
 
+  const deletePayment = async (payment: AdminPaymentRecord) => {
+    if (!window.confirm(`Удалить платеж «${payment.subscriptionName || payment.childName || payment.id}»? Это действие нельзя отменить.`)) {
+      return;
+    }
+    setIsDeletingPaymentId(payment.id);
+    try {
+      await deleteAdminPayment(payment.id);
+      toast.success('Платеж удален');
+      if (selectedPayment?.id === payment.id) {
+        setIsPaymentDetailsOpen(false);
+        setSelectedPayment(null);
+      }
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить платеж');
+    } finally {
+      setIsDeletingPaymentId(null);
+    }
+  };
+
   const markCashPaid = async (payment: AdminPaymentRecord) => {
     try {
       await confirmCashPayment(payment.id, { comment: 'Подтверждено из раздела Деньги', paid_amount: Number(payment.amount || 0) });
@@ -498,6 +520,8 @@ export function MoneyWorkspace({
           onMarkCash={markCashPaid}
           onChangeMethod={changePaymentMethod}
           onChangeDueDate={changeDueDate}
+          onDelete={(payment) => void deletePayment(payment)}
+          isDeletingPaymentId={isDeletingPaymentId}
           activeContextLabel={activeContextLabel}
         />
       ) : null}
@@ -568,6 +592,8 @@ export function MoneyWorkspace({
         onCancel={(payment) => void cancelPayment(payment)}
         onMarkCash={(payment) => void markCashPaid(payment)}
         onChangeDueDate={(payment) => void changeDueDate(payment)}
+        onDelete={(payment) => void deletePayment(payment)}
+        isDeleting={selectedPayment ? isDeletingPaymentId === selectedPayment.id : false}
       />
     </div>
   );

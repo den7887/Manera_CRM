@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { ArrowUpRight, CheckCircle2, CreditCard, MessageSquareText, Receipt, Send } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, CreditCard, MessageSquareText, Receipt, Send, Trash2 } from 'lucide-react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { PaymentStatusBadge, isOutstandingPaymentStatus } from './PaymentStatusBadge';
 import { Button } from '../ui/button';
@@ -25,8 +25,10 @@ interface PaymentCardProps {
   onSendReminder?: (payment: AdminPaymentRecord) => void;
   onOpenClient?: (payment: AdminPaymentRecord) => void;
   onSetStatus?: (payment: AdminPaymentRecord) => void;
+  onDelete?: (payment: AdminPaymentRecord) => void;
   isConfirming?: boolean;
   isReminding?: boolean;
+  isDeleting?: boolean;
   statusControl?: ReactNode;
   primaryActionLabel?: string;
 }
@@ -37,8 +39,10 @@ export function PaymentCard({
   onSendReminder,
   onOpenClient,
   onSetStatus,
+  onDelete,
   isConfirming,
   isReminding,
+  isDeleting,
   statusControl,
 }: PaymentCardProps) {
   const canConfirmCash = payment.paymentMethod === 'cash' && payment.status !== 'paid' && Boolean(onConfirmCash);
@@ -166,6 +170,18 @@ export function PaymentCard({
                 <MessageSquareText className="mr-2 h-4 w-4" />
                 Написать родителю
               </Button>
+
+              {onDelete && payment.status !== 'paid' ? (
+                <Button
+                  variant="outline"
+                  onClick={() => onDelete(payment)}
+                  disabled={isDeleting}
+                  className="rounded-2xl border-[#D14343]/25 text-[#D14343] hover:bg-[#D14343]/8 hover:text-[#D14343]"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {isDeleting ? 'Удаляем...' : 'Удалить'}
+                </Button>
+              ) : null}
 
               {statusControl ? (
                 <div className="mt-auto rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/55 p-3">

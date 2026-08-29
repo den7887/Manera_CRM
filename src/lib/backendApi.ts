@@ -1139,6 +1139,10 @@ export async function loadAdminLandingLeads(): Promise<AdminLandingLeadRecord[]>
   return request<AdminLandingLeadRecord[]>('/api/admin/landing-leads');
 }
 
+export async function deleteAdminLandingLead(leadId: string): Promise<{ ok: boolean }> {
+  return request(`/api/admin/landing-leads/${leadId}`, { method: 'DELETE' });
+}
+
 export async function loadAdminChild(childId: string): Promise<AdminChildRecord> {
   return request<AdminChildRecord>(`/api/admin/children/${childId}`);
 }
@@ -1151,6 +1155,10 @@ export async function assignAdminChildGroup(
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+}
+
+export async function deleteAdminChild(childId: string): Promise<{ ok: boolean }> {
+  return request(`/api/admin/children/${childId}`, { method: 'DELETE' });
 }
 
 export async function updateAdminChildProfile(
@@ -1335,6 +1343,10 @@ export async function updateAdminPaymentStatus(
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+}
+
+export async function deleteAdminPayment(paymentId: string): Promise<{ ok: boolean }> {
+  return request(`/api/admin/payments/${paymentId}`, { method: 'DELETE' });
 }
 
 export async function changeAdminPaymentDueDate(

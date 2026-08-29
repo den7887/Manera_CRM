@@ -4,6 +4,7 @@ import {
   AdminPaymentRecord,
   confirmCashPayment,
   createAdminInvoice,
+  deleteAdminPayment,
   loadAdminClients,
   loadAdminPayments,
   runAdminPaymentReminders,
@@ -94,6 +95,7 @@ export function AdminPayments({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [remindingId, setRemindingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusDraftById, setStatusDraftById] = useState<Record<string, AdminPaymentStatus>>({});
   const [appliedContextId, setAppliedContextId] = useState<number | null>(null);
   const [activeContextLabel, setActiveContextLabel] = useState<string | null>(null);
@@ -240,6 +242,22 @@ export function AdminPayments({
       toast.error(error instanceof Error ? error.message : 'Не удалось отправить напоминание');
     } finally {
       setRemindingId(null);
+    }
+  };
+
+  const deletePayment = async (payment: AdminPaymentRecord) => {
+    if (!window.confirm(`Удалить платеж «${payment.subscriptionName || payment.childName || payment.id}»? Это действие нельзя отменить.`)) {
+      return;
+    }
+    setDeletingId(payment.id);
+    try {
+      await deleteAdminPayment(payment.id);
+      toast.success('Платеж удален');
+      await refresh(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить платеж');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -487,8 +505,10 @@ export function AdminPayments({
               onSendReminder={isOutstandingPaymentStatus(payment.status) ? sendReminder : undefined}
               onOpenClient={onOpenClient}
               onSetStatus={applyStatus}
+              onDelete={(item) => void deletePayment(item)}
               isConfirming={confirmingId === payment.id}
               isReminding={remindingId === payment.id}
+              isDeleting={deletingId === payment.id}
               statusControl={
                 <Select
                   value={statusDraftById[payment.id] || payment.status}
