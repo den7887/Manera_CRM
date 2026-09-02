@@ -74,6 +74,8 @@ import {
   deriveClientTemperature,
   deriveNextAction,
   deriveTrialStage,
+  sourceLabel,
+  stageReason,
   trialStageLabel,
 } from '../clients/clientStatus';
 import {
@@ -90,7 +92,6 @@ const workspaceLabels: Record<WorkspaceTab, string> = {
   funnel: 'Воронка',
   base: 'База клиентов',
   trials: 'Пробные',
-  clients: 'Клиенты',
   tasks: 'Задачи',
   archive: 'Архив',
 };
@@ -295,10 +296,6 @@ function isLeadOnlyChildRecord(child: AdminChildRecord): boolean {
   return child.id.startsWith('lead::');
 }
 
-function sourceLabel(child: AdminChildRecord): string {
-  return child.profile?.sourceChannel || child.landingLead?.discoverySource || 'Не указан';
-}
-
 function buildFunnelSteps(stage: ClientStage, child: AdminChildRecord) {
   const currentIndex = stageOrder.indexOf(stage);
   const steps = [
@@ -341,37 +338,6 @@ function taskDueLabel(task: Task): string {
     day: 'numeric',
     month: 'short',
   });
-}
-
-function stageReason(stage: ClientStage): string {
-  switch (stage) {
-    case 'lead_new':
-      return 'Новая заявка недавно попала в CRM и еще не обработана.';
-    case 'contact_needed':
-      return 'Интерес подтвержден, но первый контакт еще не закрыт.';
-    case 'in_dialog':
-      return 'Контакт есть, но решение по пробному или группе еще не принято.';
-    case 'trial_scheduled':
-      return 'Пробный сценарий уже движется и требует подтверждения.';
-    case 'thinking':
-      return 'После пробного решения по покупке еще нет.';
-    case 'waiting_payment':
-      return 'Есть открытый счет, ожидание оплаты или подтверждения.';
-    case 'active':
-      return 'Клиент в действующей базе и занимается в группе.';
-    case 'risk':
-      return 'Есть просрочка, проблема с группой или зависшее действие.';
-    case 'paused':
-      return 'Клиент временно выпал из активного потока и требует уточнения.';
-    case 'frozen':
-      return 'Сценарий находится в заморозке и требует ручного контроля.';
-    case 'lost':
-      return 'Сделка закрылась без продолжения, нужна причина отказа.';
-    case 'archived':
-      return 'Карточка выведена из активной работы.';
-    default:
-      return 'Статус рассчитан по текущим данным карточки.';
-  }
 }
 
 function archiveCategory(stage: ClientStage): ArchiveFilter {
@@ -1659,33 +1625,6 @@ export function ClientsManagement({
                   </section>
                 ))
               )}
-            </div>
-          ) : workspaceTab === 'clients' ? (
-            <div className="space-y-4">
-              <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#fcfaf0] p-4 md:p-5">
-                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="text-[#133C2A]">Клиенты</h2>
-                    <p className="text-sm text-[#133C2A]/55">Полный список клиентов. Нажмите на строку, чтобы открыть карточку.</p>
-                  </div>
-                  <p className="text-sm text-[#133C2A]/48">Найдено: {filteredClients.length}</p>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {filteredClients.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-5 text-sm text-[#133C2A]/52">
-                      По текущим фильтрам клиентов не найдено.
-                    </div>
-                  ) : (
-                    filteredClients.map((entry) =>
-                      renderCompactClientRow(entry, {
-                        contextLabel: clientStageLabel[entry.stage],
-                        showSource: false,
-                        highlight: entry.child.profile?.internalComment ? `Важно: ${entry.child.profile.internalComment}` : undefined,
-                      }),
-                    )
-                  )}
-                </div>
-              </div>
             </div>
           ) : workspaceTab === 'tasks' ? (
             <div className="space-y-4">

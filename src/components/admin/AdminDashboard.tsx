@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { User, Group, Event, Task, AutomationRule, Child, Notification, News, Document } from '../../types';
 import { AdminHome } from './AdminHome';
-import { AdminStudents } from './AdminStudents';
-import { AdminParents } from './AdminParents';
-import { AdminLeads } from './AdminLeads';
 import { OwnerGroupsPanel } from '../owner/OwnerGroupsPanel';
 import { OwnerCommunicationPanel } from '../owner/OwnerCommunicationPanel';
 import { loadOwnerCommunicationChats } from '../../lib/backendApi';
@@ -146,12 +143,6 @@ export function AdminDashboard({
     switch (currentPage) {
       case 'home':
         return <AdminHome user={user} events={events} groups={groups} tasks={tasks} onNavigate={setCurrentPage} notifications={notifications} />;
-      case 'students':
-        return <AdminStudents groups={groups} />;
-      case 'parents':
-        return <AdminParents />;
-      case 'leads':
-        return <AdminLeads />;
       case 'groups':
         return <OwnerGroupsPanel />;
       case 'schedule':

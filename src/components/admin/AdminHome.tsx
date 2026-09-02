@@ -216,8 +216,8 @@ export function AdminHome({ user, events, groups, tasks, onNavigate, notificatio
               <span>Добавить занятие</span>
             </Button>
 
-            <Button 
-              onClick={() => onNavigate('students')}
+            <Button
+              onClick={() => onNavigate('clients-management')}
               variant="outline"
               className="h-auto p-6 rounded-2xl border-[#133C2A]/20 hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 flex flex-col items-center gap-3"
             >

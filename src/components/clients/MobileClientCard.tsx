@@ -4,15 +4,12 @@ import { Group } from '../../types';
 import { ClientStatusBadge } from './ClientStatusBadge';
 import { ClientTemperatureBadge } from './ClientTemperatureBadge';
 import { ClientWorkspaceEntry } from './clientsWorkspaceTypes';
+import { sourceLabel } from './clientStatus';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { MobileClientActionsSheet } from './MobileClientActionsSheet';
 import { portalStatusLabel } from '../../lib/portalStatus';
-
-function sourceLabel(entry: ClientWorkspaceEntry): string {
-  return entry.child.profile?.sourceChannel || entry.child.landingLead?.discoverySource || 'Не указан';
-}
 
 function formatRuDateTime(value?: string | null): string {
   if (!value) return '—';
@@ -136,7 +133,7 @@ export function MobileClientCard({
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-2xl bg-[#F8F4E3]/72 px-3 py-2.5">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[#133C2A]/42">Источник</p>
-              <p className="mt-1 text-[#133C2A]">{sourceLabel(entry)}</p>
+              <p className="mt-1 text-[#133C2A]">{sourceLabel(entry.child)}</p>
             </div>
             <div className="rounded-2xl bg-[#F8F4E3]/72 px-3 py-2.5">
               <p className="text-[11px] uppercase tracking-[0.12em] text-[#133C2A]/42">Заявка поступила</p>

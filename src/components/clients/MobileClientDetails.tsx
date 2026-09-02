@@ -17,7 +17,7 @@ import { ClientNextAction } from './ClientNextAction';
 import { ClientStatusBadge } from './ClientStatusBadge';
 import { ClientTemperatureBadge } from './ClientTemperatureBadge';
 import { ClientTimeline } from './ClientTimeline';
-import { clientStageLabel, clientTemperatureLabel } from './clientStatus';
+import { clientStageLabel, clientTemperatureLabel, sourceLabel, stageReason } from './clientStatus';
 import { ClientWorkspaceEntry } from './clientsWorkspaceTypes';
 import { accountStatusLabel, portalStatusLabel } from '../../lib/portalStatus';
 
@@ -33,41 +33,6 @@ function formatRuDateTime(value?: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString('ru-RU');
-}
-
-function stageReason(stage: ClientWorkspaceEntry['stage']): string {
-  switch (stage) {
-    case 'lead_new':
-      return 'Новая заявка недавно попала в CRM и еще не обработана.';
-    case 'contact_needed':
-      return 'Интерес есть, но первый контакт еще не закрыт.';
-    case 'in_dialog':
-      return 'Контакт уже есть, решение по следующему шагу еще не принято.';
-    case 'trial_scheduled':
-      return 'Пробный сценарий уже движется и требует контроля.';
-    case 'thinking':
-      return 'После пробного решения о покупке еще нет.';
-    case 'waiting_payment':
-      return 'Есть открытый счет или ожидание подтверждения оплаты.';
-    case 'active':
-      return 'Клиент занимается и находится в активной базе.';
-    case 'risk':
-      return 'Есть просрочка, нет группы или карточка зависла.';
-    case 'paused':
-      return 'Карточка временно выпала из активной работы.';
-    case 'frozen':
-      return 'Сценарий заморожен и требует ручного контроля.';
-    case 'lost':
-      return 'Сделка закрылась без продолжения.';
-    case 'archived':
-      return 'Карточка выведена из активной работы.';
-    default:
-      return 'Статус рассчитан по текущим данным карточки.';
-  }
-}
-
-function sourceLabel(entry: ClientWorkspaceEntry): string {
-  return entry.child.profile?.sourceChannel || entry.child.landingLead?.discoverySource || 'Не указан';
 }
 
 function buildFunnelSteps(entry: ClientWorkspaceEntry) {
@@ -185,7 +150,7 @@ export function MobileClientDetails({
                 <ClientStatusBadge stage={entry.stage} />
                 <ClientTemperatureBadge temperature={entry.temperature} />
                 <Badge variant="outline" className="rounded-full border-[#133C2A]/12 text-[#133C2A]/68">
-                  {sourceLabel(entry)}
+                  {sourceLabel(entry.child)}
                 </Badge>
               </div>
             </div>
@@ -235,7 +200,7 @@ export function MobileClientDetails({
                       </div>
                       <div className="rounded-2xl bg-white/75 p-3">
                         <p className="text-xs text-[#133C2A]/45">Откуда узнали</p>
-                        <p className="mt-1">{sourceLabel(entry)}</p>
+                        <p className="mt-1">{sourceLabel(entry.child)}</p>
                       </div>
                       <div className="rounded-2xl bg-white/75 p-3">
                         <p className="text-xs text-[#133C2A]/45">Поступила</p>
@@ -308,7 +273,7 @@ export function MobileClientDetails({
                       <p className="mt-1 text-sm text-[#133C2A]/60">{entry.trialFacts.note}</p>
                     </div>
                     <div className="space-y-2 text-sm text-[#133C2A]">
-                      <p>Источник: {sourceLabel(entry)}</p>
+                      <p>Источник: {sourceLabel(entry.child)}</p>
                       <p>Интерес: {entry.child.landingLead?.comment || 'Не указан'}</p>
                       <p>Группа: {entry.child.groupName || 'Не назначена'}</p>
                     </div>
@@ -523,7 +488,7 @@ export function MobileClientDetails({
                     <p>Телефон: {entry.child.parentPhone || '—'}</p>
                     <p>Доступ в ЛК: {accountStatusLabel(entry.child.parentAccountStatus)}</p>
                     <p>Статус кабинета: {portalStatusLabel(entry.child.parentPortalStatus)}</p>
-                    <p>Источник: {sourceLabel(entry)}</p>
+                    <p>Источник: {sourceLabel(entry.child)}</p>
                     <p>Ожидания: {profileDraft.parentExpectations || '—'}</p>
                     <p>Экстренный контакт: {profileDraft.emergencyContactName || '—'} {profileDraft.emergencyContactPhone ? `· ${profileDraft.emergencyContactPhone}` : ''}</p>
                     <div className="grid gap-2 pt-1">

@@ -8,8 +8,8 @@ import {
   TrialWorkspaceStage,
 } from './clientStatus';
 
-export type WorkspaceTab = 'today' | 'funnel' | 'base' | 'trials' | 'clients' | 'tasks' | 'archive';
-export type MobileWorkspaceTab = 'today' | 'funnel' | 'trials' | 'base' | 'clients';
+export type WorkspaceTab = 'today' | 'funnel' | 'base' | 'trials' | 'tasks' | 'archive';
+export type MobileWorkspaceTab = 'today' | 'funnel' | 'trials' | 'base';
 export type TaskTab = 'mine' | 'today' | 'overdue' | 'unassigned' | 'done';
 export type StageFilter = 'all' | 'leads' | 'trials' | 'waiting_payment' | 'active' | 'risk' | 'archive';
 export type TemperatureFilter = 'all' | 'hot' | 'warm' | 'cold' | 'problem';

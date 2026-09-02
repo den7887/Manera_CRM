@@ -389,6 +389,41 @@ export function buildClientTimeline(child: AdminChildRecord, payments: AdminPaym
     .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 }
 
+export function sourceLabel(child: AdminChildRecord): string {
+  return child.profile?.sourceChannel || child.landingLead?.discoverySource || 'Не указан';
+}
+
+export function stageReason(stage: ClientStage): string {
+  switch (stage) {
+    case 'lead_new':
+      return 'Новая заявка недавно попала в CRM и еще не обработана.';
+    case 'contact_needed':
+      return 'Интерес подтвержден, но первый контакт еще не закрыт.';
+    case 'in_dialog':
+      return 'Контакт есть, но решение по пробному или группе еще не принято.';
+    case 'trial_scheduled':
+      return 'Пробный сценарий уже движется и требует подтверждения.';
+    case 'thinking':
+      return 'После пробного решения по покупке еще нет.';
+    case 'waiting_payment':
+      return 'Есть открытый счет, ожидание оплаты или подтверждения.';
+    case 'active':
+      return 'Клиент в действующей базе и занимается в группе.';
+    case 'risk':
+      return 'Есть просрочка, проблема с группой или зависшее действие.';
+    case 'paused':
+      return 'Клиент временно выпал из активного потока и требует уточнения.';
+    case 'frozen':
+      return 'Сценарий находится в заморозке и требует ручного контроля.';
+    case 'lost':
+      return 'Сделка закрылась без продолжения, нужна причина отказа.';
+    case 'archived':
+      return 'Карточка выведена из активной работы.';
+    default:
+      return 'Статус рассчитан по текущим данным карточки.';
+  }
+}
+
 export function buildClientTasks(child: AdminChildRecord, tasks: Task[]): ClientTaskItem[] {
   return tasks
     .filter((task) => task.relatedChildId === child.id || task.relatedUserId === child.parentUserId)

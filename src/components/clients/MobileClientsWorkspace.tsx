@@ -18,32 +18,7 @@ import {
 import { MobileQueueSummary } from './MobileQueueSummary';
 import { MobileClientCard } from './MobileClientCard';
 import { MobileClientFiltersSheet } from './MobileClientFiltersSheet';
-import { clientStageLabel } from './clientStatus';
-
-function sourceLabel(entry: ClientWorkspaceEntry): string {
-  return entry.child.profile?.sourceChannel || entry.child.landingLead?.discoverySource || 'Не указан';
-}
-
-function stageReason(stage: ClientWorkspaceEntry['stage']): string {
-  switch (stage) {
-    case 'lead_new':
-      return 'Ждет первого контакта.';
-    case 'contact_needed':
-      return 'Нужно закрыть первый контакт.';
-    case 'trial_scheduled':
-      return 'Контроль до или после пробного.';
-    case 'thinking':
-      return 'Нужно уточнить решение после пробного.';
-    case 'waiting_payment':
-      return 'Есть счет или ожидание подтверждения.';
-    case 'risk':
-      return 'Просрочка, нет группы или зависшая карточка.';
-    case 'active':
-      return 'Действующий клиент студии.';
-    default:
-      return 'Рабочий сценарий CRM.';
-  }
-}
+import { clientStageLabel, stageReason } from './clientStatus';
 
 function archiveReasonLabel(entry: ClientWorkspaceEntry): string {
   if (entry.stage === 'lost') return 'Отказ';
@@ -151,7 +126,7 @@ export function MobileClientsWorkspace({
   onNavigateSection?: (page: string) => void;
   onAddClient?: () => void;
 }) {
-  const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base' | 'clients'>('today');
+  const [mobileTab, setMobileTab] = useState<'today' | 'funnel' | 'trials' | 'base'>('today');
   const [todayFocus, setTodayFocus] = useState<'all' | 'new' | 'trials' | 'after' | 'waiting' | 'risk' | 'no-action'>('all');
   const [activeFunnelId, setActiveFunnelId] = useState<string>('new');
   const [activeTrialId, setActiveTrialId] = useState<string>('new_request');
@@ -326,7 +301,6 @@ export function MobileClientsWorkspace({
             { id: 'funnel', label: 'Воронка' },
             { id: 'trials', label: 'Пробные' },
             { id: 'base', label: 'База' },
-            { id: 'clients', label: 'Клиенты' },
           ].map((tab) => (
             <Button
               key={tab.id}
@@ -596,36 +570,6 @@ export function MobileClientsWorkspace({
               ))
             )}
           </div>
-        </div>
-      ) : mobileTab === 'clients' ? (
-        <div className="space-y-4">
-          <div className="rounded-[28px] border border-[#133C2A]/10 bg-[#FCFAF0] p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#133C2A]/40" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Поиск по ребенку, родителю, телефону"
-                className="rounded-2xl border-[#133C2A]/12 pl-9"
-              />
-            </div>
-            <p className="mt-3 text-sm text-[#133C2A]/55">Все клиенты: {filteredClients.length}</p>
-          </div>
-
-          {filteredClients.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-[#133C2A]/12 bg-white/70 px-4 py-8 text-center text-sm text-[#133C2A]/52">
-              По текущим фильтрам клиентов не найдено.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredClients.map((entry) =>
-                renderMobileCard(
-                  entry,
-                  `${entry.child.groupName || 'Без группы'} · ${clientStageLabel[entry.stage]}`,
-                ),
-              )}
-            </div>
-          )}
         </div>
       ) : null}
 
