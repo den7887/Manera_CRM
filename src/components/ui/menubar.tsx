@@ -134,7 +134,7 @@ const MenubarContent = React.forwardRef<HTMLDivElement, MenubarContentProps>(
         ref={contentRef}
         data-slot="menubar-content"
         className={cn(
-          "bg-popover text-popover-foreground absolute z-50 min-w-48 overflow-hidden rounded-md border p-1 shadow-md animate-in fade-in-0 zoom-in-95",
+          "bg-popover text-popover-foreground absolute z-[70] min-w-48 overflow-hidden rounded-md border p-1 shadow-md animate-in fade-in-0 zoom-in-95",
           align === "start" && "left-0",
           align === "center" && "left-1/2 -translate-x-1/2",
           align === "end" && "right-0",
@@ -329,7 +329,7 @@ const MenubarSubContent = React.forwardRef<HTMLDivElement, MenubarSubContentProp
         ref={ref}
         data-slot="menubar-sub-content"
         className={cn(
-          "bg-popover text-popover-foreground z-50 min-w-32 overflow-hidden rounded-md border p-1 shadow-lg",
+          "bg-popover text-popover-foreground z-[70] min-w-32 overflow-hidden rounded-md border p-1 shadow-lg",
           className,
         )}
         {...props}
