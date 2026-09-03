@@ -244,7 +244,7 @@ export function AttendanceWorkspace({ onOpenClient }: AttendanceWorkspaceProps) 
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" size="icon" variant="ghost" className="h-9 w-9 rounded-xl shrink-0">
                           <MoreVertical className="h-4 w-4" />

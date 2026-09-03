@@ -125,7 +125,7 @@ function StudentActionsMenu({
   onViewHistory: (student: Student) => void;
 }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]">
           <MoreHorizontal className="w-5 h-5 text-[#133C2A]" />

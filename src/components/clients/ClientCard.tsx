@@ -140,7 +140,7 @@ export function ClientCard({
                       </Badge>
                     </div>
                   </div>
-                  <DropdownMenu>
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                         <MoreHorizontal className="h-4 w-4" />

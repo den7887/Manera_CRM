@@ -1211,7 +1211,7 @@ export function ClientsManagement({
             <Button onClick={() => openClient(entry.child.id)} className="flex-1 rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
               Открыть карточку
             </Button>
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"

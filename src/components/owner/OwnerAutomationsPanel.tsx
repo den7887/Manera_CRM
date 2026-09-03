@@ -1434,7 +1434,7 @@ export function OwnerAutomationsPanel() {
                                 </button>
                                 <div className="flex shrink-0 items-center gap-2">
                                   <Switch checked={rule.isActive} onCheckedChange={() => void toggleRule(rule)} />
-                                  <DropdownMenu>
+                                  <DropdownMenu modal={false}>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                         <MoreHorizontal className="h-4 w-4" />

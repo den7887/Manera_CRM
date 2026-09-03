@@ -29,7 +29,7 @@ export function SubscriptionMoneyCard({
               {subscription.parentName ? ` · ${subscription.parentName}` : ''}
             </p>
           </div>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="ghost" className="rounded-2xl text-[#133C2A]/60">
                 <MoreHorizontal className="h-5 w-5" />

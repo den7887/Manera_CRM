@@ -350,7 +350,7 @@ export function DocumentsManagement({
                             <Button variant="outline" size="sm" onClick={() => handleDownload(doc)} className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                               <Download className="w-4 h-4" />
                             </Button>
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                   <MoreHorizontal className="h-4 w-4" />

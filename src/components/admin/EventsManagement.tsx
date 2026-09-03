@@ -160,7 +160,7 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
               <UserCheck className="w-3.5 h-3.5 mr-1.5" />
               Участники ({event.eventParticipants?.length || 0})
             </Button>
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                   <MoreHorizontal className="h-4 w-4" />

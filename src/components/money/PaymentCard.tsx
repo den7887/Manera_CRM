@@ -99,7 +99,7 @@ export function PaymentCard({
               Мама: {payment.parentName || payment.parentPhone || '—'}
             </p>
           </div>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 size="icon"

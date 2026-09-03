@@ -511,7 +511,7 @@ export function OwnerAnalytics({ stats, monthlyData, employees, groups }: OwnerA
           </div>
 
           {/* Кнопка экспорта */}
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="outline" 
