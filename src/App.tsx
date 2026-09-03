@@ -487,6 +487,23 @@ export default function App() {
     };
   }, [appState, currentUserRole]);
 
+  // Watchdog: some mobile browsers (notably iOS Safari) occasionally fail to
+  // undo the pointer-events lock a popover/dropdown/dialog sets on <body>
+  // while open, leaving the whole page unresponsive to taps until reload.
+  // If nothing is actually open anymore but the lock is still there, clear it.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.body.style.pointerEvents !== 'none') return;
+      const somethingOpen = document.querySelector(
+        '[data-state="open"], [data-slot$="-overlay"], [role="alertdialog"]',
+      );
+      if (!somethingOpen) {
+        document.body.style.pointerEvents = '';
+      }
+    }, 500);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const handlePinLogin = async (phone: string, pin: string) => {
     const role = await loginWithPin(phone, pin);
 
