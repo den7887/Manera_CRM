@@ -34,6 +34,7 @@ import {
   CreditCard,
   KeyRound,
   FolderArchive,
+  MoreHorizontal,
   Plus,
   QrCode,
   RefreshCw,
@@ -48,6 +49,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -1153,22 +1155,9 @@ export function ClientsManagement({
                   {entry.child.age ?? '—'} лет • {entry.child.parentName || 'Родитель не указан'} • {entry.child.parentPhone || 'Телефон не указан'}
                 </p>
               </div>
-              <div className="flex shrink-0 items-start gap-2">
-                <div className="flex flex-wrap justify-end gap-1.5">
-                  <ClientStatusBadge stage={entry.stage} />
-                  <ClientTemperatureBadge temperature={entry.temperature} />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-xl text-[#133C2A]/35 hover:bg-[#D14343]/8 hover:text-[#D14343]"
-                  onClick={() => void deleteClient(entry.child)}
-                  disabled={isDeletingChildId === entry.child.id}
-                  title="Удалить заявку"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <ClientStatusBadge stage={entry.stage} />
+                <ClientTemperatureBadge temperature={entry.temperature} />
               </div>
             </div>
 
@@ -1218,41 +1207,56 @@ export function ClientsManagement({
             ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-2 lg:w-[230px]">
-            <Button onClick={() => openClient(entry.child.id)} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+          <div className="flex w-full items-center gap-2 lg:w-[230px]">
+            <Button onClick={() => openClient(entry.child.id)} className="flex-1 rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
               Открыть карточку
             </Button>
-            <Button
-              variant="outline"
-              className="rounded-2xl border-[#133C2A]/15"
-              onClick={() =>
-                onNavigatePayments?.({
-                  searchQuery: entry.child.parentPhone || entry.child.fullName,
-                  queue: entry.stage === 'waiting_payment' ? 'waiting' : entry.stage === 'risk' ? 'problem' : 'all',
-                  sourceLabel: `Оплаты по ${entry.child.fullName}`,
-                  invoiceClientId: entry.child.clientId || undefined,
-                })
-              }
-            >
-              Открыть оплаты
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-2xl border-[#133C2A]/15"
-              onClick={() => {
-                if (entry.latestOpenPayment) {
-                  void remindAboutPayment(entry.latestOpenPayment);
-                  return;
-                }
-                void createInvoiceForChild(entry.child);
-              }}
-              disabled={Boolean(entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : isInvoicingChildId === entry.child.id)}
-            >
-              {entry.latestOpenPayment ? 'Напомнить' : 'Выставить счет'}
-            </Button>
-            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => onNavigateSection?.('tasks-management')}>
-              Задачи
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 rounded-2xl border-[#133C2A]/15 bg-white text-[#133C2A] shadow-sm hover:bg-[#F8F4E3]"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+                <DropdownMenuItem
+                  onClick={() =>
+                    onNavigatePayments?.({
+                      searchQuery: entry.child.parentPhone || entry.child.fullName,
+                      queue: entry.stage === 'waiting_payment' ? 'waiting' : entry.stage === 'risk' ? 'problem' : 'all',
+                      sourceLabel: `Оплаты по ${entry.child.fullName}`,
+                      invoiceClientId: entry.child.clientId || undefined,
+                    })
+                  }
+                >
+                  Открыть оплаты
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (entry.latestOpenPayment) {
+                      void remindAboutPayment(entry.latestOpenPayment);
+                      return;
+                    }
+                    void createInvoiceForChild(entry.child);
+                  }}
+                  disabled={Boolean(entry.latestOpenPayment ? isReminderPaymentId === entry.latestOpenPayment.id : isInvoicingChildId === entry.child.id)}
+                >
+                  {entry.latestOpenPayment ? 'Напомнить об оплате' : 'Выставить счет'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onNavigateSection?.('tasks-management')}>Задачи</DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={isDeletingChildId === entry.child.id}
+                  onClick={() => void deleteClient(entry.child)}
+                >
+                  {isDeletingChildId === entry.child.id ? 'Удаляем...' : 'Удалить'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardContent>
@@ -1979,19 +1983,13 @@ export function ClientsManagement({
               <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList className="w-full overflow-x-auto whitespace-nowrap rounded-2xl bg-[#F8F4E3] p-1">
                   <TabsTrigger value="overview" className="min-w-[120px] rounded-xl">Обзор</TabsTrigger>
-                  <TabsTrigger value="child" className="min-w-[120px] rounded-xl">Ребенок</TabsTrigger>
-                  <TabsTrigger value="parent" className="min-w-[120px] rounded-xl">Родитель</TabsTrigger>
-                  <TabsTrigger value="funnel" className="min-w-[120px] rounded-xl">Воронка</TabsTrigger>
-                  <TabsTrigger value="trials" className="min-w-[120px] rounded-xl">Пробные</TabsTrigger>
-                  <TabsTrigger value="payments" className="min-w-[120px] rounded-xl">Оплаты</TabsTrigger>
-                  <TabsTrigger value="group" className="min-w-[120px] rounded-xl">Группа</TabsTrigger>
-                  <TabsTrigger value="attendance" className="min-w-[120px] rounded-xl">Посещаемость</TabsTrigger>
-                  <TabsTrigger value="tasks" className="min-w-[120px] rounded-xl">Задачи</TabsTrigger>
-                  <TabsTrigger value="comments" className="min-w-[120px] rounded-xl">Комментарии</TabsTrigger>
-                  <TabsTrigger value="history" className="min-w-[120px] rounded-xl">История</TabsTrigger>
+                  <TabsTrigger value="path" className="min-w-[120px] rounded-xl">Путь</TabsTrigger>
+                  <TabsTrigger value="classes" className="min-w-[120px] rounded-xl">Занятия</TabsTrigger>
+                  <TabsTrigger value="finance" className="min-w-[120px] rounded-xl">Финансы</TabsTrigger>
+                  <TabsTrigger value="feed" className="min-w-[120px] rounded-xl">Лента</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="overview" className="space-y-4">
+                <TabsContent value="overview" className="space-y-5">
                   <Card className="border-[#133C2A]/10">
                     <CardContent className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Статус клиента</p><p className="mt-1 text-[#133C2A]">{clientStageLabel[selectedClient.stage]}</p></div>
@@ -2005,92 +2003,137 @@ export function ClientsManagement({
                       <div className="rounded-2xl bg-[#F8F4E3]/70 p-4"><p className="text-xs text-[#133C2A]/60">Следующий шаг</p><p className="mt-1 text-[#133C2A]">{selectedClient.nextAction.title}</p><p className="mt-1 text-xs text-[#133C2A]/48">{selectedClient.nextAction.dueLabel}</p></div>
                     </CardContent>
                   </Card>
-                </TabsContent>
 
-                <TabsContent value="child" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">ФИО</p><p className="text-[#133C2A]">{selectedClient.child.fullName}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Возраст</p><p className="text-[#133C2A]">{selectedClient.child.age ?? '—'} лет</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Дата рождения</p><p className="text-[#133C2A]">{formatRuDate(selectedClient.child.birthDate)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Опыт</p><p className="text-[#133C2A]">{profileDraft.priorExperience || selectedClient.child.landingLead?.previousActivities || '—'}</p></div>
-                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Ограничения</p><p className="whitespace-pre-wrap text-[#133C2A]">{profileDraft.healthNotes || selectedClient.child.landingLead?.medicalRestrictions || '—'}</p></div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Ребенок</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                        <div><p className="text-xs text-[#133C2A]/60">ФИО</p><p className="text-[#133C2A]">{selectedClient.child.fullName}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Возраст</p><p className="text-[#133C2A]">{selectedClient.child.age ?? '—'} лет</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Дата рождения</p><p className="text-[#133C2A]">{formatRuDate(selectedClient.child.birthDate)}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Опыт</p><p className="text-[#133C2A]">{profileDraft.priorExperience || selectedClient.child.landingLead?.previousActivities || '—'}</p></div>
+                        <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Ограничения</p><p className="whitespace-pre-wrap text-[#133C2A]">{profileDraft.healthNotes || selectedClient.child.landingLead?.medicalRestrictions || '—'}</p></div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-                <TabsContent value="parent" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                      <div><p className="text-xs text-[#133C2A]/60">ФИО родителя</p><p className="text-[#133C2A]">{selectedClient.child.parentName || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Телефон</p><p className="text-[#133C2A]">{selectedClient.child.parentPhone || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{accountStatusLabel(selectedClient.child.parentAccountStatus)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Уровень доступа</p><p className="text-[#133C2A]">{selectedClient.child.parentAccessLevel || '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Статус кабинета</p><p className="text-[#133C2A]">{portalStatusLabel(selectedClient.child.parentPortalStatus)}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Последний вход</p><p className="text-[#133C2A]">{selectedClient.child.parentLastLoginAt ? formatRuDateTime(selectedClient.child.parentLastLoginAt) : '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Активация кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalActivatedAt ? formatRuDateTime(selectedClient.child.parentPortalActivatedAt) : '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Блокировка кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalBlockedAt ? formatRuDateTime(selectedClient.child.parentPortalBlockedAt) : '—'}</p></div>
-                      <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Предпочтения по связи</p><p className="text-[#133C2A]">{profileDraft.communicationPreferences || 'Не заданы'}</p></div>
-                      <div className="md:col-span-2 rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-4">
-                        <p className="text-xs text-[#133C2A]/60">Управление доступом</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void createPortalActivation(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
-                            <QrCode className="mr-2 h-4 w-4" />
-                            Создать ссылку активации
-                          </Button>
-                          <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resetPortalPinForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
-                            <KeyRound className="mr-2 h-4 w-4" />
-                            Сбросить PIN
-                          </Button>
-                          {selectedClient.child.parentPortalStatus === 'blocked' ? (
-                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resumePortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
-                              <ShieldCheck className="mr-2 h-4 w-4" />
-                              Возобновить доступ
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Родитель</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                        <div><p className="text-xs text-[#133C2A]/60">ФИО родителя</p><p className="text-[#133C2A]">{selectedClient.child.parentName || '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Телефон</p><p className="text-[#133C2A]">{selectedClient.child.parentPhone || '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Доступ в ЛК</p><p className="text-[#133C2A]">{accountStatusLabel(selectedClient.child.parentAccountStatus)}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Уровень доступа</p><p className="text-[#133C2A]">{selectedClient.child.parentAccessLevel || '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Статус кабинета</p><p className="text-[#133C2A]">{portalStatusLabel(selectedClient.child.parentPortalStatus)}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Последний вход</p><p className="text-[#133C2A]">{selectedClient.child.parentLastLoginAt ? formatRuDateTime(selectedClient.child.parentLastLoginAt) : '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Активация кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalActivatedAt ? formatRuDateTime(selectedClient.child.parentPortalActivatedAt) : '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Блокировка кабинета</p><p className="text-[#133C2A]">{selectedClient.child.parentPortalBlockedAt ? formatRuDateTime(selectedClient.child.parentPortalBlockedAt) : '—'}</p></div>
+                        <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Предпочтения по связи</p><p className="text-[#133C2A]">{profileDraft.communicationPreferences || 'Не заданы'}</p></div>
+                        <div className="md:col-span-2 rounded-2xl border border-[#133C2A]/10 bg-[#F8F4E3]/70 p-4">
+                          <p className="text-xs text-[#133C2A]/60">Управление доступом</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void createPortalActivation(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                              <QrCode className="mr-2 h-4 w-4" />
+                              Создать ссылку активации
                             </Button>
-                          ) : (
-                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void suspendPortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
-                              <ShieldCheck className="mr-2 h-4 w-4" />
-                              Приостановить доступ
+                            <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resetPortalPinForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                              <KeyRound className="mr-2 h-4 w-4" />
+                              Сбросить PIN
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="funnel" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="space-y-3 p-6">
-                      {buildFunnelSteps(selectedClient.stage, selectedClient.child).map((step) => (
-                        <div key={step.id} className="flex items-center gap-3 rounded-2xl border border-[#133C2A]/10 bg-white px-4 py-3">
-                          <span className={`h-3 w-3 rounded-full ${step.state === 'done' ? 'bg-green-500' : step.state === 'current' ? 'bg-[#D4AF37]' : 'bg-[#133C2A]/15'}`} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[#133C2A]">{step.label}</p>
-                            <p className="text-xs text-[#133C2A]/55">{step.date ? formatRuDateTime(step.date) : 'Дата пока не хранится отдельно'}</p>
+                            {selectedClient.child.parentPortalStatus === 'blocked' ? (
+                              <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void resumePortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Возобновить доступ
+                              </Button>
+                            ) : (
+                              <Button variant="outline" className="rounded-2xl border-[#133C2A]/15" onClick={() => void suspendPortalForEntry(selectedClient)} disabled={!selectedClient.child.clientId || isPortalActionLoading}>
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Приостановить доступ
+                              </Button>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
 
-                <TabsContent value="trials" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="p-6">
-                      <p className="text-[#133C2A]">{selectedClient.trialFacts.title}</p>
-                      <p className="mt-2 text-sm text-[#133C2A]/62">{selectedClient.trialFacts.note}</p>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div><p className="text-xs text-[#133C2A]/60">Источник</p><p className="text-[#133C2A]">{sourceLabel(selectedClient.child)}</p></div>
-                        <div><p className="text-xs text-[#133C2A]/60">Поступила</p><p className="text-[#133C2A]">{formatRuDateTime(selectedClient.child.landingLead?.createdAt || selectedClient.child.createdAt)}</p></div>
-                        <div><p className="text-xs text-[#133C2A]/60">Предпочтительный график</p><p className="text-[#133C2A]">{selectedClient.child.landingLead?.preferredSchedule || '—'}</p></div>
-                        <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Комментарий из заявки</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedClient.child.landingLead?.comment || '—'}</p></div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <TabsContent value="path" className="space-y-5">
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Воронка</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="space-y-3 p-6">
+                        {buildFunnelSteps(selectedClient.stage, selectedClient.child).map((step) => (
+                          <div key={step.id} className="flex items-center gap-3 rounded-2xl border border-[#133C2A]/10 bg-white px-4 py-3">
+                            <span className={`h-3 w-3 rounded-full ${step.state === 'done' ? 'bg-green-500' : step.state === 'current' ? 'bg-[#D4AF37]' : 'bg-[#133C2A]/15'}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[#133C2A]">{step.label}</p>
+                              <p className="text-xs text-[#133C2A]/55">{step.date ? formatRuDateTime(step.date) : 'Дата пока не хранится отдельно'}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Пробное занятие</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="p-6">
+                        <p className="text-[#133C2A]">{selectedClient.trialFacts.title}</p>
+                        <p className="mt-2 text-sm text-[#133C2A]/62">{selectedClient.trialFacts.note}</p>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <div><p className="text-xs text-[#133C2A]/60">Источник</p><p className="text-[#133C2A]">{sourceLabel(selectedClient.child)}</p></div>
+                          <div><p className="text-xs text-[#133C2A]/60">Поступила</p><p className="text-[#133C2A]">{formatRuDateTime(selectedClient.child.landingLead?.createdAt || selectedClient.child.createdAt)}</p></div>
+                          <div><p className="text-xs text-[#133C2A]/60">Предпочтительный график</p><p className="text-[#133C2A]">{selectedClient.child.landingLead?.preferredSchedule || '—'}</p></div>
+                          <div className="md:col-span-2"><p className="text-xs text-[#133C2A]/60">Комментарий из заявки</p><p className="whitespace-pre-wrap text-[#133C2A]">{selectedClient.child.landingLead?.comment || '—'}</p></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
 
-                <TabsContent value="payments" className="space-y-4">
+                <TabsContent value="classes" className="space-y-5">
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Группа</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="space-y-4 p-6">
+                        <div>
+                          <p className="text-xs text-[#133C2A]/60">Текущая группа</p>
+                          <p className="text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Изменить группу</Label>
+                          <Select value={selectedClient.child.groupId || 'none'} onValueChange={(value) => void assignGroup(selectedClient.child.id, value === 'none' ? null : value)} disabled={isAssigningChildId === selectedClient.child.id || selectedClientIsLeadOnly}>
+                            <SelectTrigger className="rounded-xl">
+                              <SelectValue placeholder="Без группы" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Без группы</SelectItem>
+                              {groups.map((group) => (
+                                <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Посещаемость</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="grid gap-4 p-6 md:grid-cols-3">
+                        <div><p className="text-xs text-[#133C2A]/60">Всего занятий</p><p className="text-[#133C2A]">{selectedClient.child.totalClasses ?? '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Посещено</p><p className="text-[#133C2A]">{selectedClient.child.attendedClasses ?? '—'}</p></div>
+                        <div><p className="text-xs text-[#133C2A]/60">Осталось</p><p className="text-[#133C2A]">{selectedClient.child.remainingClasses ?? '—'}</p></div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="finance" className="space-y-4">
                   {selectedClient.payments.length === 0 ? (
                     <EmptyState
                       icon={CreditCard}
@@ -2119,139 +2162,11 @@ export function ClientsManagement({
                   )}
                 </TabsContent>
 
-                <TabsContent value="group" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="space-y-4 p-6">
-                      <div>
-                        <p className="text-xs text-[#133C2A]/60">Текущая группа</p>
-                        <p className="text-[#133C2A]">{selectedClient.child.groupName || 'Не назначена'}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Изменить группу</Label>
-                        <Select value={selectedClient.child.groupId || 'none'} onValueChange={(value) => void assignGroup(selectedClient.child.id, value === 'none' ? null : value)} disabled={isAssigningChildId === selectedClient.child.id || selectedClientIsLeadOnly}>
-                          <SelectTrigger className="rounded-xl">
-                            <SelectValue placeholder="Без группы" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Без группы</SelectItem>
-                            {groups.map((group) => (
-                              <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="attendance" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardContent className="grid gap-4 p-6 md:grid-cols-3">
-                      <div><p className="text-xs text-[#133C2A]/60">Всего занятий</p><p className="text-[#133C2A]">{selectedClient.child.totalClasses ?? '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Посещено</p><p className="text-[#133C2A]">{selectedClient.child.attendedClasses ?? '—'}</p></div>
-                      <div><p className="text-xs text-[#133C2A]/60">Осталось</p><p className="text-[#133C2A]">{selectedClient.child.remainingClasses ?? '—'}</p></div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="tasks" className="space-y-4">
-                  {selectedClient.relatedTasks.length === 0 ? (
-                    <EmptyState
-                      icon={ClipboardList}
-                      title="Связанных задач пока нет"
-                      description="Backend уже хранит `relatedUserId` и `relatedChildId`, но создание задачи из карточки клиента еще не подключено в этом разделе."
-                      actionLabel="Открыть задачи"
-                      onAction={() => onNavigateSection?.('tasks-management')}
-                    />
-                  ) : (
-                    selectedClient.relatedTasks.map((task) => (
-                      <Card key={task.id} className="border-[#133C2A]/10">
-                        <CardContent className="p-4">
-                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                            <div>
-                              <p className="text-[#133C2A]">{task.title}</p>
-                              <p className="mt-1 text-sm text-[#133C2A]/60">{task.description}</p>
-                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#133C2A]/55">
-                                <span>Срок: {task.dueLabel}</span>
-                                <span>Приоритет: {task.priority}</span>
-                                <span>Ответственный: {task.assigneeName}</span>
-                              </div>
-                            </div>
-                            <Badge variant="outline" className="rounded-full">{task.status}</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </TabsContent>
-
-                <TabsContent value="comments" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-sm text-[#133C2A]/60">
-                        <ShieldCheck className="h-4 w-4 text-[#D4AF37]" />
-                        Внутренние комментарии и заметки
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="space-y-1">
-                          <Label>Важное</Label>
-                          <Textarea value={profileDraft.internalComment} onChange={(event) => setProfileDraft((prev) => ({ ...prev, internalComment: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Здоровье</Label>
-                          <Textarea value={profileDraft.healthNotes} onChange={(event) => setProfileDraft((prev) => ({ ...prev, healthNotes: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Поведение</Label>
-                          <Textarea value={profileDraft.behavioralNotes} onChange={(event) => setProfileDraft((prev) => ({ ...prev, behavioralNotes: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Цели</Label>
-                          <Textarea value={profileDraft.goals} onChange={(event) => setProfileDraft((prev) => ({ ...prev, goals: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Сильные стороны</Label>
-                          <Textarea value={profileDraft.strengths} onChange={(event) => setProfileDraft((prev) => ({ ...prev, strengths: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Ожидания родителя</Label>
-                          <Textarea value={profileDraft.parentExpectations} onChange={(event) => setProfileDraft((prev) => ({ ...prev, parentExpectations: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Коммуникация</Label>
-                          <Input value={profileDraft.communicationPreferences} onChange={(event) => setProfileDraft((prev) => ({ ...prev, communicationPreferences: event.target.value }))} className="rounded-xl" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Источник</Label>
-                          <Input value={profileDraft.sourceChannel} onChange={(event) => setProfileDraft((prev) => ({ ...prev, sourceChannel: event.target.value }))} className="rounded-xl" />
-                        </div>
-                        <div className="space-y-1 md:col-span-2">
-                          <Label>Опыт до студии</Label>
-                          <Textarea value={profileDraft.priorExperience} onChange={(event) => setProfileDraft((prev) => ({ ...prev, priorExperience: event.target.value }))} className="min-h-[90px] rounded-xl" />
-                        </div>
-                        <div className="space-y-1 md:col-span-2">
-                          <Label>Теги</Label>
-                          <Input value={profileDraft.tagsInput} onChange={(event) => setProfileDraft((prev) => ({ ...prev, tagsInput: event.target.value }))} className="rounded-xl" placeholder="например: не звонить поздно, сильная техника, конкурс" />
-                        </div>
-                      </div>
-                      <div className="flex justify-end">
-                        <Button onClick={() => void saveProfile()} disabled={isProfileSaving || selectedClientIsLeadOnly} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
-                          {isProfileSaving ? 'Сохраняем...' : 'Сохранить комментарии'}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="history" className="space-y-4">
-                  <Card className="border-[#133C2A]/10">
-                    <CardHeader>
-                      <CardTitle className="text-[#133C2A]">История карточки</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
+                <TabsContent value="feed" className="space-y-5">
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">История</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardContent className="space-y-3 p-6">
                         {selectedClient.timeline.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-[#133C2A]/12 px-4 py-5 text-sm text-[#133C2A]/55">
                             История собирается из заявки, платежей и изменений профиля.
@@ -2269,9 +2184,104 @@ export function ClientsManagement({
                             </div>
                           ))
                         )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Задачи</p>
+                    {selectedClient.relatedTasks.length === 0 ? (
+                      <EmptyState
+                        icon={ClipboardList}
+                        title="Связанных задач пока нет"
+                        description="Backend уже хранит `relatedUserId` и `relatedChildId`, но создание задачи из карточки клиента еще не подключено в этом разделе."
+                        actionLabel="Открыть задачи"
+                        onAction={() => onNavigateSection?.('tasks-management')}
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedClient.relatedTasks.map((task) => (
+                          <Card key={task.id} className="border-[#133C2A]/10">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                <div>
+                                  <p className="text-[#133C2A]">{task.title}</p>
+                                  <p className="mt-1 text-sm text-[#133C2A]/60">{task.description}</p>
+                                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#133C2A]/55">
+                                    <span>Срок: {task.dueLabel}</span>
+                                    <span>Приоритет: {task.priority}</span>
+                                    <span>Ответственный: {task.assigneeName}</span>
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="rounded-full">{task.status}</Badge>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[#133C2A]/38">Заметки</p>
+                    <Card className="border-[#133C2A]/10">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-sm text-[#133C2A]/60">
+                          <ShieldCheck className="h-4 w-4 text-[#D4AF37]" />
+                          Внутренние комментарии и заметки
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label>Важное</Label>
+                            <Textarea value={profileDraft.internalComment} onChange={(event) => setProfileDraft((prev) => ({ ...prev, internalComment: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Здоровье</Label>
+                            <Textarea value={profileDraft.healthNotes} onChange={(event) => setProfileDraft((prev) => ({ ...prev, healthNotes: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Поведение</Label>
+                            <Textarea value={profileDraft.behavioralNotes} onChange={(event) => setProfileDraft((prev) => ({ ...prev, behavioralNotes: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Цели</Label>
+                            <Textarea value={profileDraft.goals} onChange={(event) => setProfileDraft((prev) => ({ ...prev, goals: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Сильные стороны</Label>
+                            <Textarea value={profileDraft.strengths} onChange={(event) => setProfileDraft((prev) => ({ ...prev, strengths: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Ожидания родителя</Label>
+                            <Textarea value={profileDraft.parentExpectations} onChange={(event) => setProfileDraft((prev) => ({ ...prev, parentExpectations: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Коммуникация</Label>
+                            <Input value={profileDraft.communicationPreferences} onChange={(event) => setProfileDraft((prev) => ({ ...prev, communicationPreferences: event.target.value }))} className="rounded-xl" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Источник</Label>
+                            <Input value={profileDraft.sourceChannel} onChange={(event) => setProfileDraft((prev) => ({ ...prev, sourceChannel: event.target.value }))} className="rounded-xl" />
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <Label>Опыт до студии</Label>
+                            <Textarea value={profileDraft.priorExperience} onChange={(event) => setProfileDraft((prev) => ({ ...prev, priorExperience: event.target.value }))} className="min-h-[90px] rounded-xl" />
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <Label>Теги</Label>
+                            <Input value={profileDraft.tagsInput} onChange={(event) => setProfileDraft((prev) => ({ ...prev, tagsInput: event.target.value }))} className="rounded-xl" placeholder="например: не звонить поздно, сильная техника, конкурс" />
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button onClick={() => void saveProfile()} disabled={isProfileSaving || selectedClientIsLeadOnly} className="rounded-2xl bg-gradient-to-r from-[#133C2A] to-[#D4AF37]">
+                            {isProfileSaving ? 'Сохраняем...' : 'Сохранить комментарии'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
               </Tabs>
             </>
