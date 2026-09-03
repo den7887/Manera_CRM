@@ -87,6 +87,83 @@ interface CompletionState {
   expiresAt?: string | null;
 }
 
+// Автоформатирование ввода в маску ДД.ММ.ГГГГ по мере набора цифр
+function formatDateInputValue(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+  let result = day;
+  if (month) result += `.${month}`;
+  if (year) result += `.${year}`;
+  return result;
+}
+
+function parseRuDateInput(value: string): Date | undefined {
+  const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return undefined;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (year < 1900 || year > new Date().getFullYear()) return undefined;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return undefined;
+  }
+  return date;
+}
+
+function toRuDateInputValue(date: Date | undefined): string {
+  if (!date) return '';
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}.${m}.${y}`;
+}
+
+function DateTextInput({
+  value,
+  onTextChange,
+  selected,
+  onSelectDate,
+  defaultMonth,
+  placeholder = 'ДД.ММ.ГГГГ',
+}: {
+  value: string;
+  onTextChange: (raw: string) => void;
+  selected: Date | undefined;
+  onSelectDate: (date: Date | undefined) => void;
+  defaultMonth?: Date;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder={placeholder}
+        inputMode="numeric"
+        className="rounded-2xl border-[#133C2A]/20 pr-11 focus:border-[#D4AF37]"
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-xl text-[#133C2A]/55 hover:bg-[#F8F4E3] hover:text-[#133C2A]"
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <Calendar mode="single" selected={selected} onSelect={onSelectDate} initialFocus defaultMonth={defaultMonth} />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function AddStudentDialog({
   isOpen,
   onClose,
@@ -109,6 +186,8 @@ export function AddStudentDialog({
     serviceStartDate: undefined as Date | undefined,
   });
 
+  const [birthDateText, setBirthDateText] = useState('');
+  const [serviceStartDateText, setServiceStartDateText] = useState('');
   const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
   const [isNewParent, setIsNewParent] = useState(false);
   const [newParentData, setNewParentData] = useState({
@@ -132,9 +211,10 @@ export function AddStudentDialog({
     return age;
   };
 
-  // Обработчик изменения даты рождения
+  // Обработчик изменения даты рождения (выбор в календаре)
   const handleBirthDateChange = (date: Date | undefined) => {
     setFormData({ ...formData, birthDate: date });
+    setBirthDateText(toRuDateInputValue(date));
     if (date) {
       const age = calculateAge(date);
       setCalculatedAge(age);
@@ -143,14 +223,31 @@ export function AddStudentDialog({
     }
   };
 
+  // Обработчик ручного ввода даты рождения с клавиатуры
+  const handleBirthDateTextChange = (raw: string) => {
+    const formatted = formatDateInputValue(raw);
+    setBirthDateText(formatted);
+    const parsed = parseRuDateInput(formatted);
+    setFormData((prev) => ({ ...prev, birthDate: parsed }));
+    setCalculatedAge(parsed ? calculateAge(parsed) : null);
+  };
+
+  // Обработчик изменения даты начала текущего периода (выбор в календаре)
+  const handleServiceStartDateChange = (date: Date | undefined) => {
+    setFormData({ ...formData, serviceStartDate: date });
+    setServiceStartDateText(toRuDateInputValue(date));
+  };
+
+  // Обработчик ручного ввода даты начала текущего периода с клавиатуры
+  const handleServiceStartDateTextChange = (raw: string) => {
+    const formatted = formatDateInputValue(raw);
+    setServiceStartDateText(formatted);
+    const parsed = parseRuDateInput(formatted);
+    setFormData((prev) => ({ ...prev, serviceStartDate: parsed }));
+  };
+
   // Получаем выбранный абонемент
   const selectedSubscription = subscriptions.find(s => s.id === formData.subscriptionId);
-
-  // Форматирование даты
-  const formatDate = (date: Date | undefined): string => {
-    if (!date) return 'Выберите дату';
-    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
-  };
 
   const toIsoDate = (date: Date): string => {
     const y = date.getFullYear();
@@ -195,6 +292,8 @@ export function AddStudentDialog({
       markCurrentPeriodPaid: false,
       serviceStartDate: undefined,
     });
+    setBirthDateText('');
+    setServiceStartDateText('');
     setCalculatedAge(null);
     setIsNewParent(false);
     setNewParentData({
@@ -483,14 +582,16 @@ export function AddStudentDialog({
               <Checkbox
                 id="existing-client"
                 checked={formData.existingClient}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
+                  const nextServiceStartDate = checked === true ? (formData.serviceStartDate ?? new Date()) : undefined;
                   setFormData({
                     ...formData,
                     existingClient: checked === true,
                     markCurrentPeriodPaid: checked === true,
-                    serviceStartDate: checked === true ? (formData.serviceStartDate ?? new Date()) : undefined,
-                  })
-                }
+                    serviceStartDate: nextServiceStartDate,
+                  });
+                  setServiceStartDateText(toRuDateInputValue(nextServiceStartDate));
+                }}
               />
               <div className="space-y-1">
                 <Label htmlFor="existing-client" className="cursor-pointer text-[#133C2A]">
@@ -527,25 +628,13 @@ export function AddStudentDialog({
 
                 <div className="space-y-2">
                   <Label className="text-[#133C2A]">Дата начала текущего периода</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left rounded-2xl border-[#133C2A]/20 hover:border-[#D4AF37]"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formatDate(formData.serviceStartDate)}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.serviceStartDate}
-                        onSelect={(date) => setFormData({ ...formData, serviceStartDate: date })}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DateTextInput
+                    value={serviceStartDateText}
+                    onTextChange={handleServiceStartDateTextChange}
+                    selected={formData.serviceStartDate}
+                    onSelectDate={handleServiceStartDateChange}
+                    defaultMonth={formData.serviceStartDate ?? new Date()}
+                  />
                 </div>
               </div>
             )}
@@ -570,26 +659,13 @@ export function AddStudentDialog({
             <Label className="text-[#133C2A]">
               Дата рождения <span className="text-red-500">*</span>
             </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left rounded-2xl border-[#133C2A]/20 hover:border-[#D4AF37]"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formatDate(formData.birthDate)}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.birthDate}
-                  onSelect={handleBirthDateChange}
-                  initialFocus
-                  defaultMonth={new Date(2015, 0)}
-                />
-              </PopoverContent>
-            </Popover>
+            <DateTextInput
+              value={birthDateText}
+              onTextChange={handleBirthDateTextChange}
+              selected={formData.birthDate}
+              onSelectDate={handleBirthDateChange}
+              defaultMonth={formData.birthDate ?? new Date(2015, 0)}
+            />
             {calculatedAge !== null && (
               <p className="text-sm text-[#133C2A]/60">
                 Возраст: {calculatedAge} {calculatedAge === 1 ? 'год' : calculatedAge < 5 ? 'года' : 'лет'}
