@@ -174,6 +174,7 @@ function formatGroupTiming(group: Group): string {
   const time = String((group as any).time || '').trim();
   if (!time) return schedule;
   if (schedule === 'Расписание не задано') return time;
+  if (schedule.includes(time)) return schedule;
   return `${schedule} • ${time}`;
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { User, LogOut, Mail, Phone, Crown, Building2, TrendingUp, Award } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -6,6 +7,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import { PushNotificationsToggle } from '../PushNotificationsToggle';
+import { loadOwnerEmployees, loadOwnerGroups } from '../../lib/backendApi';
 
 interface OwnerProfileProps {
   user: UserType;
@@ -13,6 +15,27 @@ interface OwnerProfileProps {
 }
 
 export function OwnerProfile({ user, onLogout }: OwnerProfileProps) {
+  const [stats, setStats] = useState({ students: 0, groups: 0, employees: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadOwnerGroups(), loadOwnerEmployees()])
+      .then(([groups, employees]) => {
+        if (cancelled) return;
+        setStats({
+          students: groups.reduce((sum, group) => sum + Number(group.studentCount || 0), 0),
+          groups: groups.length,
+          employees: employees.length,
+        });
+      })
+      .catch(() => {
+        // Показатели не критичны для профиля -- при ошибке просто остаются нулевыми
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleEditProfile = () => {
     toast.info('Редактирование профиля', {
       description: 'Функция находится в разработке',
@@ -159,22 +182,18 @@ export function OwnerProfile({ user, onLogout }: OwnerProfileProps) {
           <CardTitle className="text-[#133C2A]">Ключевые показатели</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="p-4 rounded-2xl bg-gradient-to-br from-[#133C2A]/5 to-[#D4AF37]/5 text-center">
-              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">24</p>
-              <p className="text-xs text-[#133C2A]/60">Активных учеников</p>
+              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">{stats.students}</p>
+              <p className="text-xs text-[#133C2A]/60">Учеников в группах</p>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-[#133C2A]/5 to-[#D4AF37]/5 text-center">
-              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">5</p>
+              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">{stats.groups}</p>
               <p className="text-xs text-[#133C2A]/60">Активных групп</p>
             </div>
             <div className="p-4 rounded-2xl bg-gradient-to-br from-[#133C2A]/5 to-[#D4AF37]/5 text-center">
-              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">6</p>
+              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">{stats.employees}</p>
               <p className="text-xs text-[#133C2A]/60">Сотрудников</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#133C2A]/5 to-[#D4AF37]/5 text-center">
-              <p className="text-3xl mb-1 bg-gradient-to-r from-[#133C2A] to-[#D4AF37] bg-clip-text text-transparent">95%</p>
-              <p className="text-xs text-[#133C2A]/60">Удовлетворенность</p>
             </div>
           </div>
         </CardContent>
