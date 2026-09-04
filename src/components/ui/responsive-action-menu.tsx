@@ -1,4 +1,4 @@
-import { MouseEvent, ReactElement, cloneElement, useState } from 'react';
+import { MouseEvent, ReactElement, cloneElement, useRef, useState } from 'react';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { Button } from './button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
@@ -38,6 +38,31 @@ export function ResponsiveActionMenu({
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
+  // Closing the sheet (backdrop tap or swipe-down, sometimes even the
+  // Закрыть button on touch devices) can let the same touch synthesize a
+  // click that lands on whatever card sits underneath once the sheet's
+  // portal content is gone, opening it unintentionally. Swallow exactly
+  // one click right after any close, regardless of how it closed.
+  const suppressNextClickRef = useRef(false);
+
+  const closeDrawer = () => {
+    setOpen(false);
+    suppressNextClickRef.current = true;
+    const swallow = (event: globalThis.MouseEvent) => {
+      document.removeEventListener('click', swallow, true);
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false;
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+    document.addEventListener('click', swallow, true);
+    window.setTimeout(() => {
+      suppressNextClickRef.current = false;
+      document.removeEventListener('click', swallow, true);
+    }, 400);
+  };
+
   if (isMobile) {
     const mobileTrigger = cloneElement(trigger, {
       onClick: (event: MouseEvent) => {
@@ -50,7 +75,7 @@ export function ResponsiveActionMenu({
     return (
       <>
         {mobileTrigger}
-        <Drawer open={open} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={(next) => (next ? setOpen(true) : closeDrawer())}>
           <DrawerContent className="rounded-t-[28px] border-[#133C2A]/10 bg-[#FCFAF0]">
             <DrawerHeader className="text-left">
               <DrawerTitle className="text-[#133C2A]">{title}</DrawerTitle>
@@ -67,7 +92,7 @@ export function ResponsiveActionMenu({
                   }`}
                   disabled={item.disabled}
                   onClick={() => {
-                    setOpen(false);
+                    closeDrawer();
                     item.onClick();
                   }}
                 >
@@ -76,7 +101,7 @@ export function ResponsiveActionMenu({
               ))}
             </div>
             <DrawerFooter>
-              <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={() => setOpen(false)}>
+              <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={closeDrawer}>
                 Закрыть
               </Button>
             </DrawerFooter>
