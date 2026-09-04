@@ -76,7 +76,15 @@ export function ResponsiveActionMenu({
       <>
         {mobileTrigger}
         <Drawer open={open} onOpenChange={(next) => (next ? setOpen(true) : closeDrawer())}>
-          <DrawerContent className="rounded-t-[28px] border-[#133C2A]/10 bg-[#FCFAF0]">
+          {/* Vaul portals this content to document.body, but React still bubbles
+              its synthetic events up through the *component* tree (this Drawer
+              is a JSX child of whatever Card rendered the "..." trigger) -- so
+              without stopping propagation here, tapping Закрыть or any item
+              also fires the Card's own onClick underneath. */}
+          <DrawerContent
+            className="rounded-t-[28px] border-[#133C2A]/10 bg-[#FCFAF0]"
+            onClick={(event) => event.stopPropagation()}
+          >
             <DrawerHeader className="text-left">
               <DrawerTitle className="text-[#133C2A]">{title}</DrawerTitle>
             </DrawerHeader>
@@ -91,7 +99,8 @@ export function ResponsiveActionMenu({
                       : 'border-[#133C2A]/12'
                   }`}
                   disabled={item.disabled}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     closeDrawer();
                     item.onClick();
                   }}
@@ -101,7 +110,14 @@ export function ResponsiveActionMenu({
               ))}
             </div>
             <DrawerFooter>
-              <Button variant="outline" className="rounded-2xl border-[#133C2A]/12" onClick={closeDrawer}>
+              <Button
+                variant="outline"
+                className="rounded-2xl border-[#133C2A]/12"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  closeDrawer();
+                }}
+              >
                 Закрыть
               </Button>
             </DrawerFooter>
