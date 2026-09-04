@@ -146,7 +146,7 @@ export function MobileNav({ currentPage, onNavigate, role, badges, permissions }
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-        <div className="bg-[#fbf7e8]/95 backdrop-blur-xl border-t border-[#133C2A]/10 shadow-[0_-8px_24px_rgba(19,60,42,0.08)]">
+        <div className="bg-[#fbf7e8] border-t border-[#133C2A]/10 shadow-[0_-8px_24px_rgba(19,60,42,0.08)]">
           <div
             className="grid gap-1 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
             style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
