@@ -37,7 +37,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -1434,27 +1434,19 @@ export function OwnerAutomationsPanel() {
                                 </button>
                                 <div className="flex shrink-0 items-center gap-2">
                                   <Switch checked={rule.isActive} onCheckedChange={() => void toggleRule(rule)} />
-                                  <DropdownMenu modal={false}>
-                                    <DropdownMenuTrigger asChild>
+                                  <ResponsiveActionMenu
+                                    title={rule.name}
+                                    trigger={
                                       <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                         <MoreHorizontal className="h-4 w-4" />
                                       </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="rounded-xl">
-                                      <DropdownMenuItem onSelect={() => openEdit(rule)}>
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        Редактировать
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onSelect={() => void duplicateRule(rule)}>
-                                        <Copy className="mr-2 h-4 w-4" />
-                                        Дублировать
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onSelect={() => void remove(rule.id)}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Удалить
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                    }
+                                    items={[
+                                      { key: 'edit', label: 'Редактировать', onClick: () => openEdit(rule) },
+                                      { key: 'duplicate', label: 'Дублировать', onClick: () => void duplicateRule(rule) },
+                                      { key: 'delete', label: 'Удалить', onClick: () => void remove(rule.id), destructive: true },
+                                    ]}
+                                  />
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 flex-wrap">

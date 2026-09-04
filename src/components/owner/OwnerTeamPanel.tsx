@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Edit,
-  Link2,
   Mail,
   MoreHorizontal,
   Phone,
@@ -9,7 +7,6 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
-  Trash2,
   Unlink2,
   UserCheck,
 } from 'lucide-react';
@@ -30,7 +27,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -782,29 +779,21 @@ export function OwnerTeamPanel() {
                               <UserCheck className="w-4 h-4 text-[#133C2A]/70" />
                               <Switch checked={employee.status === 'active'} onCheckedChange={() => void toggleEmployeeStatus(employee)} />
                             </div>
-                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
+                            <ResponsiveActionMenu
+                              title={employee.name}
+                              trigger={
                                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl">
-                                {employee.role === 'teacher' ? (
-                                  <DropdownMenuItem onSelect={() => openAssignDialog(employee)}>
-                                    <Link2 className="mr-2 h-4 w-4" />
-                                    Назначить на группу
-                                  </DropdownMenuItem>
-                                ) : null}
-                                <DropdownMenuItem onSelect={() => openEdit(employee)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Изменить
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => void remove(employee.id)}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Удалить
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              }
+                              items={[
+                                ...(employee.role === 'teacher'
+                                  ? [{ key: 'assign', label: 'Назначить на группу', onClick: () => openAssignDialog(employee) }]
+                                  : []),
+                                { key: 'edit', label: 'Изменить', onClick: () => openEdit(employee) },
+                                { key: 'delete', label: 'Удалить', onClick: () => void remove(employee.id), destructive: true },
+                              ]}
+                            />
                           </div>
                         </div>
 

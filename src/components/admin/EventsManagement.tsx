@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Plus, Search, Calendar, MapPin, Users, Edit2, Trash2, Trophy, Music, GraduationCap, Sparkles, Eye, UserCheck, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, Calendar, MapPin, Users, Trophy, Music, GraduationCap, Sparkles, Eye, UserCheck, MoreHorizontal } from 'lucide-react';
 import { News } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { EventForm } from './EventForm';
 import { EventParticipantsList } from './EventParticipantsList';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -160,23 +160,18 @@ export function EventsManagement({ events, onCreate, onUpdate, onDelete }: Event
               <UserCheck className="w-3.5 h-3.5 mr-1.5" />
               Участники ({event.eventParticipants?.length || 0})
             </Button>
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
+            <ResponsiveActionMenu
+              title={event.title}
+              trigger={
                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-xl">
-                <DropdownMenuItem onSelect={() => handleEdit(event)}>
-                  <Edit2 className="mr-2 h-4 w-4" />
-                  Изменить
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onDelete?.(event.id)}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Удалить
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              }
+              items={[
+                { key: 'edit', label: 'Изменить', onClick: () => handleEdit(event) },
+                { key: 'delete', label: 'Удалить', onClick: () => onDelete?.(event.id), destructive: true },
+              ]}
+            />
           </div>
         </CardContent>
       </Card>

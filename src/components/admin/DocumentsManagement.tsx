@@ -5,15 +5,12 @@ import {
   Search,
   Filter,
   Download,
-  Trash2,
-  Eye,
   Plus,
   FileType,
   Calendar,
   User,
   Tag,
   X,
-  Edit,
   ClipboardCheck,
   MoreHorizontal
 } from 'lucide-react';
@@ -21,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { Document, DocumentCategory, User as UserType } from '../../types';
 import { AddDocumentDialog } from './AddDocumentDialog';
 import { ViewDocumentDialog } from './ViewDocumentDialog';
@@ -350,27 +347,19 @@ export function DocumentsManagement({
                             <Button variant="outline" size="sm" onClick={() => handleDownload(doc)} className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                               <Download className="w-4 h-4" />
                             </Button>
-                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
+                            <ResponsiveActionMenu
+                              title={doc.name ?? 'Документ'}
+                              trigger={
                                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl">
-                                <DropdownMenuItem onSelect={() => setViewDocument(doc)}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Открыть
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setEditDocument(doc)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Изменить
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => onDeleteDocument(doc.id)}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Удалить
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              }
+                              items={[
+                                { key: 'open', label: 'Открыть', onClick: () => setViewDocument(doc) },
+                                { key: 'edit', label: 'Изменить', onClick: () => setEditDocument(doc) },
+                                { key: 'delete', label: 'Удалить', onClick: () => onDeleteDocument(doc.id), destructive: true },
+                              ]}
+                            />
                           </div>
                         </div>
 

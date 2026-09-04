@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { FinanceStats, MonthlyData, Employee, Group, RetentionData, ChurnAnalysis, ChurnReason, LTVData, CustomerSegmentValue, GroupCapacityData, CapacityTrend, TimeSlotOccupancy, RevenueForecast, RevenueSource, SubscriptionForecast, LeadSource, MarketingROI, ConversionFunnel, LeadSourceTrend } from '../../types';
 import { LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Funnel, FunnelChart } from 'recharts';
 import { toast } from 'sonner@2.0.3';
@@ -511,27 +511,22 @@ export function OwnerAnalytics({ stats, monthlyData, employees, groups }: OwnerA
           </div>
 
           {/* Кнопка экспорта */}
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
+          <ResponsiveActionMenu
+            title="Экспорт отчёта"
+            trigger={
+              <Button
+                variant="outline"
                 className="border-[#133C2A]/20 text-[#133C2A] hover:bg-[#133C2A]/5"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Экспорт
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
-                <FileText className="w-4 h-4 mr-2 text-red-600" />
-                <span>Экспорт в PDF</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer">
-                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
-                <span>Экспорт в Excel</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+            items={[
+              { key: 'pdf', label: 'Экспорт в PDF', onClick: handleExportPDF },
+              { key: 'excel', label: 'Экспорт в Excel', onClick: handleExportExcel },
+            ]}
+          />
         </div>
       </div>
 

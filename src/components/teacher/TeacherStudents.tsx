@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { Textarea } from '../ui/textarea';
 
 interface TeacherStudentsProps {
@@ -125,31 +125,20 @@ function StudentActionsMenu({
   onViewHistory: (student: Student) => void;
 }) {
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
+    <ResponsiveActionMenu
+      title={student.name}
+      trigger={
         <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-[#133C2A]/20 hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]">
           <MoreHorizontal className="w-5 h-5 text-[#133C2A]" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="rounded-xl">
-        <DropdownMenuItem onSelect={() => onContactParent(student)}>
-          <Phone className="mr-2 h-4 w-4" />
-          Связаться с родителем
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSendMessage(student)}>
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Отправить сообщение
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenNote(student)}>
-          <FileText className="mr-2 h-4 w-4" />
-          {student.notes ? 'Редактировать примечание' : 'Добавить примечание'}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onViewHistory(student)}>
-          <History className="mr-2 h-4 w-4" />
-          История посещений
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+      items={[
+        { key: 'contact', label: 'Связаться с родителем', onClick: () => onContactParent(student) },
+        { key: 'message', label: 'Отправить сообщение', onClick: () => onSendMessage(student) },
+        { key: 'note', label: student.notes ? 'Редактировать примечание' : 'Добавить примечание', onClick: () => onOpenNote(student) },
+        { key: 'history', label: 'История посещений', onClick: () => onViewHistory(student) },
+      ]}
+    />
   );
 }
 

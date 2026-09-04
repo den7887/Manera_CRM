@@ -11,7 +11,7 @@ import {
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 
 function todayIso(): string {
   const now = new Date();
@@ -244,38 +244,36 @@ export function AttendanceWorkspace({ onOpenClient }: AttendanceWorkspaceProps) 
                     >
                       <X className="h-4 w-4" />
                     </Button>
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
+                    <ResponsiveActionMenu
+                      title={student.fullName}
+                      trigger={
                         <Button type="button" size="icon" variant="ghost" className="h-9 w-9 rounded-xl shrink-0">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          disabled={!student.clientId || !onOpenClient}
-                          onClick={() =>
+                      }
+                      items={[
+                        {
+                          key: 'open',
+                          label: 'Открыть карточку',
+                          disabled: !student.clientId || !onOpenClient,
+                          onClick: () =>
                             student.clientId &&
                             onOpenClient?.({
                               clientId: student.clientId,
                               fullName: student.fullName,
                               parentPhone: student.parentPhone,
-                            })
-                          }
-                        >
-                          <Users className="mr-2 h-4 w-4" />
-                          Открыть карточку
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={!student.parentPhone}
-                          onClick={() => {
+                            }),
+                        },
+                        {
+                          key: 'call',
+                          label: 'Позвонить родителю',
+                          disabled: !student.parentPhone,
+                          onClick: () => {
                             if (student.parentPhone) window.location.href = `tel:${student.parentPhone}`;
-                          }}
-                        >
-                          <Phone className="mr-2 h-4 w-4" />
-                          Позвонить родителю
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          },
+                        },
+                      ]}
+                    />
                   </div>
                 );
               })

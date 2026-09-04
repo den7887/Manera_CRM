@@ -1,9 +1,9 @@
-import { MoreHorizontal, Send, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Send } from 'lucide-react';
 import { AdminPaymentRecord } from '../../lib/backendApi';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu, ResponsiveActionMenuItem } from '../ui/responsive-action-menu';
 import { PaymentTypeBadge } from './PaymentTypeBadge';
 import { MoneyPaymentType, derivePaymentType, formatMoney, formatShortDate, getDisplayPaymentStatus, getPaymentMethodLabel, getPaymentStatusLabel } from './moneyTypes';
 
@@ -80,6 +80,29 @@ export function PaymentCard({
   const paymentType = derivePaymentType(payment);
   const mainAction = primaryActionLabel(payment, paymentType);
 
+  const menuActions: ResponsiveActionMenuItem[] = [
+    { key: 'open', label: 'Открыть', onClick: () => onOpen(payment) },
+    ...(onOpenClient ? [{ key: 'open-client', label: 'Открыть клиента', onClick: () => onOpenClient(payment) }] : []),
+    ...(onCopyLink ? [{ key: 'copy-link', label: 'Скопировать ссылку', onClick: () => onCopyLink(payment) }] : []),
+    ...(onChangeDueDate ? [{ key: 'change-due', label: 'Изменить срок', onClick: () => onChangeDueDate(payment) }] : []),
+    ...(onChangeMethod && canChangeMethod(payment)
+      ? [{ key: 'change-method', label: 'Способ оплаты', onClick: () => onChangeMethod(payment) }]
+      : []),
+    ...(onMarkCash && payment.paymentMethod === 'cash' && !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status)
+      ? [{ key: 'mark-cash', label: 'Подтвердить наличные', onClick: () => onMarkCash(payment) }]
+      : []),
+    ...(onConfirm && payment.status === 'pending' && payment.paymentMethod !== 'cash'
+      ? [{ key: 'confirm', label: 'Подтвердить', onClick: () => onConfirm(payment) }]
+      : []),
+    ...(onCancel && !['paid', 'cancelled', 'refunded'].includes(payment.status)
+      ? [{ key: 'cancel', label: 'Отменить счет', onClick: () => onCancel(payment) }]
+      : []),
+    ...(onCallParent && payment.parentPhone ? [{ key: 'call', label: 'Позвонить', onClick: () => onCallParent(payment) }] : []),
+    ...(onDelete && canDelete(payment)
+      ? [{ key: 'delete', label: isDeleting ? 'Удаляем...' : 'Удалить', onClick: () => onDelete(payment), disabled: isDeleting, destructive: true }]
+      : []),
+  ];
+
   return (
     <Card
       onClick={() => onOpen(payment)}
@@ -99,8 +122,10 @@ export function PaymentCard({
               Мама: {payment.parentName || payment.parentPhone || '—'}
             </p>
           </div>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
+          <ResponsiveActionMenu
+            title="Что сделать со счетом"
+            items={menuActions}
+            trigger={
               <Button
                 size="icon"
                 variant="outline"
@@ -109,32 +134,8 @@ export function PaymentCard({
               >
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl" onClick={(event) => event.stopPropagation()}>
-              <DropdownMenuItem onClick={() => onOpen(payment)}>Открыть</DropdownMenuItem>
-              {onOpenClient ? <DropdownMenuItem onClick={() => onOpenClient(payment)}>Открыть клиента</DropdownMenuItem> : null}
-              {onCopyLink ? <DropdownMenuItem onClick={() => onCopyLink(payment)}>Скопировать ссылку</DropdownMenuItem> : null}
-              {onChangeDueDate ? <DropdownMenuItem onClick={() => onChangeDueDate(payment)}>Изменить срок</DropdownMenuItem> : null}
-              {onChangeMethod && canChangeMethod(payment) ? (
-                <DropdownMenuItem onClick={() => onChangeMethod(payment)}>Способ оплаты</DropdownMenuItem>
-              ) : null}
-              {onMarkCash && payment.paymentMethod === 'cash' && !['paid', 'cancelled', 'refunded', 'expired'].includes(payment.status) ? (
-                <DropdownMenuItem onClick={() => onMarkCash(payment)}>Подтвердить наличные</DropdownMenuItem>
-              ) : null}
-              {onConfirm && payment.status === 'pending' && payment.paymentMethod !== 'cash' ? (
-                <DropdownMenuItem onClick={() => onConfirm(payment)}>Подтвердить</DropdownMenuItem>
-              ) : null}
-              {onCancel && !['paid', 'cancelled', 'refunded'].includes(payment.status) ? (
-                <DropdownMenuItem onClick={() => onCancel(payment)}>Отменить счет</DropdownMenuItem>
-              ) : null}
-              {onCallParent && payment.parentPhone ? <DropdownMenuItem onClick={() => onCallParent(payment)}>Позвонить</DropdownMenuItem> : null}
-              {onDelete && canDelete(payment) ? (
-                <DropdownMenuItem variant="destructive" disabled={isDeleting} onClick={() => onDelete(payment)}>
-                  {isDeleting ? 'Удаляем...' : 'Удалить'}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+          />
         </div>
 
         <div className="flex items-end justify-between gap-3">

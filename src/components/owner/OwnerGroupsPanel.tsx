@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Copy, Edit, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { Calendar, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Users } from 'lucide-react';
 import { Group } from '../../types';
 import {
   AdminChildRecord,
@@ -16,7 +16,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { ResponsiveActionMenu } from '../ui/responsive-action-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -546,27 +546,19 @@ export function OwnerGroupsPanel() {
                             <Badge variant="outline" className="rounded-full whitespace-nowrap">
                               {group.studentCount} учеников
                             </Badge>
-                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
+                            <ResponsiveActionMenu
+                              title={group.name}
+                              trigger={
                                 <Button variant="outline" size="sm" className="h-9 rounded-xl border-[#133C2A]/15 px-3">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl">
-                                <DropdownMenuItem onSelect={() => openEdit(group)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Редактировать
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => void duplicateGroup(group)} disabled={duplicatingId === group.id}>
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Дублировать
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => void remove(group.id)} disabled={deletingId === group.id}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Удалить
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              }
+                              items={[
+                                { key: 'edit', label: 'Редактировать', onClick: () => openEdit(group) },
+                                { key: 'duplicate', label: 'Дублировать', onClick: () => void duplicateGroup(group), disabled: duplicatingId === group.id },
+                                { key: 'delete', label: 'Удалить', onClick: () => void remove(group.id), disabled: deletingId === group.id, destructive: true },
+                              ]}
+                            />
                           </div>
                         </div>
 
