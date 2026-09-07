@@ -763,10 +763,14 @@ export default function App() {
 
   const appOrigin = typeof window === 'undefined' ? publicSiteConfig.siteUrl : window.location.origin;
   const activationTargetUrl = typeof window === 'undefined' ? publicSiteConfig.siteUrl : window.location.href;
+  // 'login' is shared by every role -- the phone+PIN screen doesn't know yet
+  // whether the person signing in is a parent or staff, so it can't be
+  // gated to mobile without also locking staff out of the desktop app.
+  // Only the parent-specific flows (activation links, the parent dashboard
+  // itself) are actually mobile-only.
   const parentCabinetDesktopBlocked =
     isDesktopWide &&
     (
-      appState === 'login' ||
       appState === 'activation' ||
       (appState === 'dashboard' && currentUserRole === 'parent')
     );
@@ -784,20 +788,11 @@ export default function App() {
         />
       );
     }
-    if (appState === 'dashboard' && currentUserRole === 'parent') {
-      return (
-        <MobileOnlyGate
-          targetUrl={`${appOrigin}/login`}
-          title="Личный кабинет доступен только в мобильной версии"
-          description="Откройте страницу входа на телефоне и войдите по номеру телефона и PIN-коду."
-        />
-      );
-    }
     return (
       <MobileOnlyGate
         targetUrl={`${appOrigin}/login`}
-        title="Вход в личный кабинет доступен только с телефона"
-        description="Откройте страницу входа на мобильном устройстве и авторизуйтесь там."
+        title="Личный кабинет доступен только в мобильной версии"
+        description="Откройте страницу входа на телефоне и войдите по номеру телефона и PIN-коду."
       />
     );
   })();
